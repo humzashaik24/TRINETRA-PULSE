@@ -1,0 +1,119 @@
+# ============================================================================
+# Trinetra Pulse — Render Blueprint (Phase 14.3)
+# ----------------------------------------------------------------------------
+# Production target: Render native runtimes. NO Docker is required.
+#
+#   Frontend -> Next.js native Node Web Service (apps/web)
+#   Backend  -> FastAPI native Python Web Service  (apps/api)
+#   Database -> Render Managed PostgreSQL
+#
+# Render runs the build/start commands below. Secrets are injected at sync
+# time or from the managed database; never commit real credentials.
+# See docs/RENDER_DEPLOYMENT.md for the full setup + first-deploy steps.
+# ============================================================================
+
+# Resource names (keep wiring references below in sync):
+#   db      : trinetra-pulse-db
+#   api     : trinetra-pulse-api
+#   web     : trinetra-pulse-web
+
+services:
+  # --------------------------------------------------------------------------
+  # Backend — FastAPI (native Python runtime)
+  # --------------------------------------------------------------------------
+  - type: web
+    name: trinetra-pulse-api
+    runtime: python
+    rootDir: apps/api
+    region: oregon
+    plan: free
+    healthCheckPath: /health
+    buildCommand: pip install -r requirements.txt
+    # Apply Alembic migrations against the managed PostgreSQL before the new
+    # service version starts (idempotent: `alembic upgrade head` is a no-op when
+    # already at head). Requires DATABASE_URL to be wired (fromDatabase above).
+    preDeployCommand: python -m alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trinetra-pulse-db
+          property: connectionString
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Production identity gate (Phase 22): only an X-User-Id matching this value
+      # is accepted (else 401). Leave as the documented demo inspector to match the
+      # web client, or pin a real account. Server-side only; never NEXT_PUBLIC_*.
+      - key: AUTH_ACTOR_EMAIL
+        sync: false
+      # The deployed Render frontend origin. Set to the onrender.com (or custom)
+      # URL of the web service after its first deploy.
+      - key: FRONTEND_URL
+        sync: false
+      - key: AI_PROVIDER
+        value: mock
+      # Blockchain evidence integrity (Phase 21 / 22). Default is the clearly
+      # labelled deterministic mock provider. The web3 (real EVM testnet) path
+      # requires the server-only secrets below, set at sync time; they are never
+      # exposed as NEXT_PUBLIC_* and never shipped to the browser.
+      - key: BLOCKCHAIN_PROVIDER
+        value: mock
+      - key: BLOCKCHAIN_NETWORK
+        value: trinetra-mock-chain
+      - key: BLOCKCHAIN_RPC_URL
+        sync: false
+      - key: BLOCKCHAIN_PRIVATE_KEY
+        sync: false
+      - key: BLOCKCHAIN_CONTRACT_ADDRESS
+        sync: false
+      - key: BLOCKCHAIN_CHAIN_ID
+        sync: false
+    buildFilter:
+      paths:
+        - apps/api/**
+        - packages/**
+        - render.yaml
+
+  # --------------------------------------------------------------------------
+  # Frontend — Next.js (native Node runtime)
+  # --------------------------------------------------------------------------
+  - type: web
+    name: trinetra-pulse-web
+    runtime: node
+    region: oregon
+    plan: free
+    healthCheckPath: /overview
+    # npm workspaces: install + build from the repo root so the shared
+    # packages/* and root package-lock.json are resolved, then run the app's
+    # own `next build` / `next start` scripts with the workspace scoping.
+    buildCommand: npm install && npm run build --workspace=apps/web
+    startCommand: npm run start --workspace=apps/web
+    envVars:
+      # Production must use the relational API, not in-memory mocks.
+      - key: NEXT_PUBLIC_USE_MOCK_API
+        value: "false"
+      # Absolute URL of the deployed API (browser must reach it, so set the
+      # public onrender.com URL of trinetra-pulse-api here at sync time).
+      - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false
+    buildFilter:
+      paths:
+        - apps/web/**
+        - packages/types/**
+        - packages/ui/**
+        - package.json
+        - package-lock.json
+        - tsconfig.base.json
+        - render.yaml
+
+databases:
+  - name: trinetra-pulse-db
+    plan: free
+    region: oregon
+    databaseName: trinetra

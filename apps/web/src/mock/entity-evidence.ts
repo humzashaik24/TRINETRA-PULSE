@@ -1,0 +1,182 @@
+import type { EntityEvidenceItem, ExtractionMethod } from '@trinetra-pulse/types';
+
+// ============================================================
+// MOCK — ENTITY EVIDENCE
+// ============================================================
+
+interface Seed {
+  id: string;
+  entityId: string;
+  title: string;
+  summary: string;
+  datasetId?: string;
+  datasetName?: string;
+  documentId?: string;
+  sourceRecord?: string;
+  sourceName: string;
+  extractionMethod: ExtractionMethod;
+  confidence: number;
+  timestamp: string;
+}
+
+export const mockEntityEvidence: EntityEvidenceItem[] = [
+  {
+    id: 'ev-001',
+    entityId: 'ent-person-001',
+    title: 'FIR record — named accused',
+    summary: 'FIR-2026-001 names Rahul Kumar in connection with the offense.',
+    datasetId: 'ds-001',
+    datasetName: 'FIR Records - Pune District',
+    documentId: 'ent-doc-001',
+    sourceRecord: 'FIR-2026-001 / R2',
+    sourceName: 'FIR Records - Pune District',
+    extractionMethod: 'STRUCTURED_MAPPING',
+    confidence: 0.97,
+    timestamp: '2026-08-18T10:12:00Z',
+  },
+  {
+    id: 'ev-002',
+    entityId: 'ent-person-001',
+    title: 'Primary device owner',
+    summary: 'Phone +91 98765 43210 registered/identified with Rahul Kumar.',
+    datasetId: 'ds-002',
+    datasetName: 'CDR Extract - Operation clean',
+    sourceRecord: 'cdr_extract.csv #2241',
+    sourceName: 'CDR Extract - Operation clean',
+    extractionMethod: 'REGEX',
+    confidence: 0.93,
+    timestamp: '2026-08-22T12:20:00Z',
+  },
+  {
+    id: 'ev-003',
+    entityId: 'ent-person-001',
+    title: 'Banking relationship',
+    summary: 'Account 773100294567 documented as held by Rahul Kumar.',
+    datasetId: 'ds-003',
+    datasetName: 'Bank Transaction Log',
+    sourceRecord: 'transactions_flagged_aug2026.xlsx row 132',
+    sourceName: 'Bank Transaction Log',
+    extractionMethod: 'STRUCTURED_MAPPING',
+    confidence: 0.98,
+    timestamp: '2026-08-20T10:00:00Z',
+  },
+  {
+    id: 'ev-004',
+    entityId: 'ent-phone-001',
+    title: 'CDR subscriber records',
+    summary: 'Subscriber details align with Rahul Kumar across extracts.',
+    datasetId: 'ds-002',
+    datasetName: 'CDR Extract - Operation clean',
+    sourceRecord: 'cdr_extract.csv #2241',
+    sourceName: 'CDR Extract - Operation clean',
+    extractionMethod: 'REGEX',
+    confidence: 0.95,
+    timestamp: '2026-08-22T12:21:00Z',
+  },
+  {
+    id: 'ev-005',
+    entityId: 'ent-vehicle-001',
+    title: 'Registration database entry',
+    summary: 'Vehicle MH 14 BX 2231 registered under Rahul Kumar.',
+    datasetId: 'ds-004',
+    datasetName: 'Vehicle Tracking Data',
+    sourceRecord: 'vehicle_tracking_mh.csv row 1202',
+    sourceName: 'Vehicle Tracking Data',
+    extractionMethod: 'STRUCTURED_MAPPING',
+    confidence: 0.96,
+    timestamp: '2026-08-18T10:25:00Z',
+  },
+  {
+    id: 'ev-006',
+    entityId: 'ent-person-006',
+    title: 'CDR alias reference',
+    summary: 'R. Kumar appears with matching phone on the same extract.',
+    datasetId: 'ds-002',
+    datasetName: 'CDR Extract - Operation clean',
+    sourceRecord: 'cdr_extract.csv #2241',
+    sourceName: 'CDR Extract - Operation clean',
+    extractionMethod: 'REGEX',
+    confidence: 0.81,
+    timestamp: '2026-08-22T12:22:00Z',
+  },
+  {
+    id: 'ev-007',
+    entityId: 'ent-org-001',
+    title: 'GST registration',
+    summary: 'GSTIN 27AAACM1234F1Z5 resolved to Mumbai Trading Corporation Pvt Ltd.',
+    datasetId: 'ds-001',
+    datasetName: 'FIR Records - Pune District',
+    sourceRecord: 'FIR-2026-001 / R9',
+    sourceName: 'FIR Records - Pune District',
+    extractionMethod: 'RULE_BASED',
+    confidence: 0.9,
+    timestamp: '2026-08-20T13:10:00Z',
+  },
+  {
+    id: 'ev-008',
+    entityId: 'ent-event-001',
+    title: 'Tower aggregation',
+    summary: 'Four target devices aggregating at Chennai hub around 2026-02-19.',
+    datasetId: 'ds-006',
+    datasetName: 'Cell Tower Data',
+    sourceRecord: 'celltower_pune_mumbai.json bucket 4',
+    sourceName: 'Cell Tower Data',
+    extractionMethod: 'RULE_BASED',
+    confidence: 0.86,
+    timestamp: '2026-08-21T15:00:00Z',
+  },
+  {
+    id: 'ev-009',
+    entityId: 'ent-txn-001',
+    title: 'Flagged transaction record',
+    summary: 'Transfer of ₹4,80,000 flagged by threshold analytics.',
+    datasetId: 'ds-003',
+    datasetName: 'Bank Transaction Log',
+    sourceRecord: 'transactions_flagged_aug2026.xlsx row 132',
+    sourceName: 'Bank Transaction Log',
+    extractionMethod: 'STRUCTURED_MAPPING',
+    confidence: 0.99,
+    timestamp: '2026-08-20T11:00:00Z',
+  },
+  {
+    id: 'ev-010',
+    entityId: 'ent-person-003',
+    title: 'Communication spike',
+    summary: 'Vikram Patel device shows burst of activity with target numbers.',
+    datasetId: 'ds-002',
+    datasetName: 'CDR Extract - Operation clean',
+    sourceRecord: 'cdr_extract.csv #4470',
+    sourceName: 'CDR Extract - Operation clean',
+    extractionMethod: 'RULE_BASED',
+    confidence: 0.88,
+    timestamp: '2026-08-19T09:30:00Z',
+  },
+  {
+    id: 'ev-011',
+    entityId: 'ent-person-005',
+    title: 'Witness statement 014',
+    summary: 'Witness statement supports timeline for Chennai hub coordination.',
+    datasetId: 'ds-005',
+    datasetName: 'Witness Statements',
+    documentId: 'ent-doc-002',
+    sourceRecord: 'ws_batch3_014.txt',
+    sourceName: 'Witness Statements',
+    extractionMethod: 'NLP',
+    confidence: 0.79,
+    timestamp: '2026-08-21T09:00:00Z',
+  },
+  {
+    id: 'ev-012',
+    entityId: 'ent-case-001',
+    title: 'Case registration',
+    summary: 'FIR-2026-001 registered at Pune City Police.',
+    datasetId: 'ds-001',
+    datasetName: 'FIR Records - Pune District',
+    documentId: 'ent-doc-001',
+    sourceRecord: 'FIR-2026-001 / R1',
+    sourceName: 'FIR Records - Pune District',
+    extractionMethod: 'MANUAL',
+    confidence: 1,
+    timestamp: '2026-08-18T09:00:00Z',
+  },
+];

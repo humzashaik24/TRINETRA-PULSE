@@ -1,0 +1,12 @@
+export { AppShell } from './app-shell';
+export { WorkspaceShell } from './workspace-shell';
+export { CommandRail } from './command-rail';
+export { CommandBar } from './command-bar';
+export { ResizablePanel } from './resizable-panel';
+export { WorkspaceHeader } from './workspace-header';
+export { WorkspaceTabs } from './workspace-tabs';
+export { WorkspacePlaceholder } from './workspace-placeholder';
+export { InvestigationShell } from './investigation-shell';
+export { ContextInspector } from './inspector/context-inspector';
+export { InspectorHeader } from './inspector/inspector-header';
+export { InspectorContent } from './inspector/inspector-content';

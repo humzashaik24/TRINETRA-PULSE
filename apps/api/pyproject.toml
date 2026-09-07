@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "trinetra-pulse-api"
+version = "0.1.0"
+description = "Trinetra Pulse - Criminal Network Intelligence API"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "sqlalchemy>=2.0.0",
+    "asyncpg>=0.29.0",
+    "alembic>=1.13.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.9",
+    "neo4j>=5.17.0",
+    "redis>=5.0.0",
+    "httpx>=0.27.0",
+    "tenacity>=8.2.0",
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+# web3 is the ONLY runtime extra: it powers the real EVM testnet anchor
+# provider (BLOCKCHAIN_PROVIDER=web3). The default `mock` provider never needs
+# it, so ordinary deployments stay dependency-free.
+blockchain = [
+    "web3>=6.20.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "httpx>=0.27.0",
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+    "aiosqlite>=0.20.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+# Alembic-generated migrations (and their support module) are excluded from
+# lint: their long model lines and import layout are emitted verbatim by
+# `alembic revision --autogenerate` and are not part of the hand-maintained
+# application surface.
+extend-exclude = ["alembic"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+# B008: FastAPI requires File(...), Form(...), Query(...) in function signatures.
+# This is idiomatic FastAPI, not a defect.
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.setuptools.packages.find]
+include = ["app*"]

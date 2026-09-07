@@ -1,0 +1,110 @@
+import { buildNetwork, type NetworkSeed } from './build';
+
+// ============================================================
+// MOCK — NET-002 "HARBOUR RING"
+// ============================================================
+// Coastal trafficking-adjacent observation network.
+// 28 entities / 48 relationships / 4 clusters.
+// References a distinct entity universe (ent-person-020 …).
+// ============================================================
+
+const SEED: NetworkSeed = {
+  id: 'NET-002',
+  name: 'Harbour Ring',
+  description:
+    'Coastal movement and cargo network observed around Kochi port. Persons, phones, vessels-linked vehicles, organizations, accounts and port-related events.',
+  seedEntityId: 'ent-person-020',
+  caseId: 'FIR-2026-014',
+  createdAt: '2026-08-20T11:00:00Z',
+  updatedAt: '2026-08-27T09:00:00Z',
+  nodes: [
+    { entityId: 'ent-person-020', label: 'Ravi Menon', type: 'person', confidence: 0.9, sources: ['CDR Extract - Harness Cell', 'FIR Records - Kochi Port'], activityAt: '2026-02-14T22:00:00Z' },
+    { entityId: 'ent-person-021', label: 'Leela Krishnan', type: 'person', confidence: 0.84, sources: ['CDR Extract - Harness Cell', 'Witness Statements'], activityAt: '2026-02-15T01:10:00Z' },
+    { entityId: 'ent-person-022', label: 'Farhan Ali', type: 'person', confidence: 0.79, sources: ['CDR Extract - Harness Cell', 'Customs Manifest ML-2026-031'], activityAt: '2026-02-16T20:30:00Z' },
+    { entityId: 'ent-person-023', label: 'Nisha Kapoor', type: 'person', confidence: 0.68, sources: ['FIR Records - Kochi Port', 'Witness Statements'], activityAt: '2026-02-10T13:00:00Z' },
+    { entityId: 'ent-person-024', label: 'Arif Chowdhury', type: 'person', confidence: 0.75, sources: ['CDR Extract - Harness Cell'], activityAt: '2026-02-14T23:10:00Z' },
+    { entityId: 'ent-person-025', label: 'Tara Bose', type: 'person', confidence: 0.62, sources: ['Witness Statements'], activityAt: '2025-10-23T16:40:00Z' },
+    { entityId: 'ent-person-026', label: 'Manish Joshi', type: 'person', confidence: 0.57, sources: ['CDR Extract - Harness Cell'], activityAt: '2025-08-04T08:20:00Z' },
+    { entityId: 'ent-phone-011', label: '+91 98470 11221', type: 'phone', confidence: 0.92, sources: ['CDR Extract - Harness Cell'], activityAt: '2026-02-14T22:10:00Z' },
+    { entityId: 'ent-phone-012', label: '+91 98471 22332', type: 'phone', confidence: 0.9, sources: ['CDR Extract - Harness Cell'], activityAt: '2026-02-15T01:20:00Z' },
+    { entityId: 'ent-phone-013', label: '+91 98472 33443', type: 'phone', confidence: 0.83, sources: ['CDR Extract - Harness Cell'], activityAt: '2026-02-16T20:40:00Z' },
+    { entityId: 'ent-phone-014', label: '+91 98473 44554', type: 'phone', confidence: 0.71, sources: ['CDR Extract - Harness Cell'], activityAt: '2025-10-10T09:00:00Z' },
+    { entityId: 'ent-vehicle-011', label: 'KL 07 AX 4410', type: 'vehicle', confidence: 0.86, sources: ['Vehicle Tracking Data'], activityAt: '2026-02-14T21:50:00Z' },
+    { entityId: 'ent-vehicle-012', label: 'KL 01 BY 8823', type: 'vehicle', confidence: 0.77, sources: ['Vehicle Tracking Data'], activityAt: '2026-02-16T20:00:00Z' },
+    { entityId: 'ent-location-011', label: 'Kochi', type: 'location', confidence: 0.89, sources: ['Cell Tower Data', 'FIR Records - Kochi Port'], activityAt: '2026-02-16T19:00:00Z' },
+    { entityId: 'ent-location-012', label: 'Thane Creek', type: 'location', confidence: 0.76, sources: ['Cell Tower Data'], activityAt: '2026-01-12T05:00:00Z' },
+    { entityId: 'ent-location-013', label: 'Ratnagiri Jetty', type: 'location', confidence: 0.72, sources: ['Witness Statements'], activityAt: '2025-11-28T22:30:00Z' },
+    { entityId: 'ent-org-011', label: 'Harbour Consolidators', type: 'organization', confidence: 0.85, sources: ['Customs Manifest ML-2026-031', 'GST Ledger Extract'], activityAt: '2026-02-16T18:00:00Z' },
+    { entityId: 'ent-org-012', label: 'Coastal Marine Exports', type: 'organization', confidence: 0.69, sources: ['Customs Manifest ML-2026-031'], activityAt: '2026-02-16T18:30:00Z' },
+    { entityId: 'ent-account-011', label: '4012 7788 1100', type: 'account', confidence: 0.88, sources: ['Bank Transaction Log'], activityAt: '2026-02-14T19:00:00Z' },
+    { entityId: 'ent-account-012', label: '9110 5566 3322', type: 'account', confidence: 0.73, sources: ['Bank Transaction Log'], activityAt: '2026-02-16T18:45:00Z' },
+    { entityId: 'ent-txn-011', label: 'TXN-2026-0311', type: 'transaction', confidence: 0.87, sources: ['Bank Transaction Log'], activityAt: '2026-02-14T19:05:00Z' },
+    { entityId: 'ent-txn-012', label: 'TXN-2026-0410', type: 'transaction', confidence: 0.8, sources: ['Bank Transaction Log'], activityAt: '2026-02-16T18:50:00Z' },
+    { entityId: 'ent-txn-013', label: 'TXN-2025-0918', type: 'transaction', confidence: 0.66, sources: ['Bank Transaction Log'], activityAt: '2025-11-29T23:00:00Z' },
+    { entityId: 'ent-event-011', label: 'Night Run — Kochi', type: 'event', confidence: 0.81, sources: ['Cell Tower Data', 'Customs Manifest ML-2026-031'], activityAt: '2026-02-14T22:30:00Z' },
+    { entityId: 'ent-event-012', label: 'Jetty Load — Ratnagiri', type: 'event', confidence: 0.7, sources: ['Witness Statements'], activityAt: '2025-11-28T23:00:00Z' },
+    { entityId: 'ent-case-011', label: 'FIR-2026-014', type: 'case', confidence: 1, sources: ['FIR Records - Kochi Port'], activityAt: '2026-02-10T09:00:00Z' },
+    { entityId: 'ent-doc-011', label: 'Portu Manifest Scan', type: 'document', confidence: 0.84, sources: ['Customs Manifest ML-2026-031'], activityAt: '2026-02-16T17:00:00Z' },
+    { entityId: 'ent-evidence-011', label: 'Night Movement Log', type: 'evidence', confidence: 0.78, sources: ['Geospatial Movement Log'], activityAt: '2026-02-14T23:00:00Z' },
+  ],
+  edges: [
+    ['ent-person-020', 'ent-phone-011', 'USES', 0.92, 'CDR Extract - Harness Cell', '2026-02-14T22:00:00Z', ['cdr_harness_q1.csv row 11']],
+    ['ent-person-020', 'ent-person-024', 'KNOWS', 0.76, 'CDR Extract - Harness Cell', '2026-02-14T22:10:00Z', ['cdr_harness_q1.csv row 12']],
+    ['ent-person-020', 'ent-vehicle-011', 'OWNS', 0.86, 'Vehicle Tracking Data', '2026-02-14T21:50:00Z', ['vehicle_tracking_kl.csv row 3']],
+    ['ent-person-020', 'ent-location-011', 'LOCATED_AT', 0.89, 'Cell Tower Data', '2026-02-14T22:30:00Z', ['celltower_kochi.json bucket 2']],
+    ['ent-person-020', 'ent-org-011', 'WORKS_FOR', 0.83, 'Customs Manifest ML-2026-031', '2026-02-14T18:00:00Z', ['manifest_ml_031 line 101']],
+    ['ent-person-020', 'ent-event-011', 'INVOLVED_IN', 0.82, 'Cell Tower Data', '2026-02-14T22:30:00Z', ['celltower_kochi.json bucket 2']],
+    ['ent-person-020', 'ent-account-011', 'OWNS_ACCOUNT', 0.88, 'Bank Transaction Log', '2026-02-14T19:00:00Z', ['transactions_flagged_aug2026.xlsx row 611']],
+    ['ent-person-020', 'ent-person-021', 'KNOWS', 0.79, 'CDR Extract - Harness Cell', '2026-02-15T01:00:00Z', ['cdr_harness_q1.csv row 22']],
+    ['ent-person-021', 'ent-phone-012', 'USES', 0.9, 'CDR Extract - Harness Cell', '2026-02-15T01:20:00Z', ['cdr_harness_q1.csv row 23']],
+    ['ent-person-022', 'ent-phone-013', 'USES', 0.83, 'CDR Extract - Harness Cell', '2026-02-16T20:40:00Z', ['cdr_harness_q1.csv row 31']],
+    ['ent-person-022', 'ent-org-011', 'WORKS_FOR', 0.72, 'Customs Manifest ML-2026-031', '2026-02-16T18:00:00Z', ['manifest_ml_031 line 105']],
+    ['ent-person-022', 'ent-vehicle-012', 'OWNS', 0.73, 'Vehicle Tracking Data', '2026-02-16T20:00:00Z', ['vehicle_tracking_kl.csv row 9']],
+    ['ent-person-022', 'ent-person-020', 'KNOWS', 0.68, 'CDR Extract - Harness Cell', '2026-02-16T20:30:00Z', ['cdr_harness_q1.csv row 32']],
+    ['ent-person-024', 'ent-phone-011', 'USES', 0.71, 'CDR Extract - Harness Cell', '2026-02-14T22:15:00Z', ['cdr_harness_q1.csv row 13']],
+    ['ent-person-024', 'ent-location-012', 'LOCATED_AT', 0.64, 'Cell Tower Data', '2026-01-12T05:00:00Z', ['celltower_thane_2026.json bucket 1']],
+    ['ent-person-023', 'ent-case-011', 'INVOLVED_IN', 0.74, 'FIR Records - Kochi Port', '2026-02-10T13:00:00Z', ['FIR-2026-014 / R4']],
+    ['ent-person-023', 'ent-person-025', 'KNOWS', 0.6, 'Witness Statements', '2025-10-24T00:00:00Z', ['ws_kochi_007.txt']],
+    ['ent-person-025', 'ent-location-013', 'LOCATED_AT', 0.62, 'Witness Statements', '2025-11-28T22:30:00Z', ['ws_kochi_011.txt']],
+    ['ent-person-026', 'ent-phone-014', 'USES', 0.69, 'CDR Extract - Harness Cell', '2025-08-04T08:20:00Z', ['cdr_harness_q1.csv row 41']],
+    ['ent-person-026', 'ent-person-024', 'KNOWS', 0.58, 'CDR Extract - Harness Cell', '2025-08-05T09:00:00Z', ['cdr_harness_q1.csv row 42']],
+    ['ent-person-021', 'ent-event-011', 'INVOLVED_IN', 0.75, 'Cell Tower Data', '2026-02-15T01:30:00Z', ['celltower_kochi.json bucket 3']],
+    ['ent-person-024', 'ent-event-011', 'INVOLVED_IN', 0.66, 'Cell Tower Data', '2026-02-14T23:00:00Z', ['celltower_kochi.json bucket 2']],
+    ['ent-org-011', 'ent-org-012', 'SUPPORTED_BY', 0.71, 'Customs Manifest ML-2026-031', '2026-02-16T18:20:00Z', ['manifest_ml_031 line 108']],
+    ['ent-org-011', 'ent-account-012', 'OWNS_ACCOUNT', 0.84, 'Bank Transaction Log', '2026-02-16T18:45:00Z', ['transactions_flagged_aug2026.xlsx row 630']],
+    ['ent-org-011', 'ent-doc-011', 'PART_OF', 0.84, 'Customs Manifest ML-2026-031', '2026-02-16T17:00:00Z', ['manifest_ml_031 line 100']],
+    ['ent-org-011', 'ent-event-011', 'INVOLVED_IN', 0.7, 'Customs Manifest ML-2026-031', '2026-02-14T22:30:00Z', ['manifest_ml_031 line 102']],
+    ['ent-org-012', 'ent-location-011', 'LOCATED_AT', 0.67, 'Customs Manifest ML-2026-031', '2026-02-16T18:20:00Z', ['manifest_ml_031 line 109']],
+    ['ent-account-011', 'ent-txn-011', 'SENT_TRANSACTION', 0.87, 'Bank Transaction Log', '2026-02-14T19:05:00Z', ['transactions_flagged_aug2026.xlsx row 612']],
+    ['ent-txn-011', 'ent-account-012', 'SENT_TRANSACTION', 0.82, 'Bank Transaction Log', '2026-02-14T19:10:00Z', ['transactions_flagged_aug2026.xlsx row 613']],
+    ['ent-txn-012', 'ent-account-012', 'SENT_TRANSACTION', 0.8, 'Bank Transaction Log', '2026-02-16T18:50:00Z', ['transactions_flagged_aug2026.xlsx row 631']],
+    ['ent-account-011', 'ent-txn-012', 'SENT_TRANSACTION', 0.77, 'Bank Transaction Log', '2026-02-16T18:45:00Z', ['transactions_flagged_aug2026.xlsx row 629']],
+    ['ent-account-012', 'ent-txn-013', 'SENT_TRANSACTION', 0.72, 'Bank Transaction Log', '2025-11-29T23:00:00Z', ['transactions_2025_nov.csv row 44']],
+    ['ent-txn-013', 'ent-org-012', 'SENT_TRANSACTION', 0.66, 'Bank Transaction Log', '2025-11-29T23:05:00Z', ['transactions_2025_nov.csv row 45']],
+    ['ent-vehicle-011', 'ent-event-011', 'INVOLVED_IN', 0.74, 'Vehicle Tracking Data', '2026-02-14T22:30:00Z', ['vehicle_tracking_kl.csv row 4']],
+    ['ent-vehicle-012', 'ent-location-011', 'LOCATED_AT', 0.72, 'Vehicle Tracking Data', '2026-02-16T20:10:00Z', ['vehicle_tracking_kl.csv row 10']],
+    ['ent-evidence-011', 'ent-event-011', 'PART_OF', 0.78, 'Geospatial Movement Log', '2026-02-14T23:00:00Z', ['geo_routes_2026.geojson']],
+    ['ent-evidence-011', 'ent-person-020', 'SUPPORTED_BY', 0.73, 'Geospatial Movement Log', '2026-02-14T23:05:00Z', ['geo_routes_2026.geojson']],
+    ['ent-evidence-011', 'ent-vehicle-011', 'SUPPORTED_BY', 0.7, 'Geospatial Movement Log', '2026-02-14T23:10:00Z', ['geo_routes_2026.geojson']],
+    ['ent-doc-011', 'ent-case-011', 'PART_OF', 0.79, 'FIR Records - Kochi Port', '2026-02-10T09:00:00Z', ['FIR-2026-014 / A1']],
+    ['ent-event-012', 'ent-location-013', 'LOCATED_AT', 0.7, 'Witness Statements', '2025-11-28T23:00:00Z', ['ws_kochi_011.txt']],
+    ['ent-event-012', 'ent-person-025', 'INVOLVED_IN', 0.65, 'Witness Statements', '2025-11-28T23:10:00Z', ['ws_kochi_012.txt']],
+    ['ent-person-025', 'ent-phone-014', 'USES', 0.6, 'CDR Extract - Harness Cell', '2025-10-10T09:00:00Z', ['cdr_harness_q1.csv row 44']],
+    ['ent-case-011', 'ent-event-011', 'INVOLVED_IN', 0.64, 'FIR Records - Kochi Port', '2026-02-10T09:30:00Z', ['FIR-2026-014 / R2']],
+    ['ent-org-012', 'ent-account-011', 'OWNS_ACCOUNT', 0.68, 'Bank Transaction Log', '2026-02-14T19:15:00Z', ['transactions_flagged_aug2026.xlsx row 614']],
+    ['ent-person-022', 'ent-event-011', 'INVOLVED_IN', 0.69, 'Cell Tower Data', '2026-02-16T20:45:00Z', ['celltower_kochi.json bucket 4']],
+    ['ent-person-021', 'ent-case-011', 'INVOLVED_IN', 0.61, 'Witness Statements', '2026-02-15T02:00:00Z', ['ws_kochi_003.txt']],
+    ['ent-person-026', 'ent-doc-011', 'INVOLVED_IN', 0.56, 'Customs Manifest ML-2026-031', '2025-08-06T10:00:00Z', ['manifest_ml_031 line 90']],
+  ],
+  clusters: [
+    { id: 'cl-menon', label: 'Menon Ring', nodeIds: ['NET-002-n-001', 'NET-002-n-002', 'NET-002-n-003', 'NET-002-n-005', 'NET-002-n-008', 'NET-002-n-09', 'NET-002-n-018', 'NET-002-n-021', 'NET-002-n-024'] },
+    { id: 'cl-port', label: 'Port Operations', nodeIds: ['NET-002-n-017', 'NET-002-n-018', 'NET-002-n-022', 'NET-002-n-024', 'NET-002-n-027'] },
+    { id: 'cl-southern', label: 'Southern Coast', nodeIds: ['NET-002-n-006', 'NET-002-n-007', 'NET-002-n-011', 'NET-002-n-014', 'NET-002-n-016', 'NET-002-n-023', 'NET-002-n-025'] },
+    { id: 'cl-money', label: 'Money Trail', nodeIds: ['NET-002-n-019', 'NET-002-n-020', 'NET-002-n-021', 'NET-002-n-022', 'NET-002-n-023'] },
+  ],
+};
+
+// Fix cluster id typo (NET-002-n-09 → NET-002-n-009)
+SEED.clusters[0].nodeIds = SEED.clusters[0].nodeIds.map((n) => (n === 'NET-002-n-09' ? 'NET-002-n-009' : n));
+
+export const networkHarbour = buildNetwork(SEED);
