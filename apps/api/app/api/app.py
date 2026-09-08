@@ -14,6 +14,7 @@ from app.api.routers import (
     auth,
     candidate_resolution,
     datasets,
+    directions,
     entities,
     events,
     evidence,
@@ -59,6 +60,11 @@ def create_real_app() -> FastAPI:
     app.include_router(events.router, prefix="/events", tags=["events"])
     app.include_router(notes.router, prefix="/notes", tags=["notes"])
     app.include_router(patterns.router, prefix="/investigations", tags=["patterns"])
+    app.include_router(
+        directions.router,
+        prefix="/investigations",
+        tags=["investigation-directions"],
+    )
     app.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
     app.include_router(network.router, prefix="/networks", tags=["network"])
     app.include_router(datasets.router, prefix="/datasets", tags=["datasets"])

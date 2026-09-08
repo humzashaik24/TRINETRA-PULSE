@@ -66,6 +66,11 @@ class EvidenceNotFoundError(NotFoundError):
         super().__init__("Evidence", evidence_id)
 
 
+class DirectionNotFoundError(NotFoundError):
+    def __init__(self, direction_id: str):
+        super().__init__("Directions", direction_id)
+
+
 class EventNotFoundError(NotFoundError):
     def __init__(self, event_id: str):
         super().__init__("Events", event_id)

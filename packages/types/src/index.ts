@@ -14,3 +14,4 @@ export * from './investigation-operations';
 export * from './ai-investigation';
 export * from './evidence-intelligence';
 export * from './patterns';
+export * from './investigation-directions';

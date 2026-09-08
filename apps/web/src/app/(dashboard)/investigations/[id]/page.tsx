@@ -13,6 +13,7 @@ import { InvestigationEntitiesTab } from '@/components/investigation/investigati
 import { InvestigationEvidenceTab } from '@/components/investigation/investigation-evidence-tab';
 import { InvestigationTimelineTab } from '@/components/investigation/investigation-timeline-tab';
 import { InvestigationFindingsTab } from '@/components/investigation/investigation-findings-tab';
+import { InvestigationDirectionsTab } from '@/components/investigation/investigation-directions-tab';
 import { InvestigationNotesTab } from '@/components/investigation/investigation-notes-tab';
 import { InvestigationActivityTab } from '@/components/investigation/investigation-activity-tab';
 import { InvestigationOperationsTab } from '@/components/investigation/investigation-operations-tab';
@@ -45,6 +46,7 @@ const TAB_COMPONENTS: Record<string, (props: TabProps) => React.ReactElement> = 
   evidence: () => <InvestigationEvidenceTab />,
   timeline: () => <InvestigationTimelineTab />,
   findings: () => <InvestigationFindingsTab />,
+  directions: () => <InvestigationDirectionsTab />,
   notes: () => <InvestigationNotesTab />,
   activity: () => <InvestigationActivityTab />,
   operations: () => <InvestigationOperationsTab />,
