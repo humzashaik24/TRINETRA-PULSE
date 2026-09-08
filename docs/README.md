@@ -83,6 +83,27 @@ Phase 18.7 adds authenticated raw evidence multipart upload, provenance/custody
 integration, integrity-checked retrieval, and storage/DB compensation through
 those same providers. See [PHASE_18.7_COMPLETE.md](PHASE_18.7_COMPLETE.md).
 
+## Phase 27 (Current) — Investigation Intelligence Workspace
+
+The investigation workspace surfaces existing intelligence as a **read-only
+command center** per case: an overview key-figures grid (incl. findings and
+timeline events) with a "directions summary" section, a directions tab with
+client-side priority/type filters and an expandable **lead detail panel**
+(grounded supporting facts + related entities/relationships/evidence from the
+scoped workspace store), and Network/Timeline anchor deep links — all opening
+through the existing Context Inspector with the active `investigationId`
+preserved.
+
+Phase 27 is a **consumer layer**: it adds **no** new analytics engine and **no**
+new backend endpoints. It connects existing investigative intelligence into a
+unified read-only workspace — it does **not** generate new evidence, determine
+guilt, or make autonomous investigative decisions.
+
+See [PHASE_27_COMPLETE.md](PHASE_27_COMPLETE.md) for design, files, and the
+backend contract tests (`apps/api/tests/test_investigation_workspace.py`,
+6 tests) covering auth 401s, scoped child lists, cross-investigation 404s,
+grounded directions, and no-secret-leakage.
+
 ## Project Structure
 
 ```

@@ -23,6 +23,7 @@ import { useShellStore } from '@/state/shell.store';
 import { useAIStore } from '@/state/ai.store';
 import { journeyHref, DEMO_INVESTIGATION_ID, DEMO_NETWORK_ID } from '@/navigation/journey';
 import { DemoInvestigationHero } from '@/components/demo/demo-investigation-hero';
+import { InvestigationDirectionsSummary } from '@/components/investigation/investigation-directions-summary';
 
 // ============================================================
 // PHASE 13 — INVESTIGATION OVERVIEW (COMMAND CENTER)
@@ -161,12 +162,25 @@ export function InvestigationOverview({ investigation, onOpenTab }: Investigatio
       </div>
 
       {/* Counters */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Stat icon={Users} label="Linked entities" value={investigation.entity_count} />
         <Stat icon={GitBranch} label="Relationships" value={investigation.relationship_count} />
         <Stat icon={FileSearch} label="Evidence" value={investigation.evidence_count} />
-        <Stat icon={CalendarClock} label="Last activity" value={formatShortDate(investigation.last_activity_at)} />
+        <div data-testid="overview-stat-findings">
+          <Stat icon={FileText} label="Findings" value={investigation.finding_count ?? data.findings.length} />
+        </div>
+        <div data-testid="overview-stat-events">
+          <Stat
+            icon={CalendarClock}
+            label="Timeline events"
+            value={investigation.event_count ?? data.timeline.filter((t) => t.category === 'event').length}
+          />
+        </div>
+        <Stat icon={ActivityIcon} label="Last activity" value={formatShortDate(investigation.last_activity_at)} />
       </div>
+
+      {/* Available directions (Phase 27) */}
+      <InvestigationDirectionsSummary investigationId={investigation.id} onOpenTab={onOpenTab} />
 
       {/* Quick actions */}
       <section className="rounded-xl border border-border bg-surface p-4" data-testid="overview-quick-actions">

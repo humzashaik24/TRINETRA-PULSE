@@ -337,6 +337,11 @@ export interface Investigation {
   entity_count: number;
   evidence_count: number;
   relationship_count: number;
+  /** Finding count (summaries only). Present when a reliable count is
+   *  available (API summary or mock records); otherwise omitted. */
+  finding_count?: number;
+  /** Timeline-event count (summaries only). Never fabricated. */
+  event_count?: number;
   created_at: string;
   updated_at: string;
   last_activity_at: string;

@@ -102,6 +102,8 @@ export function mapInvestigation(
     entity_count: summary?.entity_count ?? 0,
     evidence_count: summary?.evidence_count ?? 0,
     relationship_count: summary?.relationship_count ?? 0,
+    finding_count: summary?.finding_count ?? 0,
+    event_count: summary?.event_count ?? 0,
     created_at: toIso(inv.created_at),
     updated_at: toIso(inv.updated_at),
     last_activity_at: toIso(inv.updated_at),

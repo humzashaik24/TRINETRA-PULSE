@@ -4,9 +4,17 @@ import { InvestigationOverview } from '@/components/investigation/investigation-
 import { InvestigationEntitiesTab } from '@/components/investigation/investigation-entities-tab';
 import { InvestigationNotesTab } from '@/components/investigation/investigation-notes-tab';
 import { useInvestigationStore } from '@/state/investigation.store';
+import { useDirectionsStore } from '@/state/directions.store';
 import { useShellStore } from '@/state/shell.store';
+import { getInvestigationDirections } from '@/lib/api/directions';
 import { mockInvestigationById } from '@/mock/investigations';
 import type { InvestigationWorkspaceData } from '@/state/investigation.store';
+
+jest.mock('@/lib/api/directions', () => ({
+  getInvestigationDirections: jest.fn(),
+}));
+
+const mockedGetDirections = jest.mocked(getInvestigationDirections);
 
 function seed(id: string) {
   const rec = mockInvestigationById.get(id);
@@ -55,10 +63,16 @@ afterEach(() => {
     dirty: false,
   });
   useShellStore.setState({ inspectorContext: null });
+  useDirectionsStore.setState({ investigationId: null, data: null, loading: false, error: null });
 });
 
 describe('InvestigationOverview', () => {
-  it('renders status, priority, tags and linked counts', () => {
+  it('renders status, priority, tags, linked counts and the directions section', async () => {
+    mockedGetDirections.mockResolvedValue({
+      investigation_id: 'inv-001',
+      computed_at: '2026-09-09T10:00:00Z',
+      directions: [],
+    });
     const rec = mockInvestigationById.get('inv-001')!;
     render(<InvestigationOverview investigation={rec.investigation} />);
     expect(screen.getByTestId('investigation-overview')).toBeInTheDocument();
@@ -66,6 +80,15 @@ describe('InvestigationOverview', () => {
     expect(screen.getByText('High priority')).toBeInTheDocument();
     expect(screen.getByText('Linked entities')).toBeInTheDocument();
     expect(screen.getByText('6')).toBeInTheDocument();
+    // Phase 27 — findings + timeline event counters join the overview grid.
+    expect(screen.getByTestId('overview-stat-findings')).toHaveTextContent('2');
+    expect(screen.getByTestId('overview-stat-events')).toHaveTextContent('2');
+    // Phase 27 — available-directions section stays empty-safe.
+    await screen.findByTestId('overview-directions');
+    expect(screen.getByTestId('overview-directions-critical')).toHaveTextContent('0');
+    expect(
+      screen.getByText(/no analytical leads yet/i),
+    ).toBeInTheDocument();
     expect(screen.getByText('Lead investigator')).toBeInTheDocument();
     expect(screen.getByText('Inspector Mehta')).toBeInTheDocument();
   });
