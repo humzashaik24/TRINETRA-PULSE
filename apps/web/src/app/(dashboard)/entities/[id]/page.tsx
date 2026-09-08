@@ -4,40 +4,66 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/state/app.store';
 import { EntityDetail, EntityDetailHeader } from '@/components/entity-intelligence';
-import {
-  confirmEntityResolutions,
-  evaluateInvestigationResolutions,
-  fetchEntityDetailBundle,
-  rejectEntityResolutions,
-} from '@/services/entity.service';
+import { fetchEntityDetailBundle } from '@/services/entity.service';
+import { loadEntityDetailBundle } from '@/lib/api/entities';
+import { isMockData } from '@/lib/api/config';
+import { DEMO_INVESTIGATION_ID } from '@/state/entity.store';
 import { ErrorState, LoadingState, Panel } from '@trinetra-pulse/ui';
 import { motion } from 'framer-motion';
+import { Button } from '@trinetra-pulse/ui';
+import { Network } from 'lucide-react';
+import { journeyHref, DEMO_NETWORK_ID } from '@/navigation/journey';
 
 interface EntityDetailPageProps {
   params: { id: string };
 }
-
-const INV_006 = '6c887c98-939a-50ce-ac27-f58376941de2';
-const ACTOR = 'analyst@trinetra.local';
 
 export default function EntityDetailPage({ params }: EntityDetailPageProps) {
   const id = params.id;
   const router = useRouter();
   const setContextLabel = useAppStore((s) => s.setContextLabel);
 
-  const [bundle, setBundle] = useState<Awaited<ReturnType<typeof fetchEntityDetailBundle>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mockBundle, setMockBundle] = useState<Awaited<
+    ReturnType<typeof fetchEntityDetailBundle>
+  > | null>(null);
+  const [apiBundle, setApiBundle] = useState<Awaited<
+    ReturnType<typeof loadEntityDetailBundle>
+  > | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetchEntityDetailBundle(id)
-      .then(setBundle)
-      .catch((e) => {
-        setError(e instanceof Error && e.message === 'Entity not found' ? 'Entity not found' : 'Failed to load entity');
-      })
-      .finally(() => setLoading(false));
+    if (isMockData()) {
+      fetchEntityDetailBundle(id)
+        .then(setMockBundle)
+        .catch((e) => {
+          setError(
+            e instanceof Error && e.message === 'Entity not found'
+              ? 'Entity not found'
+              : 'Failed to load entity'
+          );
+        })
+        .finally(() => setLoading(false));
+    } else {
+      // Phase 17.7/17.8 API path: the persisted entity row is real, and the
+      // Relations tab reads real investigation-scoped relationship rows with
+      // resolved entity names. Evidence / event / activity / source /
+      // resolution-history slices are later-phase domains and stay honestly
+      // empty. No silent mock fallback.
+      // The read is investigation-scoped so cross-investigation ids 404.
+      loadEntityDetailBundle(id, isMockData() ? undefined : DEMO_INVESTIGATION_ID)
+        .then(setApiBundle)
+        .catch((e) => {
+          setError(
+            e instanceof Error && e.message === 'Entity not found'
+              ? 'Entity not found'
+              : 'Failed to load entity'
+          );
+        })
+        .finally(() => setLoading(false));
+    }
   }, [id]);
 
   useEffect(() => {
@@ -45,21 +71,6 @@ export default function EntityDetailPage({ params }: EntityDetailPageProps) {
     load();
     return () => setContextLabel(null);
   }, [setContextLabel, load]);
-
-  const handleConfirm = useCallback(async (entityId: string, reason: string) => {
-    await confirmEntityResolutions(entityId, ACTOR, reason);
-    await fetchEntityDetailBundle(entityId).then(setBundle as never);
-  }, []);
-
-  const handleReject = useCallback(async (entityId: string, reason: string) => {
-    await rejectEntityResolutions(entityId, ACTOR, reason);
-    await fetchEntityDetailBundle(entityId).then(setBundle as never);
-  }, []);
-
-  const handleEvaluate = useCallback(async () => {
-    await evaluateInvestigationResolutions(INV_006, ACTOR);
-    await fetchEntityDetailBundle(id).then(setBundle as never);
-  }, [id]);
 
   if (loading) {
     return (
@@ -69,10 +80,16 @@ export default function EntityDetailPage({ params }: EntityDetailPageProps) {
     );
   }
 
+  const bundle = isMockData() ? mockBundle : apiBundle;
+
   if (error || !bundle) {
     return (
       <div className="p-6 lg:p-8">
-        <ErrorState title={error === 'Entity not found' ? 'Entity not found' : 'Could not load entity'} message={error ?? 'Unknown error'} retry={load} />
+        <ErrorState
+          title={error === 'Entity not found' ? 'Entity not found' : 'Could not load entity'}
+          message={error ?? 'Unknown error'}
+          retry={load}
+        />
       </div>
     );
   }
@@ -81,6 +98,23 @@ export default function EntityDetailPage({ params }: EntityDetailPageProps) {
     <div className="p-6 lg:p-8 space-y-6">
       <EntityDetailHeader
         entity={bundle.entity}
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              router.push(
+                journeyHref(`/networks/${DEMO_NETWORK_ID}`, {
+                  investigation: DEMO_INVESTIGATION_ID,
+                  focus: bundle.entity.id,
+                }),
+              )
+            }
+          >
+            <Network className="h-3.5 w-3.5" />
+            Open in network
+          </Button>
+        }
       />
 
       <motion.div
@@ -99,11 +133,7 @@ export default function EntityDetailPage({ params }: EntityDetailPageProps) {
             activity={bundle.activity}
             sources={bundle.sources}
             resolutionHistory={bundle.resolutionHistory}
-            resolutions={bundle.resolutions}
             onNavigate={(entityId) => router.push(`/entities/${entityId}`)}
-            onConfirmResolution={handleConfirm}
-            onRejectResolution={handleReject}
-            onEvaluateResolutions={handleEvaluate}
           />
         </Panel>
       </motion.div>

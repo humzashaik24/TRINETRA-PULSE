@@ -37,6 +37,7 @@ import {
 } from '@/services/entity.service';
 import { EXTRACTION_METHOD_LABELS, formatDateTime } from '@/lib/format';
 import { ResolutionStateBadge } from './badges';
+import { useAuthStore } from '@/state/auth.store';
 
 // ============================================================
 // RESOLUTION REVIEW
@@ -127,6 +128,7 @@ function ResolutionReviewDialog({ resolution, reviewer, onChange, onClose }: Res
     setBusy('merge');
     try {
       await mergeEntities({
+        resolutionId: resolution.id,
         targetId: resolution.entityAId,
         sourceId: resolution.entityBId,
         reason: mergeReason || reason || 'Analyst confirmed merge.',
@@ -175,7 +177,9 @@ function ResolutionReviewDialog({ resolution, reviewer, onChange, onClose }: Res
             <ResolutionStateBadge state={resolution.state} size="sm" />
             <div>
               <span className="tp-data-label mr-2">Similarity</span>
-              <span className="font-mono text-xs text-foreground">{Math.round(resolution.similarity * 100)}%</span>
+              <span className="font-mono text-xs text-foreground">
+                {resolution.similarity === undefined ? '—' : `${Math.round(resolution.similarity * 100)}%`}
+              </span>
             </div>
             <ConfidenceIndicator value={resolution.confidence} size="sm" showValue />
             {resolution.reviewedBy && resolution.reviewedAt && (
@@ -189,11 +193,33 @@ function ResolutionReviewDialog({ resolution, reviewer, onChange, onClose }: Res
         {/* Reasons */}
         <div className="mt-4">
           <h4 className="text-subheading text-foreground mb-1">Summary</h4>
-          <p className="text-body-sm text-foreground-secondary">{resolution.summaryReason}</p>
+          <p className="text-body-sm text-foreground-secondary">
+            {resolution.summaryReason || 'No reason supplied by the resolution service.'}
+          </p>
+          {resolution.reasons && resolution.reasons.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-body-sm text-foreground-secondary">
+              {resolution.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+            </ul>
+          )}
+          {resolution.method && (
+            <div className="mt-2 text-caption text-foreground-muted">
+              Method: <span className="font-mono">{resolution.method}</span>
+              {resolution.resolutionType && (
+                <span className="ml-3">
+                  Type: <span className="font-mono">{resolution.resolutionType}</span>
+                </span>
+              )}
+            </div>
+          )}
+          {resolution.contradictions && resolution.contradictions.length > 0 && (
+            <div className="mt-2 rounded bg-danger-subtle p-2 text-body-sm text-danger">
+              Contradictions: {resolution.contradictions.join(' · ')}
+            </div>
+          )}
         </div>
 
         {/* Signals */}
-        <div className="mt-4">
+        {resolution.signals.length > 0 && <div className="mt-4">
           <h4 className="text-subheading text-foreground mb-2">Signals ({resolution.signals.length})</h4>
           <div className="overflow-hidden rounded-lg border border-border">
             <table className="w-full border-collapse">
@@ -233,19 +259,32 @@ function ResolutionReviewDialog({ resolution, reviewer, onChange, onClose }: Res
               </tbody>
             </table>
           </div>
-        </div>
+        </div>}
 
         {/* Evidence */}
-        {resolution.evidence.length > 0 && (
+        {(resolution.evidence.length > 0 || resolution.evidenceRefs?.length) && (
           <div className="mt-4">
             <h4 className="text-subheading text-foreground mb-2">Evidence references</h4>
             <div className="flex flex-wrap gap-1.5">
-              {resolution.evidence.map((ref) => (
+              {[...resolution.evidence, ...(resolution.evidenceRefs ?? [])].map((ref) => (
                 <span key={ref} className="rounded bg-surface-elevated px-2 py-1 font-mono text-[10px] text-foreground-muted">
                   {ref}
                 </span>
               ))}
             </div>
+          </div>
+        )}
+        {resolution.evidence.length === 0 && (!resolution.evidenceRefs || resolution.evidenceRefs.length === 0) && (
+          <p className="mt-4 text-caption text-foreground-muted">
+            No evidence references supplied by the resolution service.
+          </p>
+        )}
+        {resolution.provenance && Object.keys(resolution.provenance).length > 0 && (
+          <div className="mt-3 text-caption text-foreground-muted">
+            Provenance:{' '}
+            <span className="font-mono">
+              {Object.entries(resolution.provenance).map(([key, value]) => `${key}=${String(value)}`).join(' · ')}
+            </span>
           </div>
         )}
 
@@ -365,7 +404,12 @@ function ResolutionRow({ resolution, onReview }: ResolutionRowProps) {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <Scale className="h-3 w-3 text-foreground-muted" aria-hidden="true" />
-          <span className="font-mono text-xs text-foreground">{Math.round(resolution.similarity * 100)}%</span>
+          <span className="font-mono text-xs text-foreground">
+            {resolution.similarity === undefined ? '—' : `${Math.round(resolution.similarity * 100)}%`}
+          </span>
+        </div>
+        <div className="text-caption text-foreground-muted">
+          confidence {Math.round(resolution.confidence * 100)}%
         </div>
         <Badge variant={rec.variant} size="sm">{rec.label}</Badge>
         <ResolutionStateBadge state={resolution.state} size="sm" />
@@ -383,6 +427,7 @@ export function ResolutionReview() {
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(true);
   const [active, setActive] = useState<EntityResolution | null>(null);
+  const reviewer = useAuthStore((s) => s.currentUser()?.id ?? 'unknown-user');
 
   const load = async () => {
     try {
@@ -427,7 +472,7 @@ export function ResolutionReview() {
       {active && (
         <ResolutionReviewDialog
           resolution={active}
-          reviewer="analyst-kd"
+          reviewer={reviewer}
           onChange={load}
           onClose={() => setActive(null)}
         />

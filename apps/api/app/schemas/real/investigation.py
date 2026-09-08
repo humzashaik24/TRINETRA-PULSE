@@ -102,23 +102,13 @@ class RelationshipRead(SchemaBase, UUIDMixin):
     confidence: float = 0.0
     source: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
+    extraction_method: str | None = None
     verification_status: str | None = None
     description: str | None = None
     weight: float = 1.0
     metadata_: dict[str, Any] = Field(default_factory=dict, serialization_alias="metadata")
     created_at: datetime
     updated_at: datetime
-
-    # --- Phase 21 relationship intelligence (additive, optional) ------------
-    direction: str | None = None
-    intelligence_status: str | None = None
-    linkage_score: float = 0.0
-    correlation_version: str | None = None
-    correlation_key: str | None = None
-    observation_count: int = 0
-    source_count: int = 0
-    first_observed_at: datetime | None = None
-    last_observed_at: datetime | None = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 
@@ -176,7 +166,12 @@ class EvidenceRead(SchemaBase, UUIDMixin):
     provenance: dict[str, Any] = Field(default_factory=dict)
     collected_at: datetime | None = None
     storage_ref: str | None = None
+    filename: str | None = None
+    content_type: str | None = None
+    size: int | None = None
     metadata_: dict[str, Any] = Field(default_factory=dict, serialization_alias="metadata")
+    # Phase 17.6 — SHA-256 integrity block {checksum, status} when available.
+    integrity: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
 

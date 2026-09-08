@@ -12,6 +12,7 @@ import { isMockData } from '@/lib/api/config';
 import { listInvestigations } from '@/lib/api/investigations';
 import { mapInvestigationList } from '@/lib/api/adapter';
 import { DemoInvestigationHero } from '@/components/demo/demo-investigation-hero';
+import { useCanMutate } from '@/hooks/use-auth';
 import {
   type Investigation,
   type InvestigationStatus,
@@ -150,6 +151,7 @@ function TableSkeleton() {
 
 export default function InvestigationsPage() {
   const setContextLabel = useAppStore((s) => s.setContextLabel);
+  const canMutate = useCanMutate();
 
   const [items, setItems] = useState<Investigation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -225,12 +227,14 @@ export default function InvestigationsPage() {
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
             </Button>
-            <Link href="/investigations/new">
-              <Button variant="primary" size="sm" data-testid="new-investigation-link">
-                <Plus className="h-3.5 w-3.5" />
-                New investigation
-              </Button>
-            </Link>
+            {canMutate && (
+              <Link href="/investigations/new">
+                <Button variant="primary" size="sm" data-testid="new-investigation-link">
+                  <Plus className="h-3.5 w-3.5" />
+                  New investigation
+                </Button>
+              </Link>
+            )}
           </div>
         }
       />

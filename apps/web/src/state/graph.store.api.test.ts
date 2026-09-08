@@ -21,6 +21,7 @@ jest.mock('@/lib/api/config', () => ({
 // Mock the investigations module (mapping functions + API client).
 jest.mock('@/lib/api/investigations', () => ({
   getNetworkGraph: jest.fn(),
+  findNetworkPath: jest.fn(),
   mapApiGraphToNetworkGraph: jest.fn(),
   mapApiGraphToSummary: jest.fn(),
 }));
@@ -43,6 +44,7 @@ jest.mock('@/services/network.service', () => ({
 
 import {
   getNetworkGraph,
+  findNetworkPath,
   mapApiGraphToNetworkGraph,
   mapApiGraphToSummary,
 } from '@/lib/api/investigations';
@@ -56,6 +58,7 @@ import {
 } from '@/services/network.service';
 
 const mockedGetNetworkGraph = jest.mocked(getNetworkGraph);
+const mockedFindNetworkPath = jest.mocked(findNetworkPath);
 const mockedMapGraph = jest.mocked(mapApiGraphToNetworkGraph);
 const mockedMapSummary = jest.mocked(mapApiGraphToSummary);
 const mockedGetNetwork = jest.mocked(getNetwork);
@@ -132,6 +135,7 @@ describe('graph.store – API mode loadNetwork', () => {
     jest.clearAllMocks();
 
     mockedGetNetworkGraph.mockResolvedValue(FAKE_API_GRAPH);
+    mockedFindNetworkPath.mockResolvedValue(null);
     mockedMapGraph.mockReturnValue(MAPPED_GRAPH as ReturnType<typeof mapApiGraphToNetworkGraph>);
     mockedMapSummary.mockReturnValue(MAPPED_SUMMARY as ReturnType<typeof mapApiGraphToSummary>);
   });
@@ -193,5 +197,20 @@ describe('graph.store – API mode loadNetwork', () => {
     const s = useGraphStore.getState();
     expect(s.loadingState).toBe('error');
     expect(s.error).toBe('Network fetch failed');
+  });
+
+  it('uses the API path endpoint instead of mock path computation', async () => {
+    mockedFindNetworkPath.mockResolvedValue({
+      start_entity_id: 'n1',
+      end_entity_id: 'n2',
+      node_ids: ['n1', 'n2'],
+      edge_ids: ['e1'],
+      length: 1,
+      confidence: 0.9,
+    });
+    useGraphStore.setState({ networkId: 'test-investigation' });
+    await useGraphStore.getState().findPath('n1', 'n2');
+    expect(mockedFindNetworkPath).toHaveBeenCalledWith('test-investigation', 'n1', 'n2');
+    expect(useGraphStore.getState().path?.nodeIds).toEqual(['n1', 'n2']);
   });
 });

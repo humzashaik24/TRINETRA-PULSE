@@ -9,6 +9,10 @@ from app.db.types import JSONB
 
 # Importing the models package registers all table metadata on Base.metadata.
 from app.models import (  # noqa: F401
+    AuthAuditEvent,
+    CandidateObservation,
+    CandidateResolution,
+    CandidateResolutionAudit,
     Case,
     DataProvenance,
     Dataset,
@@ -16,7 +20,7 @@ from app.models import (  # noqa: F401
     Entity,
     EntityResolution,
     Evidence,
-    EvidenceBlockchainAnchor,
+    EvidenceChainEntry,
     Incident,
     IngestionJob,
     Investigation,
@@ -24,7 +28,9 @@ from app.models import (  # noqa: F401
     InvestigationEvidence,
     InvestigationFinding,
     InvestigationNote,
+    NetworkAnalyticsSnapshot,
     Relationship,
+    User,
 )
 from app.models.base import Base
 

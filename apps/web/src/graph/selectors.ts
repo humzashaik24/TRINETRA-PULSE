@@ -44,13 +44,6 @@ function matchesEdgeType(edge: GraphEdge, relationshipTypes: string[]): boolean 
   return relationshipTypes.includes(edge.type);
 }
 
-function matchesIntelligenceStatus(edge: GraphEdge, intelligenceStatuses: string[]): boolean {
-  if (intelligenceStatuses.length === 0) return true;
-  const status = edge.intelligence?.status;
-  if (!status) return false;
-  return intelligenceStatuses.includes(status);
-}
-
 export interface SelectorInput {
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -141,7 +134,6 @@ export function selectVisible(
     if (!structurallyIncluded.has(edge.target)) continue;
     if (!inTimeline(edge.timestamp)) continue;
     if (!matchesEdgeType(edge, filters.relationshipTypes)) continue;
-    if (!matchesIntelligenceStatus(edge, filters.intelligenceStatuses)) continue;
     // Only keep an edge when both endpoints survive the node filters.
     const srcNode = nodeById.get(edge.source);
     const tgtNode = nodeById.get(edge.target);

@@ -19,6 +19,7 @@ import {
   getNetworkGraph,
   mapApiGraphToNetworkGraph,
   mapApiGraphToSummary,
+  findNetworkPath,
 } from '@/lib/api/investigations';
 
 // ============================================================
@@ -47,6 +48,7 @@ interface GraphState {
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   focusedNodeId: string | null;
+  highlightedNodeIds: string[];
   expandedNodeIds: string[];
   depth: DepthMode;
   layout: GraphLayoutMode;
@@ -77,6 +79,7 @@ interface GraphState {
   selectEdge: (edgeId: string | null) => void;
   clearSelection: () => void;
   focusNode: (nodeId: string) => void;
+  highlightNodes: (nodeIds: string[]) => void;
   toggleExpand: (nodeId: string) => void;
   setDepth: (depth: number) => void;
   setDepthFull: () => void;
@@ -106,7 +109,6 @@ const defaultFilters: GraphFilters = {
   statuses: [],
   sources: [],
   activity: 'all',
-  intelligenceStatuses: [],
 };
 
 const noRange: GraphTimelineRange = { from: null, to: null };
@@ -125,6 +127,7 @@ export const useGraphStore = create<GraphState>()(
       selectedNodeId: null,
       selectedEdgeId: null,
       focusedNodeId: null,
+      highlightedNodeIds: [],
       expandedNodeIds: [],
       depth: { kind: 'hop', centerId: '', depth: 1 },
       layout: 'force',
@@ -174,6 +177,7 @@ export const useGraphStore = create<GraphState>()(
               selectedNodeId: null,
               selectedEdgeId: null,
               focusedNodeId: focusId,
+              highlightedNodeIds: [],
               expandedNodeIds: [],
               depth: { kind: 'hop', centerId: focusId, depth: 1 },
               path: null,
@@ -203,6 +207,7 @@ export const useGraphStore = create<GraphState>()(
               selectedNodeId: null,
               selectedEdgeId: null,
               focusedNodeId: focusId,
+              highlightedNodeIds: [],
               expandedNodeIds: [],
               depth: { kind: 'hop', centerId: focusId, depth: 1 },
               path: null,
@@ -248,6 +253,8 @@ export const useGraphStore = create<GraphState>()(
         return set({ selectedNodeId: null, selectedEdgeId: null });
       },
       focusNode: (nodeId) => set({ focusedNodeId: nodeId }),
+      highlightNodes: (nodeIds) =>
+        set({ highlightedNodeIds: Array.from(new Set(nodeIds)) }),
 
       toggleExpand: (nodeId) =>
         set((s) => {
@@ -282,6 +289,36 @@ export const useGraphStore = create<GraphState>()(
         }
         set({ searchQuery: query, searching: true });
         try {
+          if (!isMockData()) {
+            const needle = query.trim().toLowerCase();
+            const { nodes, edges } = get();
+            const nodeResults: NetworkSearchResult[] = nodes
+              .filter((node) => node.label.toLowerCase().includes(needle) || node.entityId.toLowerCase().includes(needle))
+              .map((node) => ({
+                id: node.id,
+                kind: 'node',
+                entityId: node.entityId,
+                label: node.label,
+                type: node.type,
+                confidence: node.confidence,
+                connections: node.connections,
+                sourcesCount: node.sources.length,
+                status: node.status,
+              }));
+            const edgeResults: NetworkSearchResult[] = edges
+              .filter((edge) => edge.label.toLowerCase().includes(needle) || edge.type.toLowerCase().includes(needle))
+              .map((edge) => ({
+                id: edge.id,
+                kind: 'edge',
+                entityId: edge.relationshipId,
+                label: edge.label,
+                type: edge.type,
+                confidence: edge.confidence,
+                status: edge.status,
+              }));
+            set({ searchResults: [...nodeResults, ...edgeResults].slice(0, 50), searching: false });
+            return;
+          }
           const { searchNetwork } = await import('@/services/network.service');
           const results = await searchNetwork({ query, networkId: get().networkId ?? undefined });
           set({ searchResults: results, searching: false });
@@ -317,8 +354,23 @@ export const useGraphStore = create<GraphState>()(
         if (!get().networkId) return;
         set({ pathLoading: true, path: null });
         try {
-          const { findPath: findPathSvc } = await import('@/services/network.service');
-          const path = await findPathSvc(get().networkId!, fromNodeId, toNodeId);
+          let path: NetworkPath | null;
+          if (isMockData()) {
+            const { findPath: findPathSvc } = await import('@/services/network.service');
+            path = await findPathSvc(get().networkId!, fromNodeId, toNodeId);
+          } else {
+            const result = await findNetworkPath(get().networkId!, fromNodeId, toNodeId);
+            path = result
+              ? {
+                  startEntityId: result.startEntityId ?? result.start_entity_id ?? fromNodeId,
+                  endEntityId: result.endEntityId ?? result.end_entity_id ?? toNodeId,
+                  nodeIds: result.nodeIds ?? result.node_ids ?? [],
+                  edgeIds: result.edgeIds ?? result.edge_ids ?? [],
+                  length: result.length,
+                  confidence: result.confidence ?? null,
+                }
+              : null;
+          }
           set({ path, pathLoading: false });
         } catch {
           set({ pathLoading: false, path: null });
@@ -337,16 +389,18 @@ export const useGraphStore = create<GraphState>()(
         set({ depth: { kind: 'hop', centerId: nodeId, depth: 1 } });
         // Pull the neighbourhood (cached full graph, but seed focus).
         if (focused !== nodeId) get().focusNode(nodeId);
-        try {
-          await getNeighbors(get().networkId!, nodeId, { depth: 1 });
-          set({
-            focusedNodeId: nodeId,
-            depth: { kind: 'hop', centerId: nodeId, depth: 1 },
-            expandedNodeIds: Array.from(new Set([...get().expandedNodeIds, nodeId])),
-          });
-        } catch {
-          /* keep current view */
+        if (isMockData()) {
+          try {
+            await getNeighbors(get().networkId!, nodeId, { depth: 1 });
+          } catch {
+            /* keep current view */
+          }
         }
+        set({
+          focusedNodeId: nodeId,
+          depth: { kind: 'hop', centerId: nodeId, depth: 1 },
+          expandedNodeIds: Array.from(new Set([...get().expandedNodeIds, nodeId])),
+        });
       },
 
       collapseNode: (nodeId) =>

@@ -22,6 +22,7 @@ export function showOnGraph(entityId: string): void {
   const nodeId = findGraphNodeId(entityId);
   if (!nodeId) return;
   const graph = useGraphStore.getState();
+  graph.highlightNodes([nodeId]);
   graph.centerOnNode(nodeId);
   graph.focusNode(nodeId);
   graph.selectNode(nodeId);
@@ -60,31 +61,61 @@ export function inspectCentrality(entityId: string, metric: string, name?: strin
 /** Inspect a connected group (community) — outlines via overlay + inspector. */
 export function inspectCommunity(communityId: string): void {
   const store = useAnalyticsStore.getState();
+  const community = store.bundle?.communities.find((item) => item.id === communityId);
   store.selectCommunity(communityId);
   store.setOverlay('community');
+  const ids = (community?.nodeIds ?? community?.representativeEntities ?? [])
+    .map(findGraphNodeId)
+    .filter((id): id is string => Boolean(id));
+  const graph = useGraphStore.getState();
+  graph.highlightNodes(ids);
+  if (ids[0]) {
+    graph.focusNode(ids[0]);
+    graph.centerOnNode(ids[0]);
+  }
   useShellStore.getState().selectContext({
     type: 'community',
     id: communityId,
+    label: community?.label,
+    size: community?.size,
+    entityIds: community?.nodeIds,
   });
 }
 
 /** Inspect a connected component. */
 export function inspectComponent(componentId: string): void {
   const store = useAnalyticsStore.getState();
+  const component = store.bundle?.components.find((item) => item.componentId === componentId);
   store.selectComponent(componentId);
   store.setOverlay('component');
+  const ids = (component?.nodeIds ?? []).map(findGraphNodeId).filter((id): id is string => Boolean(id));
+  const graph = useGraphStore.getState();
+  graph.highlightNodes(ids);
+  if (ids[0]) {
+    graph.focusNode(ids[0]);
+    graph.centerOnNode(ids[0]);
+  }
   useShellStore.getState().selectContext({
     type: 'component',
     id: componentId,
+    nodeCount: component?.nodeCount,
+    entityIds: component?.nodeIds,
   });
 }
 
 /** Inspect a structural pattern. */
-export function inspectPattern(patternId: string, title?: string): void {
+export function inspectPattern(
+  patternId: string,
+  title?: string,
+  patternType?: string,
+  entities?: string[],
+): void {
   useAnalyticsStore.getState().selectPattern(patternId);
   useShellStore.getState().selectContext({
     type: 'pattern',
     id: patternId,
     title,
+    patternType,
+    entities,
   });
 }

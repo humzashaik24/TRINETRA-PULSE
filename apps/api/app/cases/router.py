@@ -45,6 +45,7 @@ async def get_case(case_id: UUID):
     case = _cases_store.get(str(case_id))
     if not case:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Case not found")
     return CaseResponse(**case)
 

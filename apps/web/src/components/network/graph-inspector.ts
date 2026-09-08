@@ -10,7 +10,7 @@ import type { GraphEdge, GraphNode } from '@trinetra-pulse/types';
 // evidence) let the inspector render even without a canonical profile.
 // ============================================================
 
-export function graphNodeToContext(node: GraphNode): EntityContext {
+export function graphNodeToContext(node: GraphNode, investigationId?: string): EntityContext {
   return {
     type: 'entity',
     id: node.entityId,
@@ -21,12 +21,14 @@ export function graphNodeToContext(node: GraphNode): EntityContext {
     sources: node.sources,
     activityAt: node.activityAt,
     status: node.status,
+    investigationId,
   };
 }
 
 export function graphEdgeToContext(
   edge: GraphEdge,
-  nodeLabelById: Map<string, { name: string; type: string }>
+  nodeLabelById: Map<string, { name: string; type: string }>,
+  investigationId?: string,
 ): RelationshipContext {
   const source = nodeLabelById.get(edge.source);
   const target = nodeLabelById.get(edge.target);
@@ -48,5 +50,6 @@ export function graphEdgeToContext(
     direction: edge.direction,
     extractionMethod: edge.extractionMethod,
     verificationStatus: edge.status,
+    investigationId,
   };
 }

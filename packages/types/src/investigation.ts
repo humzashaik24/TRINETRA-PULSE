@@ -183,7 +183,7 @@ export interface InvestigationTimelineItem {
   id: string;
   investigation_id: string;
   timestamp: string;
-  category: 'event' | 'evidence' | 'relationship' | 'activity' | 'note' | 'finding' | 'system';
+  category: 'event' | 'evidence' | 'activity' | 'note' | 'finding' | 'system';
   title: string;
   description: string | null;
   /** Id of the underlying object when the item maps to one. */

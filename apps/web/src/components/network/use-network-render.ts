@@ -45,6 +45,7 @@ export function useNetworkRender(width: number, height: number): NetworkRender {
   const layout = useGraphStore((s) => s.layout);
   const networkId = useGraphStore((s) => s.networkId);
   const path = useGraphStore((s) => s.path);
+  const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds);
 
   const analyticsOverlay = useAnalyticsStore((s) => s.overlay);
   const analyticsBundle = useAnalyticsStore((s) => s.bundle);
@@ -93,6 +94,7 @@ export function useNetworkRender(width: number, height: number): NetworkRender {
   const pathEdgeIds = useMemo(() => (path ? new Set(path.edgeIds) : new Set<string>()), [path]);
 
   const hasSelection = selectedNodeId !== null || selectedEdgeId !== null;
+  const highlighted = useMemo(() => new Set(highlightedNodeIds), [highlightedNodeIds]);
 
   const renderNodes = useMemo<RenderNode[]>(() => {
     const base = transformNodes(visibleNodes);
@@ -102,19 +104,21 @@ export function useNetworkRender(width: number, height: number): NetworkRender {
         ...n,
         x: positions.get(n.id)?.x ?? n.x,
         y: positions.get(n.id)?.y ?? n.y,
-        focused: focused.focusedNodeIds.has(n.id) || pathNodeIds.has(n.id),
+        focused: focused.focusedNodeIds.has(n.id) || pathNodeIds.has(n.id) || highlighted.has(n.id) || highlighted.has(n.entityId),
         dimmed:
           hasSelection &&
           !focused.focusedNodeIds.has(n.id) &&
           !focused.focusedEdgeIds.has(edges.find((e) => e.source === n.id || e.target === n.id)?.id ?? '') &&
-          !pathNodeIds.has(n.id),
+          !pathNodeIds.has(n.id) &&
+          !highlighted.has(n.id) &&
+          !highlighted.has(n.entityId),
         analyticsSizeScale: ov?.sizeScale,
         analyticsTint: ov?.tint,
         analyticsAccent: ov?.accent,
         analyticsDim: ov?.dim,
       };
     });
-  }, [visibleNodes, positions, focused, hasSelection, pathNodeIds, edges, overlayMap]);
+  }, [visibleNodes, positions, focused, hasSelection, pathNodeIds, edges, overlayMap, highlighted]);
 
   const renderEdges = useMemo<RenderEdge[]>(() => {
     const base = transformEdges(visibleEdges);

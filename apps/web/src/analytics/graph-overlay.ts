@@ -54,8 +54,14 @@ export function computeNodeOverlays(
   const out = new Map<string, AnalyticsNodeVisual>();
   if (!bundle) return out;
   const allEntities = new Set<string>();
-  for (const c of bundle.communities) c.representativeEntities.forEach((e) => allEntities.add(e));
+  for (const c of bundle.communities) {
+    (c.nodeIds.length ? c.nodeIds : c.representativeEntities).forEach((e) => allEntities.add(e));
+  }
   for (const e of bundle.influence ?? []) allEntities.add(e.entityId);
+  for (const c of bundle.components) c.nodeIds.forEach((e) => allEntities.add(e));
+  for (const set of [bundle.degree, bundle.betweenness, bundle.closeness, bundle.pagerank]) {
+    for (const result of set?.results ?? []) allEntities.add(result.entityId);
+  }
   if (allEntities.size === 0) return out;
 
   switch (overlay) {
@@ -94,7 +100,7 @@ export function computeNodeOverlays(
       const sorted = [...bundle.communities].sort((a, b) => b.size - a.size);
       sorted.forEach((c, i) => {
         const hue = hueForIndex(i);
-        for (const entityId of c.representativeEntities) {
+        for (const entityId of (c.nodeIds.length ? c.nodeIds : c.representativeEntities)) {
           out.set(entityId, {
             sizeScale: 1,
             tint: hue,
@@ -109,7 +115,7 @@ export function computeNodeOverlays(
       const sorted = [...bundle.components].sort((a, b) => b.nodeCount - a.nodeCount);
       sorted.forEach((c, i) => {
         const hue = hueForIndex(i);
-        for (const entityId of c.representativeNode ? [c.representativeNode] : []) {
+        for (const entityId of c.nodeIds.length ? c.nodeIds : c.representativeNode ? [c.representativeNode] : []) {
           out.set(entityId, {
             sizeScale: 1,
             tint: hue,

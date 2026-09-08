@@ -21,6 +21,4 @@ async def get_timeline(
 ) -> TimelineResponse:
     service = InvestigationService(session)
     entries = await service.timeline(investigation_id)
-    return TimelineResponse(
-        investigation_id=investigation_id, entries=entries
-    )
+    return TimelineResponse(investigation_id=investigation_id, entries=entries)

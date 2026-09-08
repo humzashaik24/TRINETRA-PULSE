@@ -33,6 +33,7 @@ class DatasetService:
         ds = await self.datasets.get(dataset_id)
         if not ds:
             from app.api.errors import NotFoundError
+
             raise NotFoundError("Dataset", str(dataset_id))
         return ds
 
@@ -72,6 +73,7 @@ class DatasetService:
         job = await self.jobs.get(job_id)
         if not job:
             from app.api.errors import NotFoundError
+
             raise NotFoundError("IngestionJob", str(job_id))
         return job
 

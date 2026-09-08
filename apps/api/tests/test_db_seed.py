@@ -75,9 +75,7 @@ async def test_schema_creates_expected_tables():
 
 @pytest.mark.anyio
 async def test_seed_populates_operation_meridian(seeded_session: AsyncSession):
-    investigation = (
-        await seeded_session.execute(select(Investigation))
-    ).scalar_one()
+    investigation = (await seeded_session.execute(select(Investigation))).scalar_one()
     assert investigation.title == "Operation Meridian"
     assert investigation.status.value == "active"
     assert investigation.priority.value == "high"
@@ -86,27 +84,13 @@ async def test_seed_populates_operation_meridian(seeded_session: AsyncSession):
     assert investigation.tags == ["import", "meridian", "demo"]
 
     entities = (await seeded_session.execute(select(Entity))).scalars().all()
-    relationships = (
-        await seeded_session.execute(select(Relationship))
-    ).scalars().all()
-    evidence = (
-        await seeded_session.execute(select(InvestigationEvidence))
-    ).scalars().all()
-    findings = (
-        await seeded_session.execute(select(InvestigationFinding))
-    ).scalars().all()
-    events = (
-        await seeded_session.execute(select(InvestigationEvent))
-    ).scalars().all()
-    notes = (
-        await seeded_session.execute(select(InvestigationNote))
-    ).scalars().all()
-    datasets = (
-        await seeded_session.execute(select(Dataset))
-    ).scalars().all()
-    jobs = (
-        await seeded_session.execute(select(IngestionJob))
-    ).scalars().all()
+    relationships = (await seeded_session.execute(select(Relationship))).scalars().all()
+    evidence = (await seeded_session.execute(select(InvestigationEvidence))).scalars().all()
+    findings = (await seeded_session.execute(select(InvestigationFinding))).scalars().all()
+    events = (await seeded_session.execute(select(InvestigationEvent))).scalars().all()
+    notes = (await seeded_session.execute(select(InvestigationNote))).scalars().all()
+    datasets = (await seeded_session.execute(select(Dataset))).scalars().all()
+    jobs = (await seeded_session.execute(select(IngestionJob))).scalars().all()
 
     assert len(entities) == 6
     assert len(relationships) == 4
@@ -140,13 +124,8 @@ async def test_seed_populates_operation_meridian(seeded_session: AsyncSession):
 
 @pytest.mark.anyio
 async def test_all_relationships_resolve_to_entities(seeded_session: AsyncSession):
-    entity_ids = {
-        e.id
-        for e in (await seeded_session.execute(select(Entity))).scalars().all()
-    }
-    relationships = (
-        await seeded_session.execute(select(Relationship))
-    ).scalars().all()
+    entity_ids = {e.id for e in (await seeded_session.execute(select(Entity))).scalars().all()}
+    relationships = (await seeded_session.execute(select(Relationship))).scalars().all()
     assert relationships
     for rel in relationships:
         assert rel.source_entity_id in entity_ids
@@ -157,9 +136,7 @@ async def test_all_relationships_resolve_to_entities(seeded_session: AsyncSessio
 async def test_all_children_scoped_to_seeded_investigation(
     seeded_session: AsyncSession,
 ):
-    investigation = (
-        await seeded_session.execute(select(Investigation))
-    ).scalar_one()
+    investigation = (await seeded_session.execute(select(Investigation))).scalar_one()
     iid = investigation.id
     for model in (
         Entity,
@@ -180,8 +157,7 @@ async def test_all_children_scoped_to_seeded_investigation(
 @pytest.mark.anyio
 async def test_seed_is_reproducible(seeded_session: AsyncSession):
     texts = [
-        e.canonical_name
-        for e in (await seeded_session.execute(select(Entity))).scalars().all()
+        e.canonical_name for e in (await seeded_session.execute(select(Entity))).scalars().all()
     ]
     assert "rahul kumar" in texts
     assert "mumbai trading corp" in texts
@@ -199,10 +175,14 @@ async def test_seed_is_idempotent():
         await seed_database(session)
         await session.commit()
         inv_id = (
-            await session.execute(
-                select(Investigation).where(Investigation.title == "Operation Meridian")
+            (
+                await session.execute(
+                    select(Investigation).where(Investigation.title == "Operation Meridian")
+                )
             )
-        ).scalar_one().id
+            .scalar_one()
+            .id
+        )
 
     async with factory() as session:
         await seed_database(session)  # second call: idempotent no-op

@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
 import { useAppStore } from '@/state/app.store';
 import { BarChart3 } from 'lucide-react';
-import { Button, EmptyState } from '@trinetra-pulse/ui';
 import { WorkspaceHeader } from '@/components/shell/workspace-header';
+import { WorkspacePlaceholder } from '@/components/shell/workspace-placeholder';
 
 export default function AnalyticsPage() {
   const setContextLabel = useAppStore((s) => s.setContextLabel);
@@ -22,16 +21,11 @@ export default function AnalyticsPage() {
         title="Analytics"
         description="Data analysis and statistical insights"
       />
-      <EmptyState
-        icon={<BarChart3 className="h-8 w-8" />}
-        title="No investigation data yet"
-        description="Analytics require network data. Ingest investigation data to generate analytical insights."
-        action={
-          <Link href="/data-intelligence">
-            <Button variant="primary" size="sm">Ingest Data</Button>
-          </Link>
-        }
-        className="rounded-lg border border-border bg-surface"
+      <WorkspacePlaceholder
+        icon={BarChart3}
+        accentClassName="bg-info-subtle text-info"
+        title="Analytics Dashboard"
+        description="Statistical analysis, trend detection, and intelligence metrics for active investigations."
       />
     </div>
   );

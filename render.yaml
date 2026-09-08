@@ -1,5 +1,5 @@
 # ============================================================================
-# Trinetra Pulse — Render Blueprint (Phase 14.3)
+# Trinetra Pulse — Render Blueprint (Phase 14.3 + 17.10)
 # ----------------------------------------------------------------------------
 # Production target: Render native runtimes. NO Docker is required.
 #
@@ -7,8 +7,9 @@
 #   Backend  -> FastAPI native Python Web Service  (apps/api)
 #   Database -> Render Managed PostgreSQL
 #
-# Render runs the build/start commands below. Secrets are injected at sync
-# time or from the managed database; never commit real credentials.
+# Render runs the build/start/pre-deploy commands below. Secrets are injected
+# at sync time or from the managed database; never commit real credentials.
+# Schema migrations run automatically on every deploy (preDeployCommand).
 # See docs/RENDER_DEPLOYMENT.md for the full setup + first-deploy steps.
 # ============================================================================
 
@@ -29,9 +30,11 @@ services:
     plan: free
     healthCheckPath: /health
     buildCommand: pip install -r requirements.txt
-    # Apply Alembic migrations against the managed PostgreSQL before the new
-    # service version starts (idempotent: `alembic upgrade head` is a no-op when
-    # already at head). Requires DATABASE_URL to be wired (fromDatabase above).
+    # Runs on every deploy BEFORE the new service version starts (and fails the
+    # deploy on error). Keeps the managed PostgreSQL schema current; the
+    # operation merge of Operation Meridian demo data is a documented one-off
+    # post-deploy step (python -m app.db.seed in the apps/api root) so a
+    # deployment that should start empty is never auto-seeded.
     preDeployCommand: python -m alembic upgrade head
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -45,35 +48,40 @@ services:
           property: connectionString
       - key: APP_SECRET_KEY
         generateValue: true
+      # Phase 18.1 — JWT signing secret for the auth layer. Crash-consistent
+      # across syncs so issued tokens survive redeploys. In APP_ENV=production
+      # the API refuses to start with its development default. Demo accounts
+      # (investigator/supervisor/admin/auditor @trinetra.dev) are seeded only
+      # by running `python -m app.db.seed` in apps/api.
       - key: JWT_SECRET_KEY
         generateValue: true
-      # Production identity gate (Phase 22): only an X-User-Id matching this value
-      # is accepted (else 401). Leave as the documented demo inspector to match the
-      # web client, or pin a real account. Server-side only; never NEXT_PUBLIC_*.
-      - key: AUTH_ACTOR_EMAIL
-        sync: false
       # The deployed Render frontend origin. Set to the onrender.com (or custom)
       # URL of the web service after its first deploy.
       - key: FRONTEND_URL
         sync: false
+      - key: EVIDENCE_STORAGE_PROVIDER
+        value: s3
+      - key: EVIDENCE_STORAGE_BUCKET
+        sync: false
+      - key: EVIDENCE_STORAGE_REGION
+        sync: false
+      - key: EVIDENCE_STORAGE_ENDPOINT
+        sync: false
+      - key: EVIDENCE_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: EVIDENCE_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: EVIDENCE_STORAGE_PREFIX
+        value: evidence
+      - key: EVIDENCE_MAX_UPLOAD_BYTES
+        value: "209715200"
       - key: AI_PROVIDER
         value: mock
-      # Blockchain evidence integrity (Phase 21 / 22). Default is the clearly
-      # labelled deterministic mock provider. The web3 (real EVM testnet) path
-      # requires the server-only secrets below, set at sync time; they are never
-      # exposed as NEXT_PUBLIC_* and never shipped to the browser.
-      - key: BLOCKCHAIN_PROVIDER
-        value: mock
-      - key: BLOCKCHAIN_NETWORK
-        value: trinetra-mock-chain
-      - key: BLOCKCHAIN_RPC_URL
-        sync: false
-      - key: BLOCKCHAIN_PRIVATE_KEY
-        sync: false
-      - key: BLOCKCHAIN_CONTRACT_ADDRESS
-        sync: false
-      - key: BLOCKCHAIN_CHAIN_ID
-        sync: false
+      # Conservative pool for Render free-tier PostgreSQL connection limits.
+      - key: DB_POOL_SIZE
+        value: "3"
+      - key: DB_MAX_OVERFLOW
+        value: "2"
     buildFilter:
       paths:
         - apps/api/**

@@ -10,8 +10,6 @@ import {
   GitBranch,
   Sparkles,
   BarChart3,
-  Check,
-  X,
 } from 'lucide-react';
 import { Badge, EntityTypeIcon } from '@trinetra-pulse/ui';
 import { cn } from '@/lib/utils';
@@ -33,8 +31,6 @@ import type {
   InspectorEventView,
   InspectorAnalyticsSnapshotView,
 } from '@/services/inspector.service';
-import type { RelationshipIntelligence } from '@trinetra-pulse/types';
-import { getIntelligenceStatusLabel } from '@/services/relationship-intelligence.service';
 
 // ============================================================
 // PHASE 3.5 — CONTEXT INSPECTOR VIEWS
@@ -49,12 +45,6 @@ export interface ViewActions {
   onInspectFinding?: (finding: { id: string; title: string }) => void;
   /** Open this entity inside its network, focused (entity → network journey). */
   onOpenNetwork?: (entity: { id: string; investigationId?: string }) => void;
-  /** Confirm the relationship's multi-source correlation (Phase 21). */
-  onConfirmRelationship?: (relationshipId: string) => void;
-  /** Reject / discard the relationship's correlation (Phase 21). */
-  onRejectRelationship?: (relationshipId: string) => void;
-  /** Whether the current user may confirm/reject (defaults to true). */
-  canReview?: boolean;
 }
 
 function InfoRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
@@ -332,9 +322,6 @@ export function AnalyticsSnapshotContextView({ view, actions }: { view: Inspecto
 // ------------------------------------------------------------
 
 export function RelationshipContextView({ view, actions }: { view: InspectorRelationshipView; actions: ViewActions }) {
-  const intel = view.intelligence;
-  const canReview = actions.canReview ?? true;
-  const inFlight = false;
   return (
     <div className="px-4 py-3">
       <div className="flex items-center gap-2 text-[10px] text-foreground-muted uppercase tracking-wide">
@@ -364,9 +351,7 @@ export function RelationshipContextView({ view, actions }: { view: InspectorRela
         <p className="text-xs text-foreground-secondary">{view.source}</p>
       </Section>
 
-      {intel ? (
-        <RelationshipIntelligencePanel intel={intel} canReview={canReview} inFlight={inFlight} actions={actions} view={view} />
-      ) : view.evidence.length > 0 ? (
+      {view.evidence.length > 0 && (
         <Section title={`Supporting evidence (${view.evidence.length})`}>
           <ul className="space-y-1.5">
             {view.evidence.map((e, i) => (
@@ -376,156 +361,12 @@ export function RelationshipContextView({ view, actions }: { view: InspectorRela
             ))}
           </ul>
         </Section>
-      ) : null}
+      )}
 
       <div className="mt-5 pt-3 border-t border-border">
         <OpenButton onClick={actions.onOpen} label="Open in Network Workspace" />
       </div>
     </div>
-  );
-}
-
-// ------------------------------------------------------------
-// PHASE 21 — RELATIONSHIP INTELLIGENCE PANEL
-// ------------------------------------------------------------
-
-function RelationshipIntelligencePanel({
-  intel,
-  canReview,
-  inFlight,
-  actions,
-  view,
-}: {
-  intel: RelationshipIntelligence;
-  canReview: boolean;
-  inFlight: boolean;
-  actions: ViewActions;
-  view: InspectorRelationshipView;
-}) {
-  const statusVariant =
-    intel.status === 'REVIEWED'
-      ? 'success'
-      : intel.status === 'DISCARDED'
-        ? 'danger'
-        : intel.sourceCount >= 2
-          ? 'info'
-          : 'warning';
-
-  const correlated = intel.sourceCount >= 2;
-
-  return (
-    <>
-      <div className="mt-4 pt-3 border-t border-border">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="tp-data-label">Relationship intelligence</h4>
-          <Badge size="sm" variant={statusVariant}>
-            {getIntelligenceStatusLabel(intel.status)}
-          </Badge>
-        </div>
-      </div>
-
-      <Section title="Correlation">
-        <InfoRow label="Confidence" value={formatPercent(intel.confidence)} />
-        <InfoRow label="Label" value={intel.confidenceLabel} />
-        <InfoRow label="Independent sources" value={formatCount(intel.sourceCount)} />
-        <InfoRow label="Observations" value={formatCount(intel.observationCount)} />
-        <InfoRow label="Evidence records" value={formatCount(intel.evidenceCount)} />
-        <InfoRow label="First observed" value={intel.firstObservedAt ? formatDateTime(intel.firstObservedAt) : '—'} />
-        <InfoRow label="Last observed" value={intel.lastObservedAt ? formatDateTime(intel.lastObservedAt) : '—'} />
-        {intel.correlationKey && (
-          <InfoRow label="Correlation key" value={intel.correlationKey} mono />
-        )}
-      </Section>
-
-      {correlated && (
-        <p className="text-xs leading-relaxed text-foreground-muted">
-          Supported by {formatCount(intel.sourceCount)} independent sources. Correlation indicates corroboration of the
-          observed relationship — it does not establish criminality or culpability.
-        </p>
-      )}
-
-      {intel.sourceCount < 2 && (
-        <p className="text-xs leading-relaxed text-foreground-muted">
-          This relationship is currently supported by a single source. Correlation across independent sources is not
-          yet established.
-        </p>
-      )}
-
-      <Section title={`Source observations (${intel.observations.length})`}>
-        {intel.observations.length === 0 ? (
-          <p className="text-xs text-foreground-muted">No individual source observations recorded.</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {intel.observations.map((o) => (
-              <li key={o.id} className="text-xs text-foreground-secondary leading-relaxed">
-                <span className="font-medium text-foreground">{o.sourceLabel}</span>
-                {o.reference ? <span className="text-foreground-muted"> · {o.reference}</span> : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="Evidence support">
-        {intel.evidenceSupport?.supported && intel.evidenceSupport.evidenceIds.length > 0 ? (
-          <>
-            <InfoRow label="Linked records" value={formatCount(intel.evidenceSupport.evidenceIds.length)} />
-            <InfoRow label="Direct" value={formatCount(intel.evidenceSupport.directCount)} />
-            {view.evidenceLinks && view.evidenceLinks.length > 0 && (
-              <ul className="mt-1.5 space-y-1">
-                {view.evidenceLinks.map((e) => (
-                  <li key={e.evidenceId} className="text-xs text-foreground-secondary leading-relaxed">
-                    {e.title}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        ) : (
-          <p className="text-xs text-foreground-muted">No linked evidence</p>
-        )}
-      </Section>
-
-      {intel.conflictFlags.length > 0 && (
-        <Section title={`Conflicts (${intel.conflictFlags.length})`}>
-          <ul className="space-y-1.5">
-            {intel.conflictFlags.map((flag, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-xs text-foreground-secondary leading-relaxed">
-                <ShieldAlert className="mt-0.5 h-3 w-3 text-amber-500 shrink-0" />
-                <span>{flag.replace(/_/g, ' ')}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-
-      {canReview && intel.status === 'NEEDS_REVIEW' && (
-        <div className="mt-4 pt-3 border-t border-border flex gap-2">
-          <button
-            onClick={() => actions.onConfirmRelationship?.(view.id)}
-            disabled={inFlight}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-foreground/90 text-background px-3 h-8 text-xs font-medium tp-transition hover:bg-foreground disabled:opacity-50"
-          >
-            <Check className="h-3.5 w-3.5" />
-            Confirm
-          </button>
-          <button
-            onClick={() => actions.onRejectRelationship?.(view.id)}
-            disabled={inFlight}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 h-8 text-xs font-medium text-foreground tp-transition hover:bg-surface-hover disabled:opacity-50"
-          >
-            <X className="h-3.5 w-3.5" />
-            Discard
-          </button>
-        </div>
-      )}
-
-      {intel.status !== 'NEEDS_REVIEW' && (
-        <p className="mt-3 text-[11px] text-foreground-muted">
-          This correlation has been {intel.status === 'REVIEWED' ? 'reviewed' : 'discarded'} by an analyst.
-        </p>
-      )}
-    </>
   );
 }
 
@@ -679,6 +520,20 @@ export function EvidenceContextView({ view, actions }: { view: InspectorEvidence
         <InfoRow label="Extracted" value={formatRelativeLocal(view.timestamp)} />
       </Section>
 
+      <Section title="Integrity & storage">
+        <InfoRow label="Evidence ID" value={view.id} />
+        {view.filename && <InfoRow label="Filename" value={view.filename} />}
+        {view.size !== undefined && <InfoRow label="Size" value={`${view.size} bytes`} />}
+        {view.contentType && <InfoRow label="Type" value={view.contentType} />}
+        <InfoRow label="Provenance" value={view.sourceName} />
+        {view.checksum && <InfoRow label="SHA-256" value={view.checksum} />}
+        {view.integrityStatus && <InfoRow label="Integrity" value={view.integrityStatus} />}
+        {view.storageStatus && <InfoRow label="Payload" value={view.storageStatus} />}
+        {view.custodyChain && (
+          <InfoRow label="Custody chain" value={`${view.custodyChain.status} (${view.custodyChain.entries})`} />
+        )}
+      </Section>
+
       {view.investigationId && (
         <Section title="Investigation">
           <p className="text-xs font-mono text-foreground-muted">{view.investigationId.toUpperCase()}</p>
@@ -728,6 +583,29 @@ export function EvidenceContextView({ view, actions }: { view: InspectorEvidence
 
       {view.isDemoData && (
         <p className="mt-3 text-[11px] text-foreground-muted">Demo dataset — illustrative content for the SIH demonstration.</p>
+      )}
+
+      {view.custodyChain && (
+        <Section title="Custody chain">
+          <div className="flex items-center justify-between gap-2">
+            <StatusBadge
+              status={view.custodyChain.status}
+              variant={
+                view.custodyChain.status === 'VALID'
+                  ? 'success'
+                  : view.custodyChain.status === 'MISSING'
+                    ? 'warning'
+                    : 'danger'
+              }
+            />
+            <span className="text-xs text-foreground-muted">
+              {view.custodyChain.entries} link{view.custodyChain.entries === 1 ? '' : 's'}
+            </span>
+          </div>
+          {view.custodyChain.verifiedAt ? (
+            <InfoRow label="Verified" value={formatRelativeLocal(view.custodyChain.verifiedAt)} />
+          ) : null}
+        </Section>
       )}
 
       <div className="mt-5 pt-3 border-t border-border">

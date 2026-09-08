@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Share2, List, Network as NetworkIcon, X, BarChart3, Database } from 'lucide-react';
+import { Share2, List, Network as NetworkIcon, X, BarChart3 } from 'lucide-react';
 import { useAppStore } from '@/state/app.store';
 import { useGraphStore } from '@/state/graph.store';
 import { useShellStore } from '@/state/shell.store';
 import { journeyHref } from '@/navigation/journey';
 import { useJourneyFocus, useGraphJourneyFocus } from '@/hooks/use-journey-focus';
-import { Button, EmptyState, ErrorState, LoadingState, IconButton, Tooltip } from '@trinetra-pulse/ui';
+import { ErrorState, LoadingState, IconButton, Tooltip } from '@trinetra-pulse/ui';
 import { NetworkSummary } from '@/components/network/network-summary';
 import { NetworkToolbar } from '@/components/network/network-toolbar';
 import { NetworkGraph } from '@/components/network/network-graph';
@@ -37,7 +37,6 @@ export default function NetworkPage({ params }: NetworkPageProps) {
   const networkId = useGraphStore((s) => s.networkId);
   const loadingState = useGraphStore((s) => s.loadingState);
   const error = useGraphStore((s) => s.error);
-  const nodes = useGraphStore((s) => s.nodes);
   const clearContext = useShellStore((s) => s.clearContext);
 
   const [view, setView] = useState<'graph' | 'list'>('graph');
@@ -70,25 +69,6 @@ export default function NetworkPage({ params }: NetworkPageProps) {
     return (
       <div className="p-6 lg:p-8">
         <ErrorState title="Could not load network" message={error ?? 'Network unavailable'} retry={load} />
-      </div>
-    );
-  }
-
-  if (nodes.length === 0) {
-    return (
-      <div className="p-6 lg:p-8 space-y-6">
-        <NetworkSummary />
-        <EmptyState
-          icon={<Database className="h-8 w-8" />}
-          title="No investigation data yet"
-          description="Upload a CSV or ingest investigation data to begin building the intelligence network."
-          action={
-            <Link href="/data-intelligence">
-              <Button variant="primary" size="sm">Ingest Data</Button>
-            </Link>
-          }
-          className="rounded-lg border border-border bg-surface"
-        />
       </div>
     );
   }

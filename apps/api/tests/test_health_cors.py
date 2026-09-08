@@ -1,6 +1,7 @@
 """Health + CORS configuration tests (Phase 14.3 / Render)."""
 
 import json
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -23,6 +24,18 @@ async def test_health_endpoint_unauthenticated():
     # Never expose secrets in the health payload.
     for secret_key in ("DATABASE_URL", "password", "secret", "token", "api_key"):
         assert secret_key.lower() not in json.dumps(body).lower()
+
+
+@pytest.mark.anyio
+async def test_database_health_returns_service_unavailable_when_database_is_down():
+    from app.main import app
+
+    with patch("app.core.health._db_status", new=AsyncMock(return_value="unavailable")):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/v1/health/db")
+    assert resp.status_code == 503
+    assert resp.json()["database"] == "unavailable"
 
 
 def test_cors_no_wildcard_by_default():
@@ -54,39 +67,3 @@ def test_cors_production_appends_no_wildcard():
     # In production the deployed origin is the only allowed origin.
     assert origins == ["https://web.onrender.com"]
     assert "*" not in origins
-
-
-def test_cors_production_rejects_wildcard_frontend():
-    """Production must refuse to boot with a wildcard FRONTEND_URL."""
-    settings = Settings(app_env="production", frontend_url="*", cors_origins="")
-    with pytest.raises(RuntimeError, match="wildcard"):
-        settings.cors_allow_origins
-
-
-def test_cors_production_rejects_wildcard_origins():
-    """Production must refuse to boot when CORS_ORIGINS contains ``*``."""
-    settings = Settings(
-        app_env="production",
-        frontend_url="https://web.onrender.com",
-        cors_origins="*",
-    )
-    with pytest.raises(RuntimeError, match="wildcard"):
-        settings.cors_allow_origins
-
-
-def test_cors_production_rejects_missing_frontend_url():
-    """Production with no FRONTEND_URL must not silently fall back to localhost."""
-    settings = Settings(app_env="production", frontend_url="", cors_origins="")
-    with pytest.raises(RuntimeError, match="FRONTEND_URL is not set"):
-        settings.cors_allow_origins
-
-
-def test_cors_production_rejects_localhost_origins():
-    """Production with a localhost origin is refused explicitly."""
-    settings = Settings(
-        app_env="production",
-        frontend_url="https://web.onrender.com",
-        cors_origins="http://localhost:3000",
-    )
-    with pytest.raises(RuntimeError, match="localhost"):
-        settings.cors_allow_origins

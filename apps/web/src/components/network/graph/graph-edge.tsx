@@ -48,16 +48,9 @@ export const GraphEdge = memo(function GraphEdgeComponent(props: GraphEdgeProps)
   const focused = selected || edge?.focused;
   const dimmed = edge?.dimmed;
 
-  const intel = edge?.intelligence;
-  const correlated = !!intel && intel.sourceCount >= 2;
-
   const strokeColor = focused
     ? 'hsl(210, 90%, 70%)'
-    : correlated
-      ? 'hsl(150, 55%, 48%)'
-      : intel
-        ? 'hsl(40, 70%, 52%)'
-        : `hsl(215, 20%, 52%)`;
+    : `hsl(215, 20%, 52%)`;
 
   const strokeWidth = focused ? 2 : Math.max(1, (edge?.confidence ?? 0.5) * 1.6);
 
@@ -89,11 +82,6 @@ export const GraphEdge = memo(function GraphEdgeComponent(props: GraphEdgeProps)
           >
             <span className="rounded border border-border bg-surface/90 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-foreground">
               {edge.label}
-              {intel ? (
-                <span className={`ml-1 ${correlated ? 'text-emerald-600' : 'text-amber-600'}`}>
-                  · {intel.confidenceLabel}
-                </span>
-              ) : null}
             </span>
           </div>
         </EdgeLabelRenderer>

@@ -98,10 +98,9 @@ describe('investigation.service — read API', () => {
     expect(evidence.every((e) => e.metadata?.is_mock === false)).toBe(true);
   });
 
-  it('sorts the timeline newest-first (including the Phase 21 relationship entry)', async () => {
+  it('sorts the timeline newest-first', async () => {
     const timeline = await getInvestigationTimeline('inv-001');
-    expect(timeline.length).toBe(4);
-    expect(timeline.some((t) => t.category === 'relationship')).toBe(true);
+    expect(timeline.length).toBe(3);
     for (let i = 1; i < timeline.length; i++) {
       expect(timeline[i - 1].timestamp >= timeline[i].timestamp).toBe(true);
     }

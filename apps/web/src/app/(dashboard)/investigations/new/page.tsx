@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, FolderPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useAppStore } from '@/state/app.store';
+import { useCanMutate } from '@/hooks/use-auth';
 import { WorkspaceHeader } from '@/components/shell/workspace-header';
 import { Button, Input, Select, Label } from '@trinetra-pulse/ui';
 import { createInvestigationFromSetup } from '@/services/investigation-operations.service';
@@ -37,6 +38,7 @@ const STATUS_LABELS: Record<InvestigationStatus, string> = {
 export default function NewInvestigationPage() {
   const router = useRouter();
   const setContextLabel = useAppStore((s) => s.setContextLabel);
+  const canMutate = useCanMutate();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -78,6 +80,35 @@ export default function NewInvestigationPage() {
       setCreating(false);
     }
   };
+
+  if (!canMutate) {
+    return (
+      <div className="p-6 lg:p-8 space-y-6 max-w-2xl">
+        <div
+          className="flex items-start gap-3 rounded-xl border border-border bg-surface p-6"
+          data-testid="read-only-warning"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-0.5 shrink-0 text-warning" aria-hidden="true">
+            <path d="M9 12l2 2 4-4" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+          <div>
+            <h2 className="font-semibold text-foreground">Read-only role</h2>
+            <p className="mt-1 text-sm text-foreground-muted">
+              Your account is restricted to viewing and analysis. Investigation setup is
+              available to investigators and above.
+            </p>
+          </div>
+        </div>
+        <Link href="/investigations">
+          <Button variant="secondary" size="sm">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to investigations
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-2xl">

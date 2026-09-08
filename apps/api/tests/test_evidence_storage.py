@@ -33,20 +33,14 @@ def test_save_and_load_roundtrip(storage: EvidenceStorage):
 
 def test_overwrite_same_evidence_id(storage: EvidenceStorage):
     evidence_id = uuid.uuid4()
-    storage.save(
-        EvidenceBlob(evidence_id, "a.txt", "text/plain", b"one", {})
-    )
-    storage.save(
-        EvidenceBlob(evidence_id, "a.txt", "text/plain", b"two", {"v": 2})
-    )
+    storage.save(EvidenceBlob(evidence_id, "a.txt", "text/plain", b"one", {}))
+    storage.save(EvidenceBlob(evidence_id, "a.txt", "text/plain", b"two", {"v": 2}))
     assert storage.load(evidence_id).data == b"two"
 
 
 def test_delete_removes_blob(storage: EvidenceStorage):
     evidence_id = uuid.uuid4()
-    storage.save(
-        EvidenceBlob(evidence_id, "a.txt", "text/plain", b"x", {})
-    )
+    storage.save(EvidenceBlob(evidence_id, "a.txt", "text/plain", b"x", {}))
     assert storage.exists(evidence_id)
     storage.delete(evidence_id)
     assert not storage.exists(evidence_id)

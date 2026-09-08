@@ -23,6 +23,7 @@ export function AnalyticsDashboard() {
   const bundle = useAnalyticsStore((s) => s.bundle);
   const status = useAnalyticsStore((s) => s.status);
   const error = useAnalyticsStore((s) => s.error);
+  const unavailable = new Set(bundle?.metadata?.unavailableSections ?? []);
 
   if (status === 'failed') {
     return <ErrorState title="Analytics failed" message={error ?? 'Computation error'} className="m-4" />;
@@ -58,22 +59,22 @@ export function AnalyticsDashboard() {
               <TabsTrigger value="temporal">Timeline</TabsTrigger>
             </TabsList>
             <TabsContent value="metrics">
-              <MetricExplorer bundle={bundle} />
+              <MetricExplorer bundle={bundle} unavailable={unavailable.has('influence') && unavailable.has('degree') && unavailable.has('betweenness') && unavailable.has('closeness') && unavailable.has('pagerank')} />
             </TabsContent>
             <TabsContent value="communities">
-              <CommunityView communities={bundle.communities} />
+              <CommunityView communities={bundle.communities} unavailable={unavailable.has('communities')} />
             </TabsContent>
             <TabsContent value="components">
-              <ComponentView components={bundle.components} />
+              <ComponentView components={bundle.components} unavailable={unavailable.has('components')} />
             </TabsContent>
             <TabsContent value="bridges">
-              <BridgeView bridges={bundle.bridges} relationships={bundle.bridgeRelationships} />
+              <BridgeView bridges={bundle.bridges} relationships={bundle.bridgeRelationships} unavailable={unavailable.has('bridges')} />
             </TabsContent>
             <TabsContent value="patterns">
-              <PatternView patterns={bundle.patterns} />
+              <PatternView patterns={bundle.patterns} unavailable={unavailable.has('patterns')} />
             </TabsContent>
             <TabsContent value="temporal">
-              <TemporalView temporal={bundle.temporal} />
+              <TemporalView temporal={bundle.temporal} unavailable={unavailable.has('temporal')} />
             </TabsContent>
           </Tabs>
         </motion.div>

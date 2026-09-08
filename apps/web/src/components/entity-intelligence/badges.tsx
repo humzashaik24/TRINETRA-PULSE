@@ -96,36 +96,3 @@ export function RelationshipStatusBadge({ status, size = 'sm', className }: Rela
     </Badge>
   );
 }
-
-interface RelationshipIntelligenceBadgeProps {
-  status: string;
-  confidenceLabel: string;
-  sourceCount: number;
-  size?: 'sm' | 'md';
-  className?: string;
-}
-
-/** Phase 21 — multi-source correlation badge for a relationship. */
-export function RelationshipIntelligenceBadge({
-  status,
-  confidenceLabel,
-  sourceCount,
-  size = 'sm',
-  className,
-}: RelationshipIntelligenceBadgeProps) {
-  const variant =
-    status === 'REVIEWED'
-      ? 'success'
-      : status === 'DISCARDED'
-        ? 'danger'
-        : sourceCount >= 2
-          ? 'network'
-          : 'warning';
-  const dot = status !== 'DISCARDED';
-  return (
-    <Badge variant={variant} size={size} dot={dot} className={cn('gap-1', className)}>
-      {confidenceLabel}
-      <span className="font-normal opacity-80">· {sourceCount} src</span>
-    </Badge>
-  );
-}

@@ -1,4 +1,3 @@
-
 from pydantic import Field
 
 from app.schemas.common import SchemaBase, TimestampMixin, UUIDMixin

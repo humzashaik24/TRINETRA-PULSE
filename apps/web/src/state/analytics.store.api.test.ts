@@ -23,6 +23,11 @@ jest.mock('@/lib/api/investigations', () => ({
   getNetworkAnalytics: jest.fn(),
 }));
 
+jest.mock('@/lib/api/patterns', () => ({
+  getInvestigationPatterns: jest.fn(),
+  mapPatternDetectionToStructuralPattern: jest.fn(),
+}));
+
 // Mock network analytics service (should NOT be called in API mode).
 jest.mock('@/services/network-analytics.service', () => ({
   getNetworkAnalytics: jest.fn(),
@@ -33,9 +38,11 @@ import { getNetworkAnalytics } from '@/services/network-analytics.service';
 import {
   getNetworkAnalytics as fetchApiAnalytics,
 } from '@/lib/api/investigations';
+import { getInvestigationPatterns } from '@/lib/api/patterns';
 
 const mockedMockService = jest.mocked(getNetworkAnalytics);
 const mockedFetchApi = jest.mocked(fetchApiAnalytics);
+const mockedFetchPatterns = jest.mocked(getInvestigationPatterns);
 
 // ---------------------------------------------------------------------------
 // FIXTURES
@@ -68,6 +75,37 @@ const EMPTY_API_ANALYTICS: RealAnalyticsOverview = {
 // ---------------------------------------------------------------------------
 
 describe('mapApiAnalyticsToNetworkAnalytics', () => {
+  it('maps a server advanced bundle without invoking mock algorithms', () => {
+    const bundle = mapApiAnalyticsToNetworkAnalytics({
+      investigation_id: 'net-advanced',
+      entity_count: 3,
+      relationship_count: 2,
+      connected_components: 1,
+      average_degree: 1.33,
+      flagged_entity_count: 0,
+      verified_entity_count: 0,
+      high_risk_entity_count: 0,
+      degree: {
+        type: 'degree',
+        label: 'Connectedness',
+        definition: 'Direct ties',
+        results: [{ entity_id: 'e-1', score: 2, normalized_score: 1, rank: 1, metadata: {} }] as any,
+        metadata: { algorithm: 'degree', version: '1', computed_at: '2026-01-01', scope: 'net-advanced', relationship_types: [], time_range: { from: null, to: null }, node_count: 3 },
+      } as any,
+      communities: [{ community_id: 'c-1', label: 'Group 1', node_ids: ['e-1', 'e-2'], size: 2, internal_edge_count: 1, density: 1, cohesion: 1, representative_entities: ['e-1'], bridge_entity_ids: [] }] as any,
+      components: [{ component_id: 'comp-1', node_count: 3, edge_count: 2, density: 0.66, representative_node: 'e-1', node_ids: ['e-1', 'e-2', 'e-3'] }] as any,
+      bridges: null,
+      bridge_relationships: null,
+      patterns: [],
+      temporal: null,
+    } as any, 'net-advanced');
+    expect(bundle.degree?.results[0].entityId).toBe('e-1');
+    expect(bundle.communities[0].nodeIds).toEqual(['e-1', 'e-2']);
+    expect(bundle.components[0].componentId).toBe('comp-1');
+    expect(bundle.metadata?.unavailableSections).toContain('bridges');
+    expect(bundle.metadata?.unavailableSections).toContain('temporal');
+  });
+
   it('maps entity_count to summary.nodes', () => {
     const bundle = mapApiAnalyticsToNetworkAnalytics(FAKE_API_ANALYTICS, 'net-1');
     expect(bundle.summary?.nodes).toBe(12);
@@ -172,6 +210,10 @@ describe('analytics.store – API mode loadAnalytics', () => {
     });
     jest.clearAllMocks();
     mockedFetchApi.mockResolvedValue(FAKE_API_ANALYTICS);
+    mockedFetchPatterns.mockResolvedValue({
+      investigation_id: 'inv-test',
+      patterns: [],
+    });
   });
 
   afterAll(() => {

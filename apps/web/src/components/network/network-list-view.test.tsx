@@ -64,7 +64,6 @@ afterEach(() => {
       statuses: [],
       sources: [],
       activity: 'all',
-      intelligenceStatuses: [],
     },
     depth: { kind: 'full' },
     timeline: { from: null, to: null },

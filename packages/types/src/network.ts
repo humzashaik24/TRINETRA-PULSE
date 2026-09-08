@@ -110,14 +110,6 @@ export interface GraphEdge {
   evidence: string[];
   extractionMethod: ExtractionMethod;
   metadata: Record<string, unknown>;
-  /** Phase 21 — optional relationship-intelligence summary on the edge. */
-  intelligence?: {
-    status: string;
-    confidence: number;
-    confidenceLabel: string;
-    sourceCount: number;
-    correlationKey: string;
-  };
 }
 
 // ------------------------------------------------------------
@@ -214,8 +206,6 @@ export interface GraphFilters {
   statuses: GraphNodeStatus[];
   sources: string[];
   activity: 'all' | 'active' | 'recent' | 'inactive';
-  /** Phase 21 — optional relationship-intelligence status filter. */
-  intelligenceStatuses: string[];
 }
 
 export interface GraphTimelineRange {
@@ -233,7 +223,7 @@ export interface NetworkPath {
   nodeIds: string[];
   edgeIds: string[];
   length: number;
-  confidence: number;
+  confidence: number | null;
 }
 
 // ------------------------------------------------------------

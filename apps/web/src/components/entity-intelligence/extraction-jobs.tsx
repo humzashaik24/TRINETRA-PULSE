@@ -22,6 +22,8 @@ import { mockDatasets } from '@/mock';
 import { cancelExtractionJob, fetchExtractionJobs, startExtractionJob } from '@/services/entity.service';
 import { formatCount, formatDuration, formatRelativeTime } from '@/lib/format';
 import { JobStatusBadge } from './badges';
+import { useAuthStore } from '@/state/auth.store';
+import { isMockData } from '@/lib/api/config';
 
 // ============================================================
 // EXTRACTION JOBS
@@ -44,13 +46,13 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-function JobRow({ job, onCancelled }: { job: ExtractionJob; onCancelled?: () => void }) {
+function JobRow({ job, actor, onCancelled }: { job: ExtractionJob; actor: string; onCancelled?: () => void }) {
   const [cancelling, setCancelling] = useState(false);
 
   const cancel = async () => {
     setCancelling(true);
     try {
-      await cancelExtractionJob(job.id, 'analyst-kd');
+      await cancelExtractionJob(job.id, actor);
       onCancelled?.();
     } finally {
       setCancelling(false);
@@ -147,6 +149,7 @@ export function ExtractionJobs({ onCreate }: ExtractionJobsProps) {
   const [startOpen, setStartOpen] = useState(false);
   const [selectedDataset, setSelectedDataset] = useState<string>('');
   const [starting, setStarting] = useState(false);
+  const actor = useAuthStore((s) => s.currentUser()?.id ?? 'unknown-user');
 
   const load = async () => {
     try {
@@ -173,7 +176,7 @@ export function ExtractionJobs({ onCreate }: ExtractionJobsProps) {
       const job = await startExtractionJob({
         datasetId: dataset.id,
         datasetName: dataset.name,
-        createdBy: 'analyst-kd',
+        createdBy: actor,
       });
       setStartOpen(false);
       setSelectedDataset('');
@@ -193,10 +196,16 @@ export function ExtractionJobs({ onCreate }: ExtractionJobsProps) {
         <p className="text-caption text-foreground-muted">
           {jobs?.length ?? 0} jobs · progress reflects current pipeline state
         </p>
-        <Button size="sm" onClick={() => setStartOpen(true)}>
-          <Play className="h-3.5 w-3.5" />
-          Start extraction
-        </Button>
+        {isMockData() ? (
+          <Button size="sm" onClick={() => setStartOpen(true)}>
+            <Play className="h-3.5 w-3.5" />
+            Start extraction
+          </Button>
+        ) : (
+          <span className="text-caption text-foreground-muted">
+            Job creation is managed by the backend ingestion pipeline.
+          </span>
+        )}
       </div>
 
       {!jobs || jobs.length === 0 ? (
@@ -214,7 +223,7 @@ export function ExtractionJobs({ onCreate }: ExtractionJobsProps) {
         <Stagger staggerInterval={0.04}>
           <div className="space-y-2">
             {jobs.map((job) => (
-              <JobRow key={job.id} job={job} onCancelled={load} />
+              <JobRow key={job.id} job={job} actor={actor} onCancelled={load} />
             ))}
           </div>
         </Stagger>

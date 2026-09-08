@@ -1,4 +1,9 @@
-import { ApiClientError, apiFetch } from './client';
+import {
+  ApiClientError,
+  apiFetch,
+  setAuthAccessToken,
+  setOnUnauthorized,
+} from './client';
 
 describe('ApiClientError', () => {
   it('carries the backend error contract fields', () => {
@@ -22,6 +27,8 @@ describe('apiFetch', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    setAuthAccessToken(null);
+    setOnUnauthorized(null);
   });
 
   it('GETs and parses json', async () => {
@@ -71,7 +78,7 @@ describe('apiFetch', () => {
     expect(data).toBeUndefined();
   });
 
-  it('sends the demo identity header so production API calls are authorized', async () => {
+  it('does not attach an Authorization header when no token is registered', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -83,9 +90,84 @@ describe('apiFetch', () => {
       string,
       RequestInit,
     ];
-    expect((init.headers as Record<string, string>)['X-User-Id']).toBe(
-      'inspector.mehta@trinetra.local',
+    expect((init.headers as Record<string, string>)['Authorization']).toBeUndefined();
+  });
+
+  it('attaches the registered access token as a Bearer Authorization header', async () => {
+    setAuthAccessToken('jwt-token-abc');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '{}',
+    } as unknown as Response);
+
+    await apiFetch('http://base', '/investigations');
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect((init.headers as Record<string, string>)['Authorization']).toBe(
+      'Bearer jwt-token-abc',
     );
+  });
+
+  it('does not send a Content-Type for FormData bodies', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: async () => '{}',
+    } as unknown as Response);
+
+    const form = new FormData();
+    form.append('file', new Blob(['x']), 'a.csv');
+    await apiFetch('http://base', '/datasets/upload', {
+      method: 'POST',
+      body: form,
+      isFormData: true,
+    });
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(init.body).toBe(form);
+    expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined();
+  });
+
+  it('invokes the unauthorized handler when an authenticated request returns 401', async () => {
+    const handler = jest.fn();
+    setOnUnauthorized(handler);
+    setAuthAccessToken('jwt-token-abc');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () =>
+        JSON.stringify({
+          code: 'unauthorized',
+          message: 'Not authenticated',
+          details: {},
+          status_code: 401,
+        }),
+    } as unknown as Response);
+
+    await expect(
+      apiFetch('http://base', '/investigations'),
+    ).rejects.toBeInstanceOf(ApiClientError);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fire the unauthorized handler on 401 without an attached token', async () => {
+    const handler = jest.fn();
+    setOnUnauthorized(handler);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => '{}',
+    } as unknown as Response);
+
+    await expect(apiFetch('http://base', '/investigations')).rejects.toBeInstanceOf(
+      ApiClientError,
+    );
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it('throws ApiClientError with the backend error contract on failure', async () => {

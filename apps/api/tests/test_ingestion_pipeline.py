@@ -97,9 +97,7 @@ def test_detect_entity_columns_financial():
 
 
 def test_detect_entity_columns_person():
-    cols = IngestionPipeline._detect_entity_columns(
-        ["name", "phone", "address"]
-    )
+    cols = IngestionPipeline._detect_entity_columns(["name", "phone", "address"])
     assert EntityType.PERSON in cols
     assert EntityType.PHONE in cols
     assert EntityType.LOCATION in cols
@@ -126,52 +124,58 @@ def test_normalize_name():
 def test_infer_relationship_type():
     from app.models import RelationshipType
 
-    assert IngestionPipeline._infer_relationship_type(
-        EntityType.PERSON, EntityType.PHONE
-    ) == RelationshipType.ASSOCIATED_WITH
+    assert (
+        IngestionPipeline._infer_relationship_type(EntityType.PERSON, EntityType.PHONE)
+        == RelationshipType.ASSOCIATED_WITH
+    )
 
-    assert IngestionPipeline._infer_relationship_type(
-        EntityType.PERSON, EntityType.PERSON
-    ) == RelationshipType.KNOWN_ASSOCIATE
+    assert (
+        IngestionPipeline._infer_relationship_type(EntityType.PERSON, EntityType.PERSON)
+        == RelationshipType.KNOWN_ASSOCIATE
+    )
 
-    assert IngestionPipeline._infer_relationship_type(
-        EntityType.PERSON, EntityType.ORGANIZATION
-    ) == RelationshipType.OTHER
+    assert (
+        IngestionPipeline._infer_relationship_type(EntityType.PERSON, EntityType.ORGANIZATION)
+        == RelationshipType.OTHER
+    )
 
-    assert IngestionPipeline._infer_relationship_type(
-        EntityType.PERSON, EntityType.ACCOUNT
-    ) == RelationshipType.OWNS
+    assert (
+        IngestionPipeline._infer_relationship_type(EntityType.PERSON, EntityType.ACCOUNT)
+        == RelationshipType.OWNS
+    )
 
-    assert IngestionPipeline._infer_relationship_type(
-        EntityType.PERSON, EntityType.TRANSACTION
-    ) == RelationshipType.TRANSACTION
+    assert (
+        IngestionPipeline._infer_relationship_type(EntityType.PERSON, EntityType.TRANSACTION)
+        == RelationshipType.TRANSACTION
+    )
 
 
 # --- Evidence type inference ---
 
 
 def test_infer_evidence_type_communication():
-    assert IngestionPipeline._infer_evidence_type(
-        ["caller", "callee", "duration"], "structured"
-    ) == "COMMUNICATION"
+    assert (
+        IngestionPipeline._infer_evidence_type(["caller", "callee", "duration"], "structured")
+        == "COMMUNICATION"
+    )
 
 
 def test_infer_evidence_type_transaction():
-    assert IngestionPipeline._infer_evidence_type(
-        ["amount", "account", "txn_id"], "structured"
-    ) == "TRANSACTION"
+    assert (
+        IngestionPipeline._infer_evidence_type(["amount", "account", "txn_id"], "structured")
+        == "TRANSACTION"
+    )
 
 
 def test_infer_evidence_type_fir():
-    assert IngestionPipeline._infer_evidence_type(
-        ["fir_number", "accused", "date"], "document"
-    ) == "FIR"
+    assert (
+        IngestionPipeline._infer_evidence_type(["fir_number", "accused", "date"], "document")
+        == "FIR"
+    )
 
 
 def test_infer_evidence_type_default():
-    assert IngestionPipeline._infer_evidence_type(
-        ["col_a", "col_b"], "structured"
-    ) == "RECORD"
+    assert IngestionPipeline._infer_evidence_type(["col_a", "col_b"], "structured") == "RECORD"
 
 
 # --- Quality score ---
@@ -215,10 +219,10 @@ async def test_pipeline_creates_entities_and_relationships(db_factory):
 
     async with db_factory() as session:
         entities = (
-            await session.execute(
-                select(Entity).where(Entity.investigation_id == inv_id)
-            )
-        ).scalars().all()
+            (await session.execute(select(Entity).where(Entity.investigation_id == inv_id)))
+            .scalars()
+            .all()
+        )
         phone_entities = [e for e in entities if e.entity_type == EntityType.PHONE]
         assert len(phone_entities) >= 3
 
@@ -285,12 +289,16 @@ async def test_pipeline_creates_evidence_with_provenance(db_factory):
 
     async with db_factory() as session:
         evidence = (
-            await session.execute(
-                select(InvestigationEvidence).where(
-                    InvestigationEvidence.investigation_id == inv_id
+            (
+                await session.execute(
+                    select(InvestigationEvidence).where(
+                        InvestigationEvidence.investigation_id == inv_id
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         # 4 new from CDR_CSV + 4 seeded (ev-001, ev-004, ev-007, ev-009)
         new_evidence = [e for e in evidence if e.metadata_.get("source") == "csv_ingestion"]
         assert len(new_evidence) == 4
@@ -346,13 +354,17 @@ rahul kumar,+919876543210
 
     async with db_factory() as session:
         entities = (
-            await session.execute(
-                select(Entity).where(
-                    Entity.investigation_id == inv_id,
-                    Entity.entity_type == EntityType.PERSON,
+            (
+                await session.execute(
+                    select(Entity).where(
+                        Entity.investigation_id == inv_id,
+                        Entity.entity_type == EntityType.PERSON,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         person_names = {e.canonical_name for e in entities}
         # Should have only 1 person entity (rahul kumar deduplicated)
         assert "rahul kumar" in person_names

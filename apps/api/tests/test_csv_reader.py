@@ -26,9 +26,7 @@ def test_parse_csv_basic():
 
 
 def test_row_provenance_record_identifier():
-    table = parse_csv(
-        CSV_SAMPLE, dataset_name="bank_exports", id_column="txn_id"
-    )
+    table = parse_csv(CSV_SAMPLE, dataset_name="bank_exports", id_column="txn_id")
     first = table.rows[0]
     assert first.record_identifier == "TXN-2026-0482"
     assert first.row_index == 2  # physical row after the header

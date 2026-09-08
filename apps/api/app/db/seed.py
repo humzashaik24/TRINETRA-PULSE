@@ -18,13 +18,17 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import hash_password
 from app.models import (
     Dataset,
     DatasetStatus,
     Entity,
     EntityType,
+    EvidenceChainAction,
+    EvidenceChainEntry,
     FindingConfidence,
     FindingSeverity,
     FindingStatus,
@@ -39,8 +43,11 @@ from app.models import (
     InvestigationStatus,
     Relationship,
     RelationshipType,
+    User,
+    UserRole,
     VerificationStatus,
 )
+from app.services import evidence_chain, evidence_integrity
 
 
 def _uuid(canonical_id: str) -> uuid.UUID:
@@ -75,9 +82,7 @@ def _seed_investigation(
     return investigation
 
 
-def _seed_entities(
-    session: AsyncSession, investigation_id: uuid.UUID
-) -> dict[str, Entity]:
+def _seed_entities(session: AsyncSession, investigation_id: uuid.UUID) -> dict[str, Entity]:
     """Seed the canonical entities referenced by inv-006, keyed by canonical id."""
 
     def ent(
@@ -370,8 +375,44 @@ def _seed_evidence(
         ),
     ]
     for it in items:
+        # Phase 17.6 — every persisted evidence item carries a SHA-256 checksum
+        # so integrity verification works against the seeded Operation Meridian.
+        evidence_integrity.attach_checksum(it)
         session.add(it)
     return items
+
+
+async def _seed_evidence_chains(
+    session: AsyncSession,
+    evidence: list[InvestigationEvidence],
+) -> None:
+    """Seed deterministic custody chains for the seeded evidence (Phase 18.2).
+
+    Each seeded item records a short, fully-linked chain so the demo exposes
+    every supported lifecycle action without any application workflow inventing
+    events. Entries are deterministic: appending uses locked-tail sequencing
+    and fixed actor/detail snapshots, so re-seeding reproduces identical
+    hashes. The ``seed_ref`` marker in ``details`` is the idempotency anchor.
+    """
+    by_cid = {e.metadata_.get("canonical_id"): e for e in evidence}
+    plan: dict[str, tuple[str, ...]] = {
+        "ev-001": ("evidence_created", "evidence_verified"),
+        "ev-004": ("evidence_uploaded", "evidence_accessed"),
+        "ev-007": ("evidence_uploaded", "evidence_metadata_updated"),
+        "ev-009": ("evidence_created", "evidence_exported"),
+    }
+    service = evidence_chain.EvidenceChainService(session)
+    for cid, actions in plan.items():
+        item = by_cid.get(cid)
+        if item is None:
+            continue
+        for action_name in actions:
+            await service.append(
+                evidence=item,
+                action=EvidenceChainAction(action_name),
+                actor_email="Inspector Mehta",
+                details={"seed_ref": f"{cid}-chain", "is_demo": True},
+            )
 
 
 def _seed_findings(
@@ -409,8 +450,7 @@ def _seed_findings(
             investigation_id=investigation_id,
             title="Shared company relationship observed",
             description=(
-                "Person of interest and linked person share a company "
-                "association across records."
+                "Person of interest and linked person share a company association across records."
             ),
             severity=FindingSeverity.LOW,
             confidence=FindingConfidence.OBSERVED,
@@ -433,9 +473,7 @@ def _seed_findings(
     return findings
 
 
-def _seed_events(
-    session: AsyncSession, investigation_id: uuid.UUID
-) -> list[InvestigationEvent]:
+def _seed_events(session: AsyncSession, investigation_id: uuid.UUID) -> list[InvestigationEvent]:
     events = [
         InvestigationEvent(
             id=_uuid("event-001"),
@@ -444,8 +482,7 @@ def _seed_events(
             timestamp=_utc("2026-02-19T18:40:00Z"),
             location="Chennai",
             description=(
-                "Multiple target devices co-located; consistent with a "
-                "coordination meeting."
+                "Multiple target devices co-located; consistent with a coordination meeting."
             ),
             metadata_={"canonical_id": "event-001", "is_demo": True},
         ),
@@ -473,9 +510,7 @@ def _seed_events(
     return events
 
 
-def _seed_notes(
-    session: AsyncSession, investigation_id: uuid.UUID
-) -> list[InvestigationNote]:
+def _seed_notes(session: AsyncSession, investigation_id: uuid.UUID) -> list[InvestigationNote]:
     notes = [
         InvestigationNote(
             id=_uuid("inn-006-1"),
@@ -492,9 +527,7 @@ def _seed_notes(
     return notes
 
 
-def _seed_datasets(
-    session: AsyncSession, investigation_id: uuid.UUID
-) -> list[Dataset]:
+def _seed_datasets(session: AsyncSession, investigation_id: uuid.UUID) -> list[Dataset]:
     """Seed canonical datasets referenced by Operation Meridian."""
     datasets = [
         Dataset(
@@ -585,15 +618,15 @@ def _seed_ingestion_jobs(
     return jobs
 
 
-async def seed_database(
-    session: AsyncSession, *, force: bool = False
-) -> None:
+async def seed_database(session: AsyncSession, *, force: bool = False) -> None:
     """Populate the database with the Operation Meridian demo universe.
 
-    Idempotent: if the Operation Meridian investigation already exists the
-    seeding is a no-op, unless ``force=True`` (which clears existing child
-    rows first). Raises after flushing the inserts so callers can commit.
+    Users are seeded first and independently of the demo investigation so a
+    database seeded before Phase 18.1 still gains the demo accounts on the
+    next run.
     """
+    await _seed_demo_users(session)
+
     existing = await session.get(Investigation, _uuid("inv-006"))
     if existing is not None:
         if not force:
@@ -610,10 +643,78 @@ async def seed_database(
     notes = _seed_notes(session, investigation.id)
     datasets = _seed_datasets(session, investigation.id)
     _seed_ingestion_jobs(session, investigation.id, datasets)
+    # Flush so chain rows' evidence FK resolves before insertion (Postgres
+    # enforces it eagerly; SQLite without PRAGMA does not).
+    await session.flush()
+    # Phase 18.2 — deterministic custody chains for the seeded evidence.
+    await _seed_evidence_chains(session, evidence)
 
     _ = (relationships, findings, events, notes)
 
     await session.flush()
+
+
+# ---------------------------------------------------------------------------
+# Phase 18.1 — development/demo users (BCrypt-hashed, DEVELOPMENT ONLY).
+# ---------------------------------------------------------------------------
+# The passwords below exist solely so the demo and the backend security test
+# surface can log in locally. They MUST be changed (or the accounts removed)
+# before a real production rollout. The application NEVER seeds these users
+# itself on deploy — seeding is the same documented one-off step as the demo
+# data, and production installs a different, private account set.
+DEMO_USERS: list[tuple[str, str, UserRole, str]] = [
+    (
+        "investigator@trinetra.dev",
+        "Investigator User",
+        UserRole.INVESTIGATOR,
+        "Investigator!2026",
+    ),
+    (
+        "supervisor@trinetra.dev",
+        "Supervisor User",
+        UserRole.SUPERVISOR,
+        "Supervisor!2026",
+    ),
+    (
+        "admin@trinetra.dev",
+        "Administrator User",
+        UserRole.ADMIN,
+        "Admin!2026",
+    ),
+    (
+        "auditor@trinetra.dev",
+        "Auditor User",
+        UserRole.AUDITOR,
+        "Auditor!2026",
+    ),
+]
+
+
+async def _seed_demo_users(session: AsyncSession) -> None:
+    """Create the deterministic Phase 18.1 demo users (idempotent).
+
+    Existing accounts are left untouched so re-seeding never overrides a
+    password a developer has already changed.
+    """
+    for email, display_name, role, password in DEMO_USERS:
+        existing = (
+            await session.execute(select(User).where(User.email == email))
+        ).scalar_one_or_none()
+        if existing is not None:
+            continue
+        session.add(
+            User(
+                email=email,
+                password_hash=hash_password(password),
+                display_name=display_name,
+                role=role,
+                is_active=True,
+                metadata_={"is_demo": True},
+            )
+        )
+
+
+DEMO_USER_LOGINS: dict[str, str] = {email: password for email, _, _, password in DEMO_USERS}
 
 
 async def cleanup_seed_investigation(session: AsyncSession) -> None:
@@ -630,12 +731,12 @@ async def cleanup_seed_investigation(session: AsyncSession) -> None:
         InvestigationFinding,
         InvestigationEvent,
         InvestigationNote,
+        EvidenceChainEntry,
     ):
-        await session.execute(
-            delete(model).where(model.investigation_id == investigation_id)
-        )
+        await session.execute(delete(model).where(model.investigation_id == investigation_id))
     await session.execute(delete(Investigation).where(Investigation.id == investigation_id))
     await session.flush()
+
 
 async def _run() -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -652,7 +753,10 @@ async def _run() -> None:
         await seed_database(session, force=True)
         await session.commit()
     await engine.dispose()
-    print("Seeded Operation Meridian (inv-006).")
+    print("Seeded Operation Meridian (inv-006) + Phase 18.1 demo users.")
+    print("Demo logins (DEVELOPMENT ONLY):")
+    for email, password in DEMO_USER_LOGINS.items():
+        print(f"  {email} / {password}")
 
 
 if __name__ == "__main__":

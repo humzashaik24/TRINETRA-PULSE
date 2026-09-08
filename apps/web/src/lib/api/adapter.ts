@@ -351,9 +351,9 @@ export async function loadInvestigationWorkspace(
   const snapshotData = analytics
     ? {
         investigation_id: id,
-        entity_count: analytics.entity_count,
-        relationship_count: analytics.relationship_count,
-        connected_components: analytics.connected_components,
+        entity_count: analytics.entity_count ?? 0,
+        relationship_count: analytics.relationship_count ?? 0,
+        connected_components: analytics.connected_components ?? 0,
       }
     : { investigation_id: id, entity_count: 0, relationship_count: 0, connected_components: 0 };
   const mappedAnalytics = mapAnalyticsSnapshots(snapshotData, networkId);

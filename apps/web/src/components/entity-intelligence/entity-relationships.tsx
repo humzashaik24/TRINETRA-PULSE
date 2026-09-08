@@ -12,7 +12,7 @@ import { Stagger, staggerChildVariants } from '@trinetra-pulse/ui';
 import { motion } from 'framer-motion';
 import { ArrowRight, GitFork } from 'lucide-react';
 import { RELATIONSHIP_KIND_LABELS } from '@/lib/entity-domain';
-import { RelationshipStatusBadge, MethodBadge, RelationshipIntelligenceBadge } from './badges';
+import { RelationshipStatusBadge, MethodBadge } from './badges';
 import { formatDateTime } from '@/lib/format';
 
 // ============================================================
@@ -70,14 +70,6 @@ export function EntityRelationships({ relationships, focusEntityId, onNavigate }
               <div className="flex flex-wrap items-center gap-3">
                 <RelationshipStatusBadge status={rel.verificationStatus} size="sm" />
                 <MethodBadge method={rel.extractionMethod} size="sm" />
-                {rel.intelligence && (
-                  <RelationshipIntelligenceBadge
-                    status={rel.intelligence.status}
-                    confidenceLabel={rel.intelligence.confidenceLabel}
-                    sourceCount={rel.intelligence.sourceCount}
-                    size="sm"
-                  />
-                )}
                 <ConfidenceIndicator value={rel.confidence} size="sm" showValue />
                 <SourceBadge source={rel.source} method={undefined} size="sm" />
                 {rel.timestamp && (

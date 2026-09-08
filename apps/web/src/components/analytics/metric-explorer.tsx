@@ -42,7 +42,7 @@ function toRows(results: CentralityResultSet['results'] | InfluenceResult[], kin
   }));
 }
 
-export function MetricExplorer({ bundle }: { bundle: NetworkAnalytics }) {
+export function MetricExplorer({ bundle, unavailable = false }: { bundle: NetworkAnalytics; unavailable?: boolean }) {
   const selectedMetric = useAnalyticsStore((s) => s.selectedMetric);
   const overlay = useAnalyticsStore((s) => s.overlay);
   const setSelectedMetric = useAnalyticsStore((s) => s.setSelectedMetric);
@@ -92,6 +92,9 @@ export function MetricExplorer({ bundle }: { bundle: NetworkAnalytics }) {
     showOnGraph(row.entityId);
   };
 
+  if (unavailable) {
+    return <p className="py-6 text-center text-xs text-foreground-muted">Metric analysis is unavailable from the API for this network.</p>;
+  }
   return (
     <div>
       <Tabs defaultValue="influence" value={activeTab} onValueChange={onTabChange}>

@@ -68,9 +68,7 @@ class Investigation(BaseModel):
 
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(
-        Enum(InvestigationStatus), default=InvestigationStatus.DRAFT, nullable=False
-    )
+    status = Column(Enum(InvestigationStatus), default=InvestigationStatus.DRAFT, nullable=False)
     priority = Column(
         Enum(InvestigationPriority), default=InvestigationPriority.NORMAL, nullable=False
     )
@@ -82,26 +80,20 @@ class Investigation(BaseModel):
     metadata_ = Column("metadata", JSONB, default=dict, nullable=False)
 
     entities = relationship("Entity", back_populates="investigation", lazy="selectin")
-    relationships = relationship(
-        "Relationship", back_populates="investigation", lazy="selectin"
-    )
-    findings = relationship(
-        "InvestigationFinding", back_populates="investigation", lazy="selectin"
-    )
+    relationships = relationship("Relationship", back_populates="investigation", lazy="selectin")
+    findings = relationship("InvestigationFinding", back_populates="investigation", lazy="selectin")
     evidence = relationship(
         "InvestigationEvidence", back_populates="investigation", lazy="selectin"
     )
-    events = relationship(
-        "InvestigationEvent", back_populates="investigation", lazy="selectin"
-    )
-    notes = relationship(
-        "InvestigationNote", back_populates="investigation", lazy="selectin"
-    )
-    datasets = relationship(
-        "Dataset", back_populates="investigation", lazy="selectin"
-    )
-    ingestion_jobs = relationship(
-        "IngestionJob", back_populates="investigation", lazy="selectin"
+    events = relationship("InvestigationEvent", back_populates="investigation", lazy="selectin")
+    notes = relationship("InvestigationNote", back_populates="investigation", lazy="selectin")
+    datasets = relationship("Dataset", back_populates="investigation", lazy="selectin")
+    ingestion_jobs = relationship("IngestionJob", back_populates="investigation", lazy="selectin")
+    analytics_snapshots = relationship(
+        "NetworkAnalyticsSnapshot",
+        back_populates="investigation",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
 
@@ -119,9 +111,7 @@ class InvestigationFinding(BaseModel):
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     severity = Column(Enum(FindingSeverity), default=FindingSeverity.INFO, nullable=False)
-    confidence = Column(
-        Enum(FindingConfidence), default=FindingConfidence.OBSERVED, nullable=False
-    )
+    confidence = Column(Enum(FindingConfidence), default=FindingConfidence.OBSERVED, nullable=False)
     status = Column(Enum(FindingStatus), default=FindingStatus.OPEN, nullable=False)
     entity_refs = Column(JSONB, default=list, nullable=False)
     metadata_ = Column("metadata", JSONB, default=dict, nullable=False)
@@ -145,14 +135,23 @@ class InvestigationEvidence(BaseModel):
     description = Column(Text, nullable=True)
     source = Column(String(500), nullable=True)
     provenance = Column(JSONB, default=dict, nullable=False)
-    # SHA-256 hex digest over the evidence content (or upstream provenance hash),
-    # used by the blockchain evidence-integrity anchor chain.
-    checksum = Column(String(64), nullable=True)
     collected_at = Column(DateTime(timezone=True), nullable=True)
     storage_ref = Column(String(1000), nullable=True)
     metadata_ = Column("metadata", JSONB, default=dict, nullable=False)
 
     investigation = relationship("Investigation", back_populates="evidence")
+    # Phase 18.2 — cryptographically linked custody chain for this evidence.
+    chain_entries = relationship(
+        "EvidenceChainEntry",
+        back_populates="evidence",
+        cascade="all, delete-orphan",
+    )
+    # Phase 24 — persisted AI analyses for this evidence.
+    understandings = relationship(
+        "EvidenceUnderstanding",
+        back_populates="evidence",
+        cascade="all, delete-orphan",
+    )
 
 
 class InvestigationEvent(BaseModel):

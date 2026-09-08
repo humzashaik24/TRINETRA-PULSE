@@ -6,8 +6,6 @@ import type {
   EvidenceItem,
   InvestigationFinding,
   RecentIntelligence,
-  RelationshipEvidenceLink,
-  RelationshipIntelligence,
   SuspiciousPattern,
 } from '@trinetra-pulse/types';
 import {
@@ -15,10 +13,6 @@ import {
   fetchEntityIntelligenceSummary,
   fetchRelationship,
 } from '@/services/entity.service';
-import {
-  getRelationshipIntelligence,
-  fetchRelationshipEvidenceLinks,
-} from '@/services/relationship-intelligence.service';
 import { mockDatasetById } from '@/mock/datasets';
 import { recentIntelligenceFindings } from '@/mock/findings';
 import { suspiciousPatterns } from '@/mock/patterns';
@@ -46,6 +40,18 @@ import {
   type RelationshipContext,
 } from '@/state/shell.store';
 import { mockInvestigationById } from '@/mock/investigations';
+import { isMockData } from '@/lib/api/config';
+import {
+  getEvidenceById,
+  getEvidenceChainVerification,
+} from '@/lib/api/evidence';
+import type { RealEvidence as RealApiEvidence } from '@/lib/api/investigations';
+import { loadEntityDetail } from '@/lib/api/entities';
+import { loadRelationshipDetail } from '@/lib/api/relationships';
+import { loadFindingDetail } from '@/lib/api/findings';
+import { loadNoteDetail } from '@/lib/api/notes';
+import { loadEventDetail } from '@/lib/api/events';
+import type { EntityIntelligence, EvidenceCustodySummary } from '@trinetra-pulse/types';
 
 // ============================================================
 // PHASE 3.5 — INSPECTOR DATA RESOLUTION
@@ -87,9 +93,6 @@ export interface InspectorRelationshipView {
   evidence: string[];
   /** Investigation scope so the inspector can route back correctly. */
   investigationId?: string;
-  /** Phase 21 — multi-source correlation intelligence (when available). */
-  intelligence?: RelationshipIntelligence;
-  evidenceLinks?: RelationshipEvidenceLink[];
 }
 
 export interface InspectorDatasetView {
@@ -149,6 +152,14 @@ export interface InspectorEvidenceView {
   linkedFindings?: { id: string; title: string }[];
   /** Linked relationships (for network-mode contextual navigation). */
   linkedRelationships?: string[];
+  /** Phase 18.2 — compact custody-chain summary (API mode only). */
+  custodyChain?: EvidenceCustodySummary;
+  checksum?: string;
+  integrityStatus?: string;
+  storageStatus?: string;
+  filename?: string;
+  contentType?: string;
+  size?: number;
 }
 
 export interface InspectorNetworkView {
@@ -362,6 +373,39 @@ const evidenceView = (ctx: EvidenceContext): InspectorEvidenceView | null => {
   return null;
 };
 
+/** Map a persisted /api/v2 evidence row into the inspector evidence view.
+ *  Phase 17.6 — API-mode counterpart to the mock evidenceView above. */
+const mapApiEvidenceView = (row: RealApiEvidence): InspectorEvidenceView => {
+  const provenance = row.provenance ?? {};
+  const metadata = row.metadata ?? {};
+  const confidence = typeof provenance.confidence === 'number' ? provenance.confidence : 0.5;
+  return {
+    kind: 'evidence',
+    id: row.id,
+    title: row.title,
+    summary: row.description ?? '',
+    sourceName: row.source ?? (provenance.source as string | undefined) ?? 'Relational API',
+    datasetName: metadata.dataset_id as string | undefined,
+    confidence,
+    extractionMethod: 'MANUAL',
+    timestamp: row.collected_at ?? row.created_at,
+    investigationId: row.investigation_id,
+    evidenceType: row.evidence_type,
+    status: 'AVAILABLE',
+    observedAt: row.collected_at ?? undefined,
+    isDemoData: metadata.is_demo === true,
+    storageStatus: row.integrity?.storage_status,
+    integrityStatus: row.integrity?.status,
+    checksum: row.integrity?.checksum ?? undefined,
+    filename: row.filename ?? (typeof metadata.filename === 'string' ? metadata.filename : undefined),
+    contentType: row.content_type ?? (typeof metadata.content_type === 'string' ? metadata.content_type : undefined),
+    size: row.size ?? (typeof metadata.size === 'number' ? metadata.size : undefined),
+    linkedEntities: [],
+    linkedFindings: [],
+    linkedRelationships: [],
+  };
+};
+
 /** Confidence-level → numeric confidence for investigation findings. */
 const FINDING_CONFIDENCE: Record<string, number> = {
   low: 0.4,
@@ -531,6 +575,42 @@ export async function resolveInspectorContext(
   switch (ctx.type) {
     case 'entity': {
       const view = optimisticEntityView(ctx);
+      // Phase 17.7 — API mode resolves the persisted entity row; mock mode
+      // keeps the deterministic in-memory universe. The relational counters
+      // (connections / evidence / sources / events) come from relationship,
+      // evidence and event surfaces (later-phase domains), so API mode reports
+      // them honestly from the mapped row (0) — never the mock summary.
+      if (!isMockData()) {
+        try {
+          const { entity } = await loadEntityDetail(ctx.id, ctx.investigationId);
+          const apiView: InspectorEntityView = {
+            ...view,
+            name: entity.displayName,
+            entityType: entity.entityType,
+            resolutionState: entity.resolutionState,
+            confidence: entity.confidence,
+            connections: entity.connectionsCount,
+            evidence: entity.evidenceCount,
+            sources: entity.sourcesCount,
+            events: entity.eventsCount,
+            verified: entity.isVerified,
+            flagged: entity.isFlagged,
+            aliases: entity.aliases,
+            description: entity.description,
+            investigationId: ctx.investigationId,
+          };
+          return { status: 'ready', view: apiView };
+        } catch (err) {
+          return {
+            status: 'error',
+            message: err instanceof Error ? err.message : 'Could not load entity',
+            view: {
+              ...view,
+              investigationId: ctx.investigationId,
+            },
+          };
+        }
+      }
       try {
         const [entity, summary] = await Promise.all([
           fetchEntity(ctx.id),
@@ -552,6 +632,7 @@ export async function resolveInspectorContext(
             flagged: entity.isFlagged,
             aliases: entity.aliases,
             description: entity.description,
+            investigationId: ctx.investigationId,
           },
         };
       } catch (err) {
@@ -583,6 +664,18 @@ export async function resolveInspectorContext(
         investigationId: ctx.investigationId,
       };
       try {
+        if (!isMockData()) {
+          // Phase 17.8 — API mode resolves the persisted relationship row
+          // (investigation-scoped) and maps it onto the inspector view. The
+          // graph-hint shortcut is not taken in API mode: the authoritative
+          // persisted row is always read, and a failure is an explicit error
+          // state — never a mock fallback.
+          const rel = await loadRelationshipDetail(ctx.id, ctx.investigationId);
+          return {
+            status: 'ready',
+            view: { ...mapRelationship(rel), investigationId: ctx.investigationId },
+          };
+        }
         if (
           hasGraphRelationshipHints(ctx) &&
           typeof ctx.sourceEntityName === 'string' &&
@@ -592,26 +685,7 @@ export async function resolveInspectorContext(
         }
         const rel = await fetchRelationship(ctx.id);
         const mapped = mapRelationship(rel);
-        try {
-          const [intelligence, evidenceLinks] = await Promise.all([
-            getRelationshipIntelligence(ctx.id),
-            fetchRelationshipEvidenceLinks(ctx.id),
-          ]);
-          return {
-            status: 'ready',
-            view: {
-              ...mapped,
-              investigationId: ctx.investigationId,
-              intelligence,
-              evidenceLinks,
-            },
-          };
-        } catch {
-          return {
-            status: 'ready',
-            view: { ...mapped, investigationId: ctx.investigationId },
-          };
-        }
+        return { status: 'ready', view: { ...mapped, investigationId: ctx.investigationId } };
       } catch (err) {
         return {
           status: 'error',
@@ -632,6 +706,39 @@ export async function resolveInspectorContext(
       return { status: 'ready', view };
     }
     case 'finding': {
+      // Phase 17.9 — API mode resolves the persisted finding row
+      // (investigation-scoped) and maps it onto the inspector view, resolving
+      // entity_refs names/types from the scoped entity rows. A failure is an
+      // explicit error state — never a mock finding fallback.
+      if (!isMockData()) {
+        try {
+          const detail = await loadFindingDetail(ctx.id, ctx.investigationId);
+          return {
+            status: 'ready',
+            view: {
+              ...detail,
+              description: detail.description ?? undefined,
+              investigationId: ctx.investigationId,
+            },
+          };
+        } catch (err) {
+          return {
+            status: 'error',
+            message: err instanceof Error ? err.message : 'Could not load finding',
+            view: {
+              kind: 'finding',
+              id: ctx.id,
+              title: ctx.title ?? ctx.id,
+              type: 'unknown',
+              confidence: 0,
+              severity: 'info',
+              source: 'Intelligence engine',
+              timestamp: '',
+              entities: [],
+            },
+          };
+        }
+      }
       const view = findingView(ctx);
       if (!view) {
         return {
@@ -643,6 +750,47 @@ export async function resolveInspectorContext(
       return { status: 'ready', view };
     }
     case 'evidence': {
+      // Phase 17.6 — API mode resolves persisted evidence rows; the retry/fallback
+      // stays an explicit error state (never mock rows in API mode).
+if (!isMockData()) {
+            try {
+              const row = await getEvidenceById(ctx.id, ctx.investigationId);
+              // Phase 18.2 — attach a compact custody-chain summary (read-only
+              // verification, never an audit write). When the chain cannot be
+              // verified for any reason the summary is left absent rather than
+              // guessed, keeping the inspector honest.
+              const base = mapApiEvidenceView(row);
+              try {
+                const verification = await getEvidenceChainVerification(
+                  ctx.id,
+                  ctx.investigationId,
+                );
+                base.custodyChain = {
+                  status: verification.status,
+                  entries: verification.entries,
+                  verifiedAt: verification.verified_at,
+                };
+              } catch {
+                // chain verification is informational; the row still resolves.
+              }
+              return { status: 'ready', view: base };
+            } catch (err) {
+          return {
+            status: 'error',
+            message: err instanceof Error ? err.message : 'Could not load evidence',
+            view: {
+              kind: 'evidence',
+              id: ctx.id,
+              title: ctx.title ?? ctx.id,
+              summary: 'No details available',
+              sourceName: 'Unknown',
+              confidence: 0,
+              extractionMethod: 'MANUAL',
+              timestamp: '',
+            },
+          };
+        }
+      }
       const view = evidenceView(ctx);
       if (!view) {
         return {
@@ -667,10 +815,56 @@ export async function resolveInspectorContext(
       return { status: 'ready', view: patternView(ctx) };
     case 'investigation':
       return { status: 'ready', view: investigationView(ctx) };
-    case 'note':
+    case 'note': {
+      // Phase 17.9 — API mode resolves the persisted note row
+      // (investigation-scoped). A failure is an explicit error state — never
+      // a mock note fallback.
+      if (!isMockData()) {
+        try {
+          const detail = await loadNoteDetail(ctx.id, ctx.investigationId);
+          return { status: 'ready', view: detail };
+        } catch (err) {
+          return {
+            status: 'error',
+            message: err instanceof Error ? err.message : 'Could not load note',
+            view: {
+              kind: 'note',
+              id: ctx.id,
+              investigationId: ctx.investigationId,
+              author: ctx.author ?? 'Unknown',
+              body: ctx.body ?? '',
+              category: null,
+            },
+          };
+        }
+      }
       return { status: 'ready', view: noteView(ctx) };
-    case 'event':
+    }
+    case 'event': {
+      // Phase 17.9 — API mode resolves the persisted event row
+      // (investigation-scoped). A failure is an explicit error state — never
+      // a mock event fallback.
+      if (!isMockData()) {
+        try {
+          const detail = await loadEventDetail(ctx.id, ctx.investigationId);
+          return { status: 'ready', view: detail };
+        } catch (err) {
+          return {
+            status: 'error',
+            message: err instanceof Error ? err.message : 'Could not load event',
+            view: {
+              kind: 'event',
+              id: ctx.id,
+              investigationId: ctx.investigationId,
+              title: ctx.title ?? ctx.id,
+              occurredAt: ctx.occurredAt ?? null,
+              eventType: ctx.eventType ?? 'other',
+            },
+          };
+        }
+      }
       return { status: 'ready', view: eventView(ctx) };
+    }
     case 'analytics_snapshot':
       return { status: 'ready', view: analyticsSnapshotView(ctx) };
     default:
@@ -695,6 +889,9 @@ function centralityView(ctx: CentralityContext): InspectorCentralityView {
         : bundle?.pagerank?.type === ctx.metric ? bundle.pagerank
           : null;
   const result = set?.results.find((r) => r.entityId === ctx.entityId);
+  const influence = ctx.metric === 'influence'
+    ? bundle?.influence?.find((r) => r.entityId === ctx.entityId)
+    : undefined;
   return {
     kind: 'centrality',
     id: ctx.id,
@@ -702,9 +899,9 @@ function centralityView(ctx: CentralityContext): InspectorCentralityView {
     definition: set?.definition ?? 'Structural importance of an entity within the observed network.',
     entityId: ctx.entityId,
     entityName: ctx.entityName ?? ctx.entityId,
-    score: result?.score ?? ctx.score ?? 0,
-    normalizedScore: result?.normalizedScore ?? 0,
-    rank: result?.rank ?? ctx.rank ?? 0,
+    score: result?.score ?? influence?.importance ?? ctx.score ?? 0,
+    normalizedScore: result?.normalizedScore ?? (influence ? influence.importance / 100 : 0),
+    rank: result?.rank ?? influence?.rank ?? ctx.rank ?? 0,
   };
 }
 

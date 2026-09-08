@@ -6,4 +6,3 @@ export { DatasetPreview } from './dataset-preview';
 export { DataMappingView } from './data-mapping';
 export { DataQualityView } from './data-quality';
 export { IngestionHistory } from './ingestion-history';
-export { CsvMappingDialog } from './csv-mapping-dialog';

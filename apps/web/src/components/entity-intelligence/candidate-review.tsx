@@ -22,6 +22,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Fingerprint, XCircle } from 'lucide-react';
 import { ENTITY_TYPE_LABELS, formatRelativeTime } from '@/lib/format';
 import { fetchCandidates, reviewCandidate } from '@/services/entity.service';
+import { useAuthStore } from '@/state/auth.store';
 import { MethodBadge, ResolutionStateBadge } from './badges';
 
 // ============================================================
@@ -37,11 +38,12 @@ const STATUS_LABELS: Record<CandidateStatus, string> = {
 
 function CandidateCard({ candidate, onReviewed }: { candidate: EntityCandidate; onReviewed: () => void }) {
   const [busy, setBusy] = useState<'accept' | 'reject' | null>(null);
+  const reviewer = useAuthStore((s) => s.currentUser()?.id ?? 'unknown-user');
 
   const review = async (decision: 'accept' | 'reject') => {
     setBusy(decision);
     try {
-      await reviewCandidate(candidate.id, decision, 'analyst-kd');
+      await reviewCandidate(candidate.id, decision, reviewer);
       onReviewed();
     } finally {
       setBusy(null);

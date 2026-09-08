@@ -105,6 +105,4 @@ async def test_get_required_raises_for_unknown(session: AsyncSession):
     service = InvestigationService(session)
 
     with pytest.raises(InvestigationNotFoundError):
-        await service.get_required_investigation(
-            UUID("00000000-0000-0000-0000-000000000000")
-        )
+        await service.get_required_investigation(UUID("00000000-0000-0000-0000-000000000000"))

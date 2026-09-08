@@ -42,9 +42,7 @@ class Case(BaseModel):
 class Incident(BaseModel):
     __tablename__ = "incidents"
 
-    case_id = Column(
-        Uuid, ForeignKey("cases.id"), nullable=False, index=True
-    )
+    case_id = Column(Uuid, ForeignKey("cases.id"), nullable=False, index=True)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     incident_number = Column(String(100), nullable=False)
@@ -62,9 +60,7 @@ class Incident(BaseModel):
 class Evidence(BaseModel):
     __tablename__ = "case_evidence"
 
-    case_id = Column(
-        Uuid, ForeignKey("cases.id"), nullable=False, index=True
-    )
+    case_id = Column(Uuid, ForeignKey("cases.id"), nullable=False, index=True)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     evidence_type = Column(String(100), nullable=False)
@@ -85,12 +81,8 @@ class Evidence(BaseModel):
 class EvidenceEntityLink(BaseModel):
     __tablename__ = "evidence_entity_links"
 
-    evidence_id = Column(
-        Uuid, ForeignKey("case_evidence.id"), nullable=False, index=True
-    )
-    entity_id = Column(
-        Uuid, ForeignKey("entities.id"), nullable=False, index=True
-    )
+    evidence_id = Column(Uuid, ForeignKey("case_evidence.id"), nullable=False, index=True)
+    entity_id = Column(Uuid, ForeignKey("entities.id"), nullable=False, index=True)
     link_type = Column("relationship", String(200), nullable=True)
     description = Column(Text, nullable=True)
 

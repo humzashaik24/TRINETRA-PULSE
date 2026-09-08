@@ -58,16 +58,6 @@ function actionsFor(context: AIContext): AIAction[] {
       status: 'available',
     });
   }
-  if (context.relationships && context.relationships.length > 0) {
-    const rel = context.relationships[0];
-    actions.push({
-      id: 'act-open-relationship',
-      type: 'OPEN_RELATIONSHIP',
-      label: 'Open relationship',
-      target: { relationshipId: rel.sourceId },
-      status: 'available',
-    });
-  }
   return actions;
 }
 
@@ -110,9 +100,6 @@ export function buildAnsweredResponse(input: GroundingInput): AIResponse {
     case 'RELATIONSHIP_EXPLANATION':
       answerRelationship(answer, context);
       break;
-    case 'RELATIONSHIP_INTELLIGENCE':
-      answerRelationshipIntelligence(answer, context);
-      break;
     case 'BRIDGE_EXPLANATION':
     case 'COMMUNITY_EXPLANATION':
       answerGroup(answer, context);
@@ -131,9 +118,6 @@ export function buildAnsweredResponse(input: GroundingInput): AIResponse {
       break;
     case 'SOURCE_LOOKUP':
       answerSources(answer, context);
-      break;
-    case 'BLOCKCHAIN_ANCHOR':
-      answerBlockchainAnchor(answer, context);
       break;
     default:
       answerGeneral(answer, context, 'The available context shows');
@@ -219,39 +203,8 @@ function answerRelationship(answer: AIResponse, context: AIContext) {
   addLimitation(answer, 'Relationships are recorded as observed/inferred; they do not establish guilt.');
 }
 
-function answerRelationshipIntelligence(answer: AIResponse, context: AIContext) {
-  const relationships = context.relationships ?? [];
-  if (relationships.length === 0) {
-    answer.status = 'not_found';
-    answer.answer = "There is no recorded relationship in the current context to assess for corroboration.";
-    return;
-  }
-  const rel = relationships[0];
-  const intelRef = rel.references.find((r) => r.payload);
-  const sourceCount = typeof intelRef?.payload?.sourceCount === 'number' ? intelRef.payload.sourceCount : undefined;
-  const confidenceLabel = typeof intelRef?.payload?.confidenceLabel === 'string' ? intelRef.payload.confidenceLabel : undefined;
-
-  const corroboration =
-    sourceCount !== undefined && sourceCount >= 2
-      ? `This ${rel.label} relationship is jointly observed across ${sourceCount} independent sources (${confidenceLabel ?? 'correlated'}).`
-      : sourceCount !== undefined
-        ? `This ${rel.label} relationship is currently based on a single source and is pending corroboration against additional independent records.`
-        : `Corroboration for this ${rel.label} relationship has not been assessed in the current context.`;
-
-  answer.answer = corroboration;
-  answer.keyPoints = [
-    `Relationship: ${rel.label}`,
-    ...rel.summary.split('\n').slice(1),
-    sourceCount !== undefined
-      ? `Independent sources: ${sourceCount}`
-      : 'Independent sources: not recorded',
-  ];
-  answer.sources = rel.references;
-  answer.confidence = { answerGrounding: 0.6, relationship: parseConfidence(rel.summary) };
-  addLimitation(answer, 'Corroboration counts how many independent sources observed the link; it is not a determination of guilt.');
-}
-
-function answerGroup(answer: AIResponse, context: AIContext) {  const entity = context.entity;
+function answerGroup(answer: AIResponse, context: AIContext) {
+  const entity = context.entity;
   const network = context.network;
   answer.answer =
     'The analysis of network groups is based on structural connectivity. Any entity connecting distinct communities is described by its structural position (bridge potential), never as a leader or mastermind.';
@@ -311,54 +264,6 @@ function answerFindings(answer: AIResponse, context: AIContext) {
   answer.sources = findings.flatMap((f) => f.references);
   answer.confidence = { answerGrounding: 0.66 };
   addLimitation(answer, 'Findings are analytical conclusions with recorded confidence.');
-}
-
-function answerBlockchainAnchor(answer: AIResponse, context: AIContext) {
-  const evidence = context.evidence ?? [];
-  const anchored = evidence
-    .map((e) => ({
-      e,
-      integrity: e.references.find((r) => r.payload && 'verificationState' in r.payload),
-    }))
-    .filter((item) => item.integrity);
-
-  if (anchored.length === 0) {
-    answer.status = 'not_found';
-    answer.answer =
-      "I don't have blockchain anchor information for any evidence item in the current investigation context.";
-    return;
-  }
-
-  const verified = anchored.filter(
-    (item) => item.integrity?.payload?.verificationState === 'VERIFIED',
-  );
-  const mock = anchored.some((item) => item.integrity?.payload?.isMock === true);
-
-  const counts = (state: string) =>
-    anchored.filter((item) => item.integrity?.payload?.verificationState === state).length;
-
-  const lines = anchored.slice(0, 4).map(({ e, integrity }) => {
-    const p = integrity?.payload;
-    const state = String(p?.verificationState ?? 'unknown').replace(/_/g, ' ').toLowerCase();
-    const network = p?.network ? ` on ${p.network}` : '';
-    return `${e.label} — integrity state ${state}${network}.`;
-  });
-
-  answer.answer =
-    `Of the ${evidence.length} evidence item(s) in context, ${verified.length} anchor state is verified and ${counts('MISMATCH')} show a mismatch; ${counts('NOT_ANCHORED')} are not anchored.`;
-  if (mock) {
-    answer.answer += ' These anchors reference the demo mock registry, not a real blockchain.';
-  }
-  answer.keyPoints = lines;
-  answer.sources = anchored.flatMap(({ e, integrity }) => [
-    e.references[0],
-    ...(integrity ? [integrity] : []),
-  ]);
-  answer.confidence = { answerGrounding: 0.7 };
-  addLimitation(
-    answer,
-    'Anchor state proves a cryptographic digest was registered at a point in time; it does not determine guilt or evidence truthfulness. Raw evidence and PII remain off-chain.',
-  );
 }
 
 function answerSources(answer: AIResponse, context: AIContext) {

@@ -181,12 +181,12 @@ export async function retrieveInvestigationContext(
           }
         }
         bundle.analytics = {
-          nodes: analytics.entity_count,
-          relationships: analytics.relationship_count,
+          nodes: analytics.entity_count ?? 0,
+          relationships: analytics.relationship_count ?? 0,
           communityCount: 0,
-          connectedComponents: analytics.connected_components,
+          connectedComponents: analytics.connected_components ?? 0,
           topConnectedEntity: topId ? nameById.get(topId) ?? topId : null,
-          averageDegree: analytics.average_degree,
+          averageDegree: analytics.average_degree ?? 0,
           density: 0,
           bridgeEntityCount: 0,
         };

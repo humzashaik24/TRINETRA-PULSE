@@ -1,4 +1,4 @@
-﻿"""Error contract for the real application layer.
+"""Error contract for the real application layer.
 
 Every real-application error is serialized as::
 
@@ -90,6 +90,125 @@ class IntegrityError(AppError):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(message, details)
+
+
+class EvidenceUploadError(AppError):
+    status_code = status.HTTP_400_BAD_REQUEST
+    code = "evidence_upload_error"
+
+
+class EvidenceStorageUnavailableError(AppError):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    code = "evidence_storage_unavailable"
+
+
+# ---------------------------------------------------------------------------
+# Phase 24 — multimedia evidence intelligence errors
+#
+# Every code is a safe, coarse tag. Provider credential failures, timeouts and
+# upstream vendor text are intentionally NOT propagated to the client; the
+# machine code tells the caller what class of failure occurred without leaking
+# secrets or internal endpoint details.
+# ---------------------------------------------------------------------------
+
+
+class UnsupportedMediaError(AppError):
+    status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+    code = "UNSUPPORTED_MEDIA"
+
+    def __init__(self, message: str | None = None, details: dict[str, Any] | None = None):
+        super().__init__(message or "The evidence payload is not analyzable media", details)
+
+
+class EvidenceIntegrityError(AppError):
+    status_code = status.HTTP_409_CONFLICT
+    code = "EVIDENCE_INTEGRITY_FAILED"
+
+    def __init__(self, message: str | None = None, details: dict[str, Any] | None = None):
+        super().__init__(
+            message or "The evidence payload could not be verified before analysis",
+            details,
+        )
+
+
+class ProviderNotConfiguredError(AppError):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    code = "PROVIDER_NOT_CONFIGURED"
+
+    def __init__(self, message: str | None = None, details: dict[str, Any] | None = None):
+        super().__init__(
+            message or "No enabled analysis provider is configured for this media capability",
+            details,
+        )
+
+
+class ProviderUnavailableError(AppError):
+    status_code = status.HTTP_502_BAD_GATEWAY
+    code = "PROVIDER_UNAVAILABLE"
+
+    def __init__(self, message: str | None = None, details: dict[str, Any] | None = None):
+        super().__init__(message or "The analysis provider is unreachable", details)
+
+
+class ProviderAuthenticationFailedError(AppError):
+    status_code = status.HTTP_502_BAD_GATEWAY
+    code = "PROVIDER_AUTHENTICATION_FAILED"
+
+    def __init__(self, message: str | None = None, details: dict[str, Any] | None = None):
+        super().__init__(
+            message or "The analysis provider rejected the configured credential",
+            details,
+        )
+
+
+class ProviderTimeoutError(AppError):
+    status_code = status.HTTP_504_GATEWAY_TIMEOUT
+    code = "PROVIDER_TIMEOUT"
+
+    def __init__(self, message: str | None = None, details: dict[str, Any] | None = None):
+        super().__init__(message or "The analysis provider timed out", details)
+
+
+class AnalysisFailedError(AppError):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    code = "ANALYSIS_FAILED"
+
+    def __init__(self, message: str | None = None, details: dict[str, Any] | None = None):
+        super().__init__(
+            message or "The analysis provider returned an unreadable or invalid result",
+            details,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Phase 25 — local (in-browser) transcription errors
+# ---------------------------------------------------------------------------
+
+
+class UnsupportedAudioFormatError(AppError):
+    """The evidence is not an audio channel the in-browser transcriber can read."""
+
+    status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+    code = "UNSUPPORTED_AUDIO_FORMAT"
+
+    def __init__(self, message: str | None = None, details: dict[str, Any] | None = None):
+        super().__init__(
+            message or "The evidence is not a supported audio format for local transcription",
+            details,
+        )
+
+
+class TranscriptValidationError(AppError):
+    """The submitted local transcription failed strict server-side validation."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    code = "INVALID_TRANSCRIPT"
+
+    def __init__(self, message: str | None = None, details: dict[str, Any] | None = None):
+        super().__init__(
+            message or "The submitted local transcription did not pass validation",
+            details,
+        )
 
 
 class AuthRequiredError(AppError):

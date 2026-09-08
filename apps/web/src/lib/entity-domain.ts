@@ -52,6 +52,13 @@ export const EXTRACTION_METHOD_CONFIG: Record<
   LLM: { icon: Sparkles, label: 'LLM' },
   MANUAL: { icon: Eye, label: 'Manual' },
   ANALYTICAL: { icon: Sparkles, label: 'Analytical' },
+  DATABASE_IMPORT: { icon: CheckCircle2, label: 'Database import' },
+  DOCUMENT_PARSE: { icon: CheckCircle2, label: 'Document parse' },
+  AI_NLP: { icon: Sparkles, label: 'AI / NLP' },
+  AI_CV: { icon: Sparkles, label: 'AI / computer vision' },
+  AI_AUDIO: { icon: Sparkles, label: 'AI / audio' },
+  NETWORK_ANALYSIS: { icon: Sparkles, label: 'Network analysis' },
+  OTHER: { icon: HelpCircle, label: 'Other' },
 };
 
 export const JOB_STATUS_CONFIG: Record<
@@ -59,6 +66,7 @@ export const JOB_STATUS_CONFIG: Record<
   { variant: BadgeVariant; icon: React.ComponentType<{ className?: string }>; label: string }
 > = {
   QUEUED: { variant: 'default', icon: Clock, label: 'Queued' },
+  RUNNING: { variant: 'info', icon: Loader2, label: 'Running' },
   EXTRACTING: { variant: 'info', icon: Loader2, label: 'Extracting' },
   NORMALIZING: { variant: 'info', icon: Loader2, label: 'Normalizing' },
   RESOLVING: { variant: 'info', icon: RefreshCw, label: 'Resolving' },

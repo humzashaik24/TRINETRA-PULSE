@@ -18,9 +18,11 @@ import { inspectCentrality, inspectEntity, showOnGraph } from './analytics-graph
 export function BridgeView({
   bridges,
   relationships,
+  unavailable = false,
 }: {
   bridges: BridgeEntity[];
   relationships: BridgeRelationship[];
+  unavailable?: boolean;
 }) {
   const overlay = useAnalyticsStore((s) => s.overlay);
   const setOverlay = useAnalyticsStore((s) => s.setOverlay);
@@ -53,7 +55,9 @@ export function BridgeView({
 
       <section className="space-y-2">
         <h4 className="tp-data-label">Bridge entities</h4>
-        {rows.length === 0 ? (
+        {unavailable ? (
+          <p className="py-4 text-center text-xs text-foreground-muted">Bridge analysis is unavailable from the API for this network.</p>
+        ) : rows.length === 0 ? (
           <p className="py-4 text-center text-xs text-foreground-muted">No bridge entities detected.</p>
         ) : (
           <RankingTable
@@ -71,7 +75,7 @@ export function BridgeView({
 
       <section className="space-y-2">
         <h4 className="tp-data-label">Bridge relationships</h4>
-        {relationships.length === 0 ? (
+        {unavailable ? null : relationships.length === 0 ? (
           <p className="py-4 text-center text-xs text-foreground-muted">No bridge relationships detected.</p>
         ) : (
           <ul className="space-y-1.5">

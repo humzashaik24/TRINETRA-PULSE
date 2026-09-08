@@ -6,12 +6,10 @@ import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-
 import { Button, Badge } from '@trinetra-pulse/ui';
 import { staggerChildVariants, Stagger } from '@trinetra-pulse/ui';
 import type { UploadFile } from '@trinetra-pulse/types';
-import type { ColumnMappingSuggestion } from '@/lib/csv-mapping';
-import { parseCsvPreview } from '@/lib/csv-parse';
-import { autoSuggestMappings, allHeadersRecognized } from '@/lib/csv-mapping';
-import { CsvMappingDialog } from '@/components/data-intelligence/csv-mapping-dialog';
 import { uploadDataset } from '@/lib/api/investigations';
+import { uploadEvidence } from '@/lib/api/evidence';
 import { isMockData } from '@/lib/api/config';
+import { useCanMutate } from '@/hooks/use-auth';
 
 const ACCEPTED_TYPES = ['.csv', '.xlsx', '.json', '.pdf', '.txt', '.docx'];
 const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
@@ -106,6 +104,9 @@ function FileItem({ uploadFile, onRemove, onRetry }: FileItemProps) {
         {uploadFile.error && (
           <p className="text-[10px] text-danger mt-1">{uploadFile.error}</p>
         )}
+        {uploadFile.result && (
+          <p className="text-[10px] text-success mt-1">{uploadFile.result}</p>
+        )}
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {uploadFile.state === 'failed' && (
@@ -133,22 +134,12 @@ interface UploadZoneProps {
   onUploadComplete?: () => void;
 }
 
-interface MappingQueueItem {
-  uploadFile: UploadFile;
-  suggestions: ColumnMappingSuggestion[];
-  previewRows: string[][];
-}
-
 export function UploadZone({ investigationId, onFilesSelected, onUploadComplete }: UploadZoneProps) {
+  const canMutate = useCanMutate();
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState<UploadFile[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
-
-  // CSV mapping state
-  const [mappingQueue, setMappingQueue] = useState<MappingQueueItem[]>([]);
-  const [currentMapping, setCurrentMapping] = useState<MappingQueueItem | null>(null);
-  const confirmedMappingsRef = useRef<Map<string, ColumnMappingSuggestion[]>>(new Map());
 
   const processFiles = useCallback((fileList: FileList | File[]) => {
     const newFiles: UploadFile[] = Array.from(fileList).map((file) => ({
@@ -232,11 +223,12 @@ export function UploadZone({ investigationId, onFilesSelected, onUploadComplete 
     setFiles((prev) => prev.filter((f) => f.state !== 'completed'));
   }, []);
 
-  // Proceed with actual uploads after all CSV mappings are confirmed
-  const proceedWithUpload = useCallback(async (
-    selectedFiles: UploadFile[],
-    invId: string,
-  ) => {
+  const handleUpload = useCallback(async () => {
+    if (!investigationId) return;
+
+    const selectedFiles = files.filter((f) => f.state === 'selected');
+    if (selectedFiles.length === 0) return;
+
     // Mark all selected as uploading
     setFiles((prev) => prev.map((f) =>
       f.state === 'selected' ? { ...f, state: 'uploading' as const, progress: 0 } : f
@@ -244,6 +236,7 @@ export function UploadZone({ investigationId, onFilesSelected, onUploadComplete 
 
     for (const uploadFile of selectedFiles) {
       try {
+        // Simulate progress during upload
         let progress = 0;
         const progressInterval = setInterval(() => {
           progress += Math.random() * 20 + 5;
@@ -257,18 +250,44 @@ export function UploadZone({ investigationId, onFilesSelected, onUploadComplete 
         }, 300);
 
         if (isMockData()) {
+          // Mock mode: simulate upload
           await new Promise((resolve) => setTimeout(resolve, 1500));
           clearInterval(progressInterval);
           setFiles((prev) => prev.map((f) =>
             f.id === uploadFile.id ? { ...f, state: 'completed' as const, progress: 100 } : f
           ));
         } else {
-          await uploadDataset(uploadFile.file, invId, {
-            name: uploadFile.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
-          });
+          // Real API upload
+          const isCsv = uploadFile.extension === '.csv';
+          const result = isCsv
+            ? await uploadDataset(uploadFile.file, investigationId, {
+                name: uploadFile.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
+              })
+            : await uploadEvidence(uploadFile.file, investigationId, {
+                title: uploadFile.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
+                source: uploadFile.name,
+                evidenceType: uploadFile.type.startsWith('image/')
+                  ? 'IMAGE'
+                  : uploadFile.type.startsWith('video/')
+                    ? 'VIDEO'
+                    : uploadFile.type.startsWith('audio/')
+                      ? 'AUDIO'
+                      : 'DOCUMENT',
+              });
           clearInterval(progressInterval);
           setFiles((prev) => prev.map((f) =>
-            f.id === uploadFile.id ? { ...f, state: 'completed' as const, progress: 100 } : f
+            f.id === uploadFile.id
+              ? {
+                  ...f,
+                  state: 'completed' as const,
+                  progress: 100,
+                  result: isCsv
+                    ? `Ingestion complete (${(result as { evidence_created?: number }).evidence_created ?? 0} evidence records)`
+                    : `Evidence ${(result as { id: string }).id} stored · checksum ${
+                        (result as { integrity?: { checksum?: string | null } }).integrity?.checksum?.slice(0, 12) ?? 'generated'
+                      }…`,
+                }
+              : f
           ));
           onUploadComplete?.();
         }
@@ -280,64 +299,7 @@ export function UploadZone({ investigationId, onFilesSelected, onUploadComplete 
         ));
       }
     }
-  }, [onUploadComplete]);
-
-  const handleUpload = useCallback(async () => {
-    if (!investigationId) return;
-
-    const selectedFiles = files.filter((f) => f.state === 'selected');
-    if (selectedFiles.length === 0) return;
-
-    // Collect CSV files that need mapping review
-    const queue: MappingQueueItem[] = [];
-    for (const uf of selectedFiles) {
-      if (uf.extension !== '.csv') continue;
-      try {
-        const text = await uf.file.text();
-        const { headers, previewRows } = parseCsvPreview(text, 5);
-        if (headers.length === 0) continue;
-        const suggestions = autoSuggestMappings(headers);
-        if (!allHeadersRecognized(suggestions)) {
-          queue.push({ uploadFile: uf, suggestions, previewRows });
-        }
-      } catch {
-        // CSV parse failed — skip mapping, upload will proceed as-is
-      }
-    }
-
-    if (queue.length > 0) {
-      // Show mapping dialog for the first file needing review
-      setMappingQueue(queue.slice(1));
-      setCurrentMapping(queue[0]);
-    } else {
-      // Fast path: all CSVs recognized, proceed directly
-      proceedWithUpload(selectedFiles, investigationId);
-    }
-  }, [files, investigationId, proceedWithUpload]);
-
-  // Called when user confirms mapping for the current file
-  const handleMappingConfirm = useCallback((confirmedMappings: ColumnMappingSuggestion[]) => {
-    if (!currentMapping) return;
-    confirmedMappingsRef.current.set(currentMapping.uploadFile.id, confirmedMappings);
-
-    if (mappingQueue.length > 0) {
-      // More files need mapping
-      setCurrentMapping(mappingQueue[0]);
-      setMappingQueue((q) => q.slice(1));
-    } else {
-      // All mappings confirmed — proceed with upload
-      setCurrentMapping(null);
-      const selectedFiles = files.filter((f) => f.state === 'selected');
-      if (investigationId) {
-        proceedWithUpload(selectedFiles, investigationId);
-      }
-    }
-  }, [currentMapping, mappingQueue, files, investigationId, proceedWithUpload]);
-
-  const handleMappingClose = useCallback(() => {
-    setCurrentMapping(null);
-    setMappingQueue([]);
-  }, []);
+  }, [files, investigationId, onUploadComplete]);
 
   useEffect(() => {
     return () => { dragCountRef.current = 0; };
@@ -345,6 +307,21 @@ export function UploadZone({ investigationId, onFilesSelected, onUploadComplete 
 
   const selectedCount = files.filter((f) => f.state === 'selected').length;
   const completedCount = files.filter((f) => f.state === 'completed').length;
+
+  if (!canMutate) {
+    return (
+      <div
+        className="rounded-lg border-2 border-dashed border-border p-8 text-center"
+        data-testid="upload-zone-read-only"
+      >
+        <Upload className="mx-auto mb-3 h-10 w-10 text-foreground-muted" />
+        <p className="text-subheading text-foreground-secondary">Uploads disabled</p>
+        <p className="text-body-sm text-foreground-muted mt-1">
+          Your account is read-only. Record ingestion is available to investigators and above.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -445,18 +422,6 @@ export function UploadZone({ investigationId, onFilesSelected, onUploadComplete 
             ))}
           </Stagger>
         </div>
-      )}
-
-      {/* CSV Column Mapping Dialog */}
-      {currentMapping && (
-        <CsvMappingDialog
-          open={!!currentMapping}
-          onClose={handleMappingClose}
-          onConfirm={handleMappingConfirm}
-          fileName={currentMapping.uploadFile.name}
-          suggestions={currentMapping.suggestions}
-          previewRows={currentMapping.previewRows}
-        />
       )}
     </div>
   );

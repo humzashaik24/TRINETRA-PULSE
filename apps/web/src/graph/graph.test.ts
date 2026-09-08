@@ -43,7 +43,6 @@ const baseFilters: GraphFilters = {
   statuses: [],
   sources: [],
   activity: 'all',
-  intelligenceStatuses: [],
 };
 
 const noRange: GraphTimelineRange = { from: null, to: null };
@@ -88,87 +87,6 @@ describe('graph/selectors', () => {
       expanded: new Set(),
     });
     expect(visibleEdges.map((e) => e.type)).toEqual(['OWNS']);
-  });
-
-  it('filters edges by intelligence status (Phase 21)', () => {
-    const nodes = graph.nodes;
-    const nid = (entityId: string) => nodes.find((n) => n.entityId === entityId)!.id;
-    const e1 = nid('e1');
-    const e2 = nid('e2');
-    const e3 = nid('e3');
-    const e4 = nid('e4');
-
-    const reviewed: GraphEdge = {
-      id: 'x1',
-      relationshipId: 'rel-x',
-      source: e1,
-      target: e2,
-      type: 'KNOWS',
-      label: 'A — KNOWS — B',
-      confidence: 0.8,
-      status: 'needs_review',
-      direction: 'undirected',
-      weight: 1,
-      sourceRecordLabel: 'S1',
-      evidence: ['r1'],
-      extractionMethod: 'RULE_BASED',
-      metadata: {},
-      intelligence: { status: 'REVIEWED', confidence: 0.85, confidenceLabel: 'HIGH', sourceCount: 2, correlationKey: 'g-a+b' },
-    };
-    const singleSource: GraphEdge = {
-      id: 'x2',
-      relationshipId: 'rel-y',
-      source: e1,
-      target: e3,
-      type: 'OWNS',
-      label: 'A — OWNS — C',
-      confidence: 0.6,
-      status: 'needs_review',
-      direction: 'undirected',
-      weight: 1,
-      sourceRecordLabel: 'S2',
-      evidence: ['r2'],
-      extractionMethod: 'RULE_BASED',
-      metadata: {},
-      intelligence: { status: 'NEEDS_REVIEW', confidence: 0.35, confidenceLabel: 'LOW', sourceCount: 1, correlationKey: '' },
-    };
-    const noIntel: GraphEdge = {
-      id: 'x3',
-      relationshipId: 'rel-z',
-      source: e1,
-      target: e4,
-      type: 'WORKS_FOR',
-      label: 'A — CONTROLS — D',
-      confidence: 0.7,
-      status: 'needs_review',
-      direction: 'undirected',
-      weight: 1,
-      sourceRecordLabel: 'S1',
-      evidence: [],
-      extractionMethod: 'RULE_BASED',
-      metadata: {},
-    };
-
-    const reviewedOnly = selectVisible({
-      nodes,
-      edges: [reviewed, singleSource, noIntel],
-      filters: { ...baseFilters, intelligenceStatuses: ['REVIEWED'] },
-      depth: { kind: 'full' },
-      timeline: noRange,
-      expanded: new Set(),
-    });
-    expect(reviewedOnly.visibleEdges.map((e) => e.id)).toEqual(['x1']);
-
-    // No filter active → all edges (with or without intelligence) remain.
-    const all = selectVisible({
-      nodes,
-      edges: [reviewed, singleSource, noIntel],
-      filters: baseFilters,
-      depth: { kind: 'full' },
-      timeline: noRange,
-      expanded: new Set(),
-    });
-    expect(all.visibleEdges.map((e) => e.id).sort()).toEqual(['x1', 'x2', 'x3']);
   });
 
   it('restricts visibility to a hop radius around a center', () => {

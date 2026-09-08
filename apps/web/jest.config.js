@@ -8,7 +8,8 @@ const shared = {
     '^d3-force$': '<rootDir>/src/test/mocks/d3-force.ts',
     // Force a single React/ReactDOM instance so workspace package sources
     // (resolved relative to the root node_modules) share the same React
-    // module identity as the app code under test.
+    // module identity as the app code under test. React is hoisted to the
+    // workspace root node_modules, so the mapping points there.
     '^react$': '<rootDir>/../../node_modules/react/index.js',
     '^react-dom$': '<rootDir>/../../node_modules/react-dom/index.js',
     '^react/jsx-runtime$': '<rootDir>/../../node_modules/react/jsx-runtime.js',

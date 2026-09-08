@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.api.deps import CurrentUserDep, SessionDep
+from app.api.deps import CanMutateDep, CurrentUserDep, SessionDep, SupervisorDep
 from app.schemas.common import PaginatedResponse
 from app.schemas.real.investigation import (
     InvestigationCreate,
@@ -23,7 +23,7 @@ router = APIRouter()
 async def create_investigation(
     payload: InvestigationCreate,
     session: SessionDep,
-    _user: CurrentUserDep,
+    _actor: CanMutateDep,
 ) -> InvestigationRead:
     service = InvestigationService(session)
     investigation = await service.create(payload)
@@ -64,7 +64,7 @@ async def update_investigation(
     investigation_id: UUID,
     payload: InvestigationUpdate,
     session: SessionDep,
-    _user: CurrentUserDep,
+    _actor: CanMutateDep,
 ) -> InvestigationRead:
     service = InvestigationService(session)
     investigation = await service.update(investigation_id, payload)
@@ -75,7 +75,7 @@ async def update_investigation(
 async def delete_investigation(
     investigation_id: UUID,
     session: SessionDep,
-    _user: CurrentUserDep,
+    _actor: SupervisorDep,
 ) -> None:
     service = InvestigationService(session)
     await service.delete(investigation_id)

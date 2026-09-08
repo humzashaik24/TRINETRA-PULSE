@@ -18,7 +18,7 @@ function colorForIndex(i: number): string {
   return `hsl(${HUE_PALETTE[i % HUE_PALETTE.length]}, 70%, 55%)`;
 }
 
-export function CommunityView({ communities }: { communities: Community[] }) {
+export function CommunityView({ communities, unavailable = false }: { communities: Community[]; unavailable?: boolean }) {
   const overlay = useAnalyticsStore((s) => s.overlay);
   const setOverlay = useAnalyticsStore((s) => s.setOverlay);
   const selectedCommunityId = useAnalyticsStore((s) => s.selectedCommunityId);
@@ -54,7 +54,9 @@ export function CommunityView({ communities }: { communities: Community[] }) {
 
       <DistributionBar segments={segments} />
 
-      {sorted.length === 0 ? (
+      {unavailable ? (
+        <p className="py-6 text-center text-xs text-foreground-muted">Group analysis is unavailable from the API for this network.</p>
+      ) : sorted.length === 0 ? (
         <p className="py-6 text-center text-xs text-foreground-muted">No communities detected.</p>
       ) : (
         <ul className="space-y-2">

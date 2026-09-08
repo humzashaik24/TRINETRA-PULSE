@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.core.config import get_settings
@@ -56,4 +57,6 @@ async def health_check():
 async def health_check_db():
     payload = health_payload()
     payload["database"] = await _db_status()
+    if payload["database"] != "ok":
+        return JSONResponse(status_code=503, content=payload)
     return HealthResponse(**payload)

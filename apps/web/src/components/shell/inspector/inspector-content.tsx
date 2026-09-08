@@ -51,7 +51,7 @@ function InspectorContentSkeleton() {
   );
 }
 
-export function InspectorContent({ context, contextKey, onOpen, onInspectEntity, onInspectFinding, onOpenNetwork, onConfirmRelationship, onRejectRelationship, canReview }: InspectorContentProps) {
+export function InspectorContent({ context, contextKey, onOpen, onInspectEntity, onInspectFinding, onOpenNetwork }: InspectorContentProps) {
   const [resolution, setResolution] = useState<InspectorResolution>(() => ({
     status: 'loading',
     view: null,
@@ -74,7 +74,7 @@ export function InspectorContent({ context, contextKey, onOpen, onInspectEntity,
 
   const renderView = () => {
     if (!view) return null;
-    const actions: ViewActions = { onOpen, onInspectEntity, onInspectFinding, onOpenNetwork, onConfirmRelationship, onRejectRelationship, canReview };
+    const actions: ViewActions = { onOpen, onInspectEntity, onInspectFinding, onOpenNetwork };
     switch (view.kind) {
       case 'entity':
         return <EntityContextView view={view} actions={actions} />;

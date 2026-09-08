@@ -36,6 +36,7 @@ async def get_entity(entity_id: UUID):
     entity = _entities_store.get(str(entity_id))
     if not entity:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Entity not found")
     return EntityResponse(**entity)
 

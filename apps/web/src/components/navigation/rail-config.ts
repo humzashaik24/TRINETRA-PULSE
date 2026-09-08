@@ -9,14 +9,22 @@ import {
   Sparkles,
   Settings,
   CircleUserRound,
+  ShieldHalf,
+  KeyRound,
   type LucideIcon,
 } from 'lucide-react';
+
+import { USER_ROLE_RANK, type UserRole } from '@/lib/auth/types';
 
 // ============================================================
 // PHASE 3.5 — COMMAND RAIL NAVIGATION
 // ============================================================
 // Global navigation only. Investigation-level navigation belongs
 // to the investigation workspace, never the global rail.
+//
+// Phase 18.1 — role-gated navigation:
+// ``RailItem.roles`` restricts an item to the listed roles (exact), while
+// ``minRole`` uses the hierarchical model (AUDITOR stays read-only).
 // ============================================================
 
 export interface RailItem {
@@ -26,6 +34,10 @@ export interface RailItem {
   badge?: number;
   /** Primary rail actions shown on compact/mobile surfaces. */
   primary?: boolean;
+  /** Exact roles that may see this item (undefined = everyone). */
+  roles?: UserRole[];
+  /** Minimum role rank required to see this item. */
+  minRole?: UserRole;
 }
 
 export interface RailSection {
@@ -56,6 +68,18 @@ export const UTILITY_RAIL_SECTIONS: RailSection[] = [
     id: 'workspace',
     label: 'Workspace',
     items: [
+      {
+        label: 'Security',
+        href: '/security',
+        icon: ShieldHalf,
+        roles: ['admin', 'supervisor', 'auditor'],
+      },
+      {
+        label: 'Providers',
+        href: '/security/providers',
+        icon: KeyRound,
+        roles: ['admin'],
+      },
       { label: 'Settings', href: '/settings', icon: Settings },
       { label: 'User', href: '/profile', icon: CircleUserRound },
     ],
@@ -65,3 +89,16 @@ export const UTILITY_RAIL_SECTIONS: RailSection[] = [
 export const RAIL_SECTIONS = [...PRIMARY_RAIL_SECTIONS, ...UTILITY_RAIL_SECTIONS];
 
 export const RAIL_ITEMS = RAIL_SECTIONS.flatMap((section) => section.items);
+
+/** Filter rail items by the current user's role (Phase 18.1). */
+export function filterRailItemsByRole(
+  items: RailItem[],
+  role: UserRole | undefined,
+): RailItem[] {
+  if (!role) return items.filter((item) => item.roles === undefined && item.minRole === undefined);
+  return items.filter((item) => {
+    if (item.roles) return item.roles.includes(role);
+    if (item.minRole) return USER_ROLE_RANK[role] >= USER_ROLE_RANK[item.minRole];
+    return true;
+  });
+}

@@ -8,7 +8,7 @@ from fastapi import APIRouter, File, Form, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select as sa_select
 
-from app.api.deps import CurrentUserDep, SessionDep
+from app.api.deps import CanMutateDep, CurrentUserDep, SessionDep
 from app.models import Dataset, DatasetStatus, IngestionJob, IngestionJobStatus
 from app.repositories.dataset import DataSourceRepository
 from app.schemas.real.dataset import (
@@ -47,7 +47,7 @@ async def list_data_sources(
 async def create_data_source(
     payload: DataSourceCreate,
     session: SessionDep,
-    _user: CurrentUserDep,
+    _actor: CanMutateDep,
 ) -> DataSourceRead:
     from app.models import DataSource
 
@@ -91,13 +91,14 @@ async def upload_dataset(
     source_name: str | None = Form(None),
     category: str = Form("structured"),
     session: SessionDep = None,
-    user: CurrentUserDep = None,
+    user: CanMutateDep = None,
 ) -> UploadResult:
     """Upload a CSV file and run the ingestion pipeline.
 
     Accepts multipart/form-data with a CSV file and metadata fields.
     Creates the dataset, parses the CSV, extracts entities and relationships,
-    and returns the created dataset with ingestion results.
+    and returns the created dataset with ingestion results. Requires an
+    authenticated actor with mutation rights (INVESTIGATOR or higher).
     """
     content = await file.read()
     try:
@@ -131,6 +132,8 @@ async def upload_dataset(
         file_content=file_content,
         file_name=file_name,
         created_by=user.id if user else None,
+        actor_id=user.id if user else None,
+        actor_email=user.email if user else None,
     )
 
     await session.commit()
@@ -184,7 +187,7 @@ async def get_dataset(
 async def create_dataset(
     payload: DatasetCreate,
     session: SessionDep,
-    _user: CurrentUserDep,
+    _actor: CanMutateDep,
 ) -> DatasetRead:
     service = DatasetService(session)
     ds = await service.create_dataset(payload)
@@ -196,7 +199,7 @@ async def update_dataset(
     dataset_id: UUID,
     payload: DatasetUpdate,
     session: SessionDep,
-    _user: CurrentUserDep,
+    _actor: CanMutateDep,
 ) -> DatasetRead:
     service = DatasetService(session)
     ds = await service.update_dataset_status(
@@ -228,7 +231,7 @@ async def create_job(
     dataset_id: UUID,
     payload: IngestionJobCreate,
     session: SessionDep,
-    _user: CurrentUserDep,
+    _actor: CanMutateDep,
 ) -> IngestionJobRead:
     service = DatasetService(session)
     payload.dataset_id = dataset_id
@@ -275,7 +278,7 @@ async def complete_job(
     job_id: UUID,
     body: CompleteJobBody,
     session: SessionDep,
-    _user: CurrentUserDep,
+    _actor: CanMutateDep,
 ) -> IngestionJobRead:
     service = DatasetService(session)
     job = await service.complete_job(
@@ -295,7 +298,7 @@ async def complete_job(
 async def cancel_job(
     job_id: UUID,
     session: SessionDep,
-    _user: CurrentUserDep,
+    _actor: CanMutateDep,
 ) -> IngestionJobRead:
     service = DatasetService(session)
     job = await service.cancel_job(job_id)

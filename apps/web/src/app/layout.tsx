@@ -1,22 +1,8 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ApiProvider } from '@/lib/api/provider';
+import { AuthBootstrap } from '@/components/auth/auth-bootstrap';
 import '@/styles/globals.css';
-
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-sans',
-  display: 'swap',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-mono',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Trinetra Pulse',
@@ -30,12 +16,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
-      <body
-        className={`${inter.variable} ${jetbrainsMono.variable} min-h-screen bg-background font-sans antialiased`}
-      >
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="min-h-screen bg-background font-sans antialiased">
         <ThemeProvider>
           <ApiProvider>
-            {children}
+            <AuthBootstrap>{children}</AuthBootstrap>
           </ApiProvider>
         </ThemeProvider>
       </body>

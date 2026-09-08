@@ -182,9 +182,7 @@ class MockInvestigationAIProvider(InvestigationAIProvider):
                 detail = ", ".join(parts) or (
                     "no aggregate counts are available in the current scope"
                 )
-                answer.append(
-                    f"Investigation '{title}' is {status}, with {detail} recorded."
-                )
+                answer.append(f"Investigation '{title}' is {status}, with {detail} recorded.")
             else:
                 answer.append(
                     "The selected investigation is referenced, but no detailed dataset "
@@ -222,9 +220,7 @@ class MockInvestigationAIProvider(InvestigationAIProvider):
                 f"{', '.join(labels)}."
             )
         elif "timeline" in q and timeline_entries:
-            entries = [
-                t for t in timeline_entries if t.get("label") or t.get("timestamp")
-            ]
+            entries = [t for t in timeline_entries if t.get("label") or t.get("timestamp")]
             answer.append(
                 f"The recorded timeline contains {len(entries) or len(timeline_entries)} "
                 f"entry/entries."
@@ -320,14 +316,10 @@ class MockInvestigationAIProvider(InvestigationAIProvider):
         return {
             "answer": guard_neutral(plain),
             "key_points": [
-                guard_neutral(part)
-                for part in re.split(r"[.]\s", plain)
-                if part.strip()
+                guard_neutral(part) for part in re.split(r"[.]\s", plain) if part.strip()
             ][:4],
             "confidence": {"answerGrounding": 0.55},
-            "limitations": [
-                "Response is grounded in the currently available context only."
-            ],
+            "limitations": ["Response is grounded in the currently available context only."],
             "sources": sources,
         }
 

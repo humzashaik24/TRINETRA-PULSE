@@ -9,12 +9,7 @@ import { ENTITY_TYPE_LABELS } from '@/lib/format';
 import { RELATIONSHIP_KIND_LABELS } from '@/lib/entity-domain';
 import { nodeColorFor } from '@/graph/transform';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
-import type {
-  EntityType,
-  RelationshipIntelligenceStatus,
-  RelationshipKind,
-} from '@trinetra-pulse/types';
-import { RELATIONSHIP_INTELLIGENCE_STATUSES } from '@trinetra-pulse/types';
+import type { EntityType, RelationshipKind } from '@trinetra-pulse/types';
 
 // ============================================================
 // GRAPH FILTERS
@@ -26,12 +21,6 @@ import { RELATIONSHIP_INTELLIGENCE_STATUSES } from '@trinetra-pulse/types';
 
 const ALL_ENTITY_TYPES = Object.keys(ENTITY_TYPE_LABELS) as EntityType[];
 const ALL_RELATIONSHIP_TYPES = Object.keys(RELATIONSHIP_KIND_LABELS) as RelationshipKind[];
-
-const INTELLIGENCE_STATUS_LABELS: Record<RelationshipIntelligenceStatus, string> = {
-  NEEDS_REVIEW: 'Needs review',
-  REVIEWED: 'Reviewed',
-  DISCARDED: 'Discarded',
-};
 
 export function GraphFilters() {
   const filters = useGraphStore((s) => s.filters);
@@ -48,7 +37,6 @@ export function GraphFilters() {
   const activeFilterCount =
     filters.entityTypes.length +
     filters.relationshipTypes.length +
-    filters.intelligenceStatuses.length +
     (filters.minConfidence > 0 ? 1 : 0);
 
   const toggleEntity = (t: EntityType) => {
@@ -69,17 +57,8 @@ export function GraphFilters() {
     });
   };
 
-  const toggleIntelligenceStatus = (s: RelationshipIntelligenceStatus) => {
-    const has = filters.intelligenceStatuses.includes(s);
-    setFilters({
-      intelligenceStatuses: has
-        ? filters.intelligenceStatuses.filter((x) => x !== s)
-        : [...filters.intelligenceStatuses, s],
-    });
-  };
-
   const reset = () =>
-    setFilters({ entityTypes: [], relationshipTypes: [], intelligenceStatuses: [], minConfidence: 0 });
+    setFilters({ entityTypes: [], relationshipTypes: [], minConfidence: 0 });
 
   return (
     <div className="relative" data-testid="graph-filters">
@@ -179,29 +158,6 @@ export function GraphFilters() {
                   </div>
                 </section>
               )}
-
-              <section aria-label="Correlation status">
-                <p className="mb-1 text-[10px] uppercase tracking-wide text-foreground-muted">Correlation</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {RELATIONSHIP_INTELLIGENCE_STATUSES.map((s) => {
-                    const active = filters.intelligenceStatuses.includes(s);
-                    return (
-                      <button
-                        key={s}
-                        onClick={() => toggleIntelligenceStatus(s)}
-                        aria-pressed={active}
-                        className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
-                          active
-                            ? 'border-brand bg-brand-subtle text-brand'
-                            : 'border-border text-foreground-secondary hover:bg-surface-hover'
-                        }`}
-                      >
-                        {INTELLIGENCE_STATUS_LABELS[s]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
 
               <section aria-label="Confidence">
                 <div className="mb-1 flex items-center justify-between">

@@ -94,6 +94,13 @@ export const EXTRACTION_METHOD_LABELS: Record<ExtractionMethod, string> = {
   LLM: 'LLM',
   MANUAL: 'Manual',
   ANALYTICAL: 'Analytical',
+  DATABASE_IMPORT: 'Database import',
+  DOCUMENT_PARSE: 'Document parse',
+  AI_NLP: 'AI / NLP',
+  AI_CV: 'AI / computer vision',
+  AI_AUDIO: 'AI / audio',
+  NETWORK_ANALYSIS: 'Network analysis',
+  OTHER: 'Other',
 };
 
 export const EVIDENCE_TYPE_LABELS: Record<EvidenceType, string> = {

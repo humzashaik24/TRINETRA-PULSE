@@ -18,6 +18,7 @@ from app.models import (
     DatasetStatus,
     Entity,
     EntityType,
+    EvidenceChainAction,
     IngestionJob,
     IngestionJobStatus,
     InvestigationEvent,
@@ -32,6 +33,8 @@ from app.repositories.dataset import (
     IngestionJobRepository,
 )
 from app.repositories.investigation import InvestigationRepository
+from app.services import evidence_chain, evidence_integrity
+from app.services.candidate_resolution import CandidateResolutionService, normalize_value
 
 
 @dataclass
@@ -54,8 +57,15 @@ PERSON_KEYWORDS = ("name", "person", "individual", "suspect", "accused", "witnes
 PHONE_KEYWORDS = ("phone", "mobile", "msisdn", "telephone", "contact", "caller", "callee")
 VEHICLE_KEYWORDS = ("vehicle", "car", "registration", "licence", "license", "plate", "rc_")
 LOCATION_KEYWORDS = (
-    "location", "address", "city", "district",
-    "place", "lat", "lng", "tower", "cell",
+    "location",
+    "address",
+    "city",
+    "district",
+    "place",
+    "lat",
+    "lng",
+    "tower",
+    "cell",
 )
 ORG_KEYWORDS = ("organization", "company", "firm", "entity_name", "org", "gstin")
 ACCOUNT_KEYWORDS = ("account", "bank", "ifsc", "upi")
@@ -130,7 +140,7 @@ class IngestionPipeline:
         raw_value: str,
         confidence: float = 0.75,
     ) -> Entity:
-        normalized = self._normalize_name(canonical_name)
+        normalized = normalize_value(canonical_name, entity_type)
         result = await self.session.execute(
             select(Entity).where(
                 Entity.investigation_id == investigation_id,
@@ -208,6 +218,8 @@ class IngestionPipeline:
         record_id: str | None,
         row_data: dict,
         dataset_id: UUID,
+        actor_id: str | None = None,
+        actor_email: str | None = None,
     ) -> InvestigationEvidence:
         evidence = InvestigationEvidence(
             investigation_id=investigation_id,
@@ -231,6 +243,22 @@ class IngestionPipeline:
         )
         self.session.add(evidence)
         await self.session.flush()
+        # Phase 17.6 — every persisted evidence item carries a SHA-256 checksum.
+        evidence_integrity.attach_checksum(evidence)
+        # Phase 18.2 — record the custody chain entry for uploaded evidence.
+        # Actor resolution (users-table check, email snapshot) happens in append.
+        chain_service = evidence_chain.EvidenceChainService(self.session)
+        await chain_service.append(
+            evidence=evidence,
+            action=EvidenceChainAction.EVIDENCE_UPLOADED,
+            actor_id=actor_id,
+            actor_email=actor_email,
+            details={
+                "source": "csv_ingestion",
+                "dataset_id": str(dataset_id),
+                "record_identifier": record_id,
+            },
+        )
         return evidence
 
     # ------------------------------------------------------------------
@@ -328,6 +356,8 @@ class IngestionPipeline:
         file_content: str,
         file_name: str,
         created_by: str | None = None,
+        actor_id: str | None = None,
+        actor_email: str | None = None,
     ) -> IngestionResult:
         inv = await self.investigations.get(investigation_id)
         if not inv:
@@ -415,6 +445,7 @@ class IngestionPipeline:
         evidence_type = self._infer_evidence_type(headers, ds.category)
 
         entity_cache: dict[str, Entity] = {}
+        resolution_service = CandidateResolutionService(self.session)
         entity_provenance_set: set[str] = set()
         relationship_cache: set[tuple[str, str, str]] = set()
         relationship_provenance_set: set[str] = set()
@@ -436,13 +467,17 @@ class IngestionPipeline:
                     raw = (row_data.get(col) or "").strip()
                     if not raw or len(raw) < 2:
                         continue
-                    normalized = self._normalize_name(raw)
-                    cache_key = f"{investigation_id}:{normalized}"
+                    normalized = normalize_value(raw, etype)
+                    cache_key = f"{investigation_id}:{etype.value}:{normalized}"
                     if cache_key in entity_cache:
                         row_entities[etype] = entity_cache[cache_key]
                         continue
                     entity = await self._find_or_create_entity(
-                        raw, etype, investigation_id, col, raw,
+                        raw,
+                        etype,
+                        investigation_id,
+                        col,
+                        raw,
                     )
                     is_new = entity.created_at == entity.updated_at
                     if is_new:
@@ -451,8 +486,12 @@ class IngestionPipeline:
                         prov_key = f"{dataset_id}:{entity.id}"
                         if prov_key not in entity_provenance_set:
                             await self._create_entity_provenance(
-                                entity, investigation_id, dataset_id,
-                                job.id, ds.name or file_name, checksum,
+                                entity,
+                                investigation_id,
+                                dataset_id,
+                                job.id,
+                                ds.name or file_name,
+                                checksum,
                             )
                             entity_provenance_set.add(prov_key)
                             provenance_created += 1
@@ -460,12 +499,31 @@ class IngestionPipeline:
                         duplicates += 1
                     entity_cache[cache_key] = entity
                     row_entities[etype] = entity
+                    observation = await resolution_service.create_observation(
+                        investigation_id=investigation_id,
+                        dataset_id=dataset_id,
+                        ingestion_job_id=job.id,
+                        entity_type=etype.value,
+                        raw_value=raw,
+                        source=ds.name or file_name,
+                        source_record=str(record_id or row_idx + 2),
+                        row_identity=f"{checksum}:{row_idx + 2}",
+                        attributes={"source_column": col},
+                        provenance={
+                            "dataset_id": str(dataset_id),
+                            "ingestion_job_id": str(job.id),
+                            "source_record": record_id,
+                            "row_number": row_idx + 2,
+                            "file_checksum": checksum,
+                        },
+                    )
+                    await resolution_service.generate_resolutions(investigation_id, observation)
                     break  # take first valid column per entity type
 
             # Phase 2: Create relationships between entity types
             entity_types_present = list(row_entities.keys())
             for i, etype_a in enumerate(entity_types_present):
-                for etype_b in entity_types_present[i + 1:]:
+                for etype_b in entity_types_present[i + 1 :]:
                     entity_a = row_entities[etype_a]
                     entity_b = row_entities[etype_b]
                     rel_key = f"{entity_a.id}:{entity_b.id}"
@@ -473,8 +531,12 @@ class IngestionPipeline:
                         continue
                     rel_type = self._infer_relationship_type(etype_a, etype_b)
                     rel = await self._find_or_create_relationship(
-                        entity_a, entity_b, rel_type,
-                        investigation_id, ds.name or file_name, record_id,
+                        entity_a,
+                        entity_b,
+                        rel_type,
+                        investigation_id,
+                        ds.name or file_name,
+                        record_id,
                     )
                     relationship_cache.add(rel_key)
                     relationships_created += 1
@@ -482,8 +544,12 @@ class IngestionPipeline:
                     prov_key = f"{dataset_id}:{rel.id}"
                     if prov_key not in relationship_provenance_set:
                         await self._create_relationship_provenance(
-                            rel, investigation_id, dataset_id,
-                            job.id, ds.name or file_name, checksum,
+                            rel,
+                            investigation_id,
+                            dataset_id,
+                            job.id,
+                            ds.name or file_name,
+                            checksum,
                         )
                         relationship_provenance_set.add(prov_key)
                         provenance_created += 1
@@ -494,8 +560,15 @@ class IngestionPipeline:
                 primary_entity = row_entities[ptype]
                 evidence_title = f"Record {record_id or row_idx + 2} — {primary_entity.name}"
                 await self._create_evidence(
-                    investigation_id, evidence_title, evidence_type,
-                    ds.name or file_name, record_id, row_data, dataset_id,
+                    investigation_id,
+                    evidence_title,
+                    evidence_type,
+                    ds.name or file_name,
+                    record_id,
+                    row_data,
+                    dataset_id,
+                    actor_id=actor_id,
+                    actor_email=actor_email,
                 )
                 evidence_created += 1
 
@@ -507,7 +580,10 @@ class IngestionPipeline:
 
         # Quality score
         quality_score = self._compute_quality_score(
-            total, entities_created, len(warnings), duplicates,
+            total,
+            entities_created,
+            len(warnings),
+            duplicates,
         )
 
         # Complete job

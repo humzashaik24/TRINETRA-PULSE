@@ -208,6 +208,7 @@ export interface UploadFile {
   progress: number;
   error?: string;
   validationErrors?: string[];
+  result?: string;
 }
 
 // ============================================================

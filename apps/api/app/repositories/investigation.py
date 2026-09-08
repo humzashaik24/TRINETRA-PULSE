@@ -9,12 +9,14 @@ from sqlalchemy import delete, func, select
 from app.models import (
     Dataset,
     Entity,
+    EvidenceChainEntry,
     IngestionJob,
     Investigation,
     InvestigationEvent,
     InvestigationEvidence,
     InvestigationFinding,
     InvestigationNote,
+    NetworkAnalyticsSnapshot,
     Relationship,
 )
 from app.repositories.base import BaseRepository
@@ -50,9 +52,7 @@ class EntityRepository(BaseRepository[Entity]):
 
     async def count_for_investigation(self, investigation_id: UUID) -> int:
         result = await self.session.execute(
-            select(func.count(Entity.id)).where(
-                Entity.investigation_id == investigation_id
-            )
+            select(func.count(Entity.id)).where(Entity.investigation_id == investigation_id)
         )
         return int(result.scalar_one())
 
@@ -193,7 +193,7 @@ async def cleanup_investigation(session, investigation_id: UUID) -> None:
         InvestigationFinding,
         InvestigationEvent,
         InvestigationNote,
+        EvidenceChainEntry,
+        NetworkAnalyticsSnapshot,
     ):
-        await session.execute(
-            delete(model).where(model.investigation_id == investigation_id)
-        )
+        await session.execute(delete(model).where(model.investigation_id == investigation_id))

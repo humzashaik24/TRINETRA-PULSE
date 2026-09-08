@@ -17,8 +17,6 @@ beforeEach(() => {
     loadingState: 'idle',
     error: null,
     networkId: 'NET-001',
-    nodes: [],
-    edges: [],
   });
   useShellStore.setState({
     inspectorOpen: false,
@@ -29,7 +27,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  useGraphStore.setState({ loadingState: 'idle', error: null, nodes: [], edges: [] });
+  useGraphStore.setState({ loadingState: 'idle', error: null });
 });
 
 function renderPage() {
@@ -48,17 +46,5 @@ describe('NetworkPage — loading / error states', () => {
     renderPage();
     expect(screen.getByText(/could not load network/i)).toBeInTheDocument();
     expect(screen.getByText(/network unavailable/i)).toBeInTheDocument();
-  });
-
-  it('renders empty state CTA when network loads with no nodes', () => {
-    useGraphStore.setState({
-      loadingState: 'ready',
-      networkId: 'NET-001',
-      nodes: [],
-      edges: [],
-    });
-    renderPage();
-    expect(screen.getByText(/no investigation data yet/i)).toBeInTheDocument();
-    expect(screen.getByText('Ingest Data')).toBeInTheDocument();
   });
 });

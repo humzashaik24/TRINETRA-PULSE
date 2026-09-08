@@ -36,11 +36,14 @@ async def test_root(client: AsyncClient):
 
 @pytest.mark.anyio
 async def test_create_entity(client: AsyncClient):
-    response = await client.post("/api/v1/entities/", json={
-        "entity_type": "person",
-        "name": "Test Person",
-        "description": "A test entity",
-    })
+    response = await client.post(
+        "/api/v1/entities/",
+        json={
+            "entity_type": "person",
+            "name": "Test Person",
+            "description": "A test entity",
+        },
+    )
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Test Person"
@@ -50,11 +53,14 @@ async def test_create_entity(client: AsyncClient):
 
 @pytest.mark.anyio
 async def test_create_case(client: AsyncClient):
-    response = await client.post("/api/v1/cases/", json={
-        "title": "Test Case",
-        "case_number": "TC-2024-001",
-        "priority": "high",
-    })
+    response = await client.post(
+        "/api/v1/cases/",
+        json={
+            "title": "Test Case",
+            "case_number": "TC-2024-001",
+            "priority": "high",
+        },
+    )
     assert response.status_code == 201
     data = response.json()
     assert data["title"] == "Test Case"

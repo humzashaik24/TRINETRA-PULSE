@@ -30,6 +30,7 @@ from app.ai.schemas import (
     AIResponse,
     AISourceReference,
 )
+from app.api.deps import CurrentUserDep
 
 router = APIRouter()
 
@@ -45,9 +46,7 @@ _CONTEXT_KEYS = (
 )
 
 
-def _merge_supplied_context(
-    scope: dict[str, Any], supplied: dict[str, Any]
-) -> dict[str, Any]:
+def _merge_supplied_context(scope: dict[str, Any], supplied: dict[str, Any]) -> dict[str, Any]:
     """Bound the assistant to the requested investigation scope.
 
     The client-supplied context is trusted only as DATA. It was already
@@ -68,9 +67,7 @@ def _merge_supplied_context(
     return context
 
 
-def _ref(
-    source_type: str, source_id: str, label: str, relevance: float
-) -> AISourceReference:
+def _ref(source_type: str, source_id: str, label: str, relevance: float) -> AISourceReference:
     return AISourceReference(
         id=f"{source_type}:{source_id}",
         source_type=source_type,
@@ -89,9 +86,7 @@ def _sources_from_context(context: dict[str, Any]) -> list[AISourceReference]:
             _ref(
                 "Investigation",
                 inv["sourceId"],
-                inv.get("label")
-                or inv.get("title")
-                or f"Investigation {str(inv['sourceId'])[:8]}",
+                inv.get("label") or inv.get("title") or f"Investigation {str(inv['sourceId'])[:8]}",
                 0.95,
             )
         )
@@ -189,7 +184,9 @@ def _ai_response(query_id: str, result: dict[str, Any], context: dict[str, Any])
 
 
 @router.get("/status")
-async def assistant_status():
+async def assistant_status(
+    _user: CurrentUserDep,
+):
     provider = providers.get_provider()
     return {
         "status": "ready",
@@ -201,13 +198,22 @@ async def assistant_status():
 
 
 @router.get("/providers")
-async def assistant_providers():
+async def assistant_providers(
+    _user: CurrentUserDep,
+):
     return {"providers": providers.available_providers()}
 
 
 @router.post("/investigation-assistant/query", response_model=AIResponse)
-async def investigation_assistant_query(req: AIQueryRequest):
-    """Grounded, investigation-scoped answer to a natural-language question."""
+async def investigation_assistant_query(
+    req: AIQueryRequest,
+    _user: CurrentUserDep,
+):
+    """Grounded, investigation-scoped answer to a natural-language question.
+
+    Read-only: any authenticated role (including AUDITOR) may ask; the
+    assistant never creates or mutates persisted records.
+    """
     text = (req.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="Query text is required.")

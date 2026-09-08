@@ -16,7 +16,6 @@ export {
 } from './entity-profiles';
 export { mockEntityCandidates, mockCandidateById } from './entity-candidates';
 export { mockEntityResolutions, mockResolutionById } from './entity-resolutions';
-export { mockEntityResolutionCandidates } from './entity-resolutions';
 export { mockEntityRelationships } from './entity-relationships';
 export { mockEntityEvidence } from './entity-evidence';
 export { mockEntityEvents } from './entity-events';

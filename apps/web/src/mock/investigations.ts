@@ -176,7 +176,6 @@ const inv001: MockInvestigationRecord = {
     { id: 'int-001-1', investigation_id: 'inv-001', timestamp: iso('2026-08-01T09:00:00Z'), category: 'system', title: 'Investigation created', description: 'Workspace opened around the import probe.', ref_id: 'inv-001', ref_type: 'investigation', actor: 'Inspector Mehta' },
     { id: 'int-001-2', investigation_id: 'inv-001', timestamp: iso('2026-08-10T09:00:00Z'), category: 'event', title: 'Chennai hub coordination meeting', description: 'Canonical event surfaced on the timeline.', ref_id: 'inev-1-1', ref_type: 'event', actor: null },
     { id: 'int-001-3', investigation_id: 'inv-001', timestamp: iso('2026-08-12T14:30:00Z'), category: 'event', title: 'Large transfer executed', description: 'Flagged transaction added to the timeline.', ref_id: 'inev-1-2', ref_type: 'event', actor: null },
-    { id: 'int-001-4', investigation_id: 'inv-001', timestamp: iso('2026-08-13T09:00:00Z'), category: 'relationship', title: 'Corroboration requested for KNOWS link', description: 'The KNOWS relationship between Rahul Kumar and Vikram Patel was surfaced for review against independent sources.', ref_id: 'rel-003', ref_type: 'relationship', actor: 'Inspector Mehta' },
   ],
   networks: [
     { id: 'innet-001-1', investigation_id: 'inv-001', network_id: 'NET-001', name: 'Operation Clean — initial relationships', linked_by: 'Inspector Mehta', linked_at: iso('2026-08-02T09:00:00Z') },

@@ -1,4 +1,4 @@
-﻿"""Investigation domain service (real application layer)."""
+"""Investigation domain service (real application layer)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from app.api.errors import (
     NoteNotFoundError,
     RelationshipNotFoundError,
 )
-from app.models import Investigation
+from app.models import EvidenceChainAction, Investigation
 from app.repositories.investigation import (
     EntityRepository,
     EventRepository,
@@ -35,6 +35,7 @@ from app.schemas.real.investigation import (
     NoteCreate,
 )
 from app.schemas.real.summary import InvestigationSummary, TimelineEntry
+from app.services import evidence_chain, evidence_integrity
 
 
 class InvestigationService:
@@ -71,9 +72,7 @@ class InvestigationService:
         )
         return await self.investigations.add(investigation)
 
-    async def update(
-        self, investigation_id: UUID, payload: InvestigationUpdate
-    ) -> Investigation:
+    async def update(self, investigation_id: UUID, payload: InvestigationUpdate) -> Investigation:
         investigation = await self.get_required_investigation(investigation_id)
         changes = payload.model_dump(exclude_unset=True, exclude={"metadata"})
         for key, value in changes.items():
@@ -82,6 +81,10 @@ class InvestigationService:
         if payload.metadata_ is not None:
             investigation.metadata_ = payload.metadata_
         await self.session.flush()
+        # The onupdate=func.now() rule writes updated_at at the database, which
+        # SQLAlchemy expires after flush; in async sessions a lazy refresh on
+        # that attribute during model_validate crashes with MissingGreenlet.
+        await self.session.refresh(investigation)
         return investigation
 
     async def delete(self, investigation_id: UUID) -> None:
@@ -89,12 +92,8 @@ class InvestigationService:
         await cleanup_investigation(self.session, investigation_id)
         await self.investigations.delete(investigation)
 
-    async def list(
-        self, *, page: int = 1, page_size: int = 20
-    ) -> tuple[list[Investigation], int]:
-        items = await self.investigations.list(
-            limit=page_size, offset=(page - 1) * page_size
-        )
+    async def list(self, *, page: int = 1, page_size: int = 20) -> tuple[list[Investigation], int]:
+        items = await self.investigations.list(limit=page_size, offset=(page - 1) * page_size)
         total = await self.investigations.count()
         return items, total
 
@@ -109,9 +108,7 @@ class InvestigationService:
             status=investigation.status.value,
             priority=investigation.priority.value,
             entity_count=await self.entities.count_for_investigation(investigation_id),
-            relationship_count=await self.relationships.count_for_investigation(
-                investigation_id
-            ),
+            relationship_count=await self.relationships.count_for_investigation(investigation_id),
             evidence_count=await self.evidence.count_for_investigation(investigation_id),
             finding_count=await self.findings.count_for_investigation(investigation_id),
             event_count=await self.events.count_for_investigation(investigation_id),
@@ -145,12 +142,38 @@ class InvestigationService:
             raise EntityNotFoundError(str(entity_id))
         return entity
 
+    async def get_entity_scoped(self, entity_id: UUID, investigation_id: UUID | None = None):
+        """Return an entity only when it belongs to the investigation.
+
+        When ``investigation_id`` is provided and does not match the entity,
+        the entity is treated as not found (404) rather than leaking that it
+        exists in another investigation's scope.
+        """
+        entity = await self.get_entity(entity_id)
+        if investigation_id is not None and entity.investigation_id != investigation_id:
+            raise EntityNotFoundError(str(entity_id))
+        return entity
+
     # ------------------------------------------------------------------
     # Relationships
     # ------------------------------------------------------------------
     async def get_relationship(self, relationship_id: UUID):
         relationship = await self.relationships.get(relationship_id)
         if not relationship:
+            raise RelationshipNotFoundError(str(relationship_id))
+        return relationship
+
+    async def get_relationship_scoped(
+        self, relationship_id: UUID, investigation_id: UUID | None = None
+    ):
+        """Return a relationship only when it belongs to the investigation.
+
+        When ``investigation_id`` is provided and does not match the item, the
+        item is treated as not found (404) rather than leaking that it exists
+        in another investigation's scope.
+        """
+        relationship = await self.get_relationship(relationship_id)
+        if investigation_id is not None and relationship.investigation_id != investigation_id:
             raise RelationshipNotFoundError(str(relationship_id))
         return relationship
 
@@ -170,15 +193,50 @@ class InvestigationService:
             raise FindingNotFoundError(str(finding_id))
         return finding
 
+    async def get_finding_scoped(self, finding_id: UUID, investigation_id: UUID | None = None):
+        """Return a finding only when it belongs to the investigation.
+
+        When ``investigation_id`` is provided and does not match the item, the
+        item is treated as not found (404) rather than leaking that it exists
+        in another investigation's scope.
+        """
+        finding = await self.get_finding(finding_id)
+        if investigation_id is not None and finding.investigation_id != investigation_id:
+            raise FindingNotFoundError(str(finding_id))
+        return finding
+
     # ------------------------------------------------------------------
     # Evidence
     # ------------------------------------------------------------------
-    async def create_evidence(self, payload: EvidenceCreate):
+    async def create_evidence(
+        self,
+        payload: EvidenceCreate,
+        actor_id: str | None = None,
+        actor_email: str | None = None,
+    ):
         await self.get_required_investigation(payload.investigation_id)
         data = payload.model_dump(exclude={"metadata"})
         data["metadata_"] = payload.metadata_
         item = self.evidence.model(**data)
-        return await self.evidence.add(item)
+        await self.evidence.add(item)
+        # Attach a SHA-256 checksum so every persisted evidence item carries
+        # integrity metadata (verified by the integrity endpoint).
+        evidence_integrity.attach_checksum(item)
+        await self.session.flush()
+        # Reload server-side defaults (e.g. updated_at) so the returned ORM
+        # object is safe to validate without a lazy-load through the async session.
+        await self.session.refresh(item)
+        # Phase 18.2 — genesis custody entry for evidence created via the API.
+        # Actor resolution (users-table check, email snapshot) happens in append.
+        chain_service = evidence_chain.EvidenceChainService(self.session)
+        await chain_service.append(
+            evidence=item,
+            action=EvidenceChainAction.EVIDENCE_CREATED,
+            actor_id=actor_id,
+            actor_email=actor_email,
+            details={"phase": "18.2", "source": "api_create"},
+        )
+        return item
 
     async def get_evidence(self, evidence_id: UUID):
         item = await self.evidence.get(evidence_id)
@@ -186,12 +244,42 @@ class InvestigationService:
             raise EvidenceNotFoundError(str(evidence_id))
         return item
 
+    async def get_evidence_scoped(self, evidence_id: UUID, investigation_id: UUID | None = None):
+        """Return an evidence item only when it belongs to the investigation.
+
+        When ``investigation_id`` is provided and does not match the item, the
+        item is treated as not found (404) rather than leaking that it exists
+        in another investigation's scope.
+        """
+        item = await self.get_evidence(evidence_id)
+        if investigation_id is not None and item.investigation_id != investigation_id:
+            raise EvidenceNotFoundError(str(evidence_id))
+        return item
+
+    def evidence_integrity(self, item) -> dict | None:
+        """SHA-256 integrity block for an evidence item, if checksum store."""
+        result = evidence_integrity.integrity_status(item)
+        result["storage_status"] = evidence_integrity.storage_status(item)
+        return result
+
     # ------------------------------------------------------------------
     # Events
     # ------------------------------------------------------------------
     async def get_event(self, event_id: UUID):
         item = await self.events.get(event_id)
         if not item:
+            raise EventNotFoundError(str(event_id))
+        return item
+
+    async def get_event_scoped(self, event_id: UUID, investigation_id: UUID | None = None):
+        """Return an event only when it belongs to the investigation.
+
+        When ``investigation_id`` is provided and does not match the item, the
+        item is treated as not found (404) rather than leaking that it exists
+        in another investigation's scope.
+        """
+        item = await self.get_event(event_id)
+        if investigation_id is not None and item.investigation_id != investigation_id:
             raise EventNotFoundError(str(event_id))
         return item
 
@@ -208,6 +296,18 @@ class InvestigationService:
     async def get_note(self, note_id: UUID):
         note = await self.notes.get(note_id)
         if not note:
+            raise NoteNotFoundError(str(note_id))
+        return note
+
+    async def get_note_scoped(self, note_id: UUID, investigation_id: UUID | None = None):
+        """Return a note only when it belongs to the investigation.
+
+        When ``investigation_id`` is provided and does not match the item, the
+        item is treated as not found (404) rather than leaking that it exists
+        in another investigation's scope.
+        """
+        note = await self.get_note(note_id)
+        if investigation_id is not None and note.investigation_id != investigation_id:
             raise NoteNotFoundError(str(note_id))
         return note
 
@@ -258,24 +358,6 @@ class InvestigationService:
                     title=evidence.title,
                     ref_id=evidence.id,
                     description=evidence.description,
-                )
-            )
-        # Relationship intelligence entries are gated on a concrete observed
-        # timestamp so we never invent temporal claims: relationships whose
-        # observation time is unknown do not appear on the timeline.
-        for rel in await self.relationships.list_for_investigation(investigation_id):
-            if rel.first_observed_at is None:
-                continue
-            entries.append(
-                TimelineEntry(
-                    kind="relationship",
-                    at=rel.first_observed_at,
-                    title=f"{rel.relationship_type.value} relationship observed",
-                    ref_id=rel.id,
-                    description=(
-                        f"{rel.observation_count or 0} observation(s) from "
-                        f"{rel.source_count or 0} source(s)"
-                    ),
                 )
             )
 

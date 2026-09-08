@@ -131,7 +131,9 @@ export function GraphPathExplorer() {
                       {path.length} hop{path.length === 1 ? '' : 's'}
                     </span>
                     <span className="text-[10px] text-foreground-muted">
-                      {(path.confidence * 100).toFixed(0)}% confidence
+                      {path.confidence === null
+                        ? 'Confidence unavailable'
+                        : `${(path.confidence * 100).toFixed(0)}% confidence`}
                     </span>
                   </div>
                   <button

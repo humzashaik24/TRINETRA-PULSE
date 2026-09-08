@@ -32,9 +32,7 @@ class DatasetRepository(BaseRepository[Dataset]):
 
     async def count_for_investigation(self, investigation_id: UUID) -> int:
         result = await self.session.execute(
-            select(func.count(Dataset.id)).where(
-                Dataset.investigation_id == investigation_id
-            )
+            select(func.count(Dataset.id)).where(Dataset.investigation_id == investigation_id)
         )
         return int(result.scalar_one())
 
@@ -55,9 +53,7 @@ class IngestionJobRepository(BaseRepository[IngestionJob]):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_for_dataset(
-        self, dataset_id: UUID, *, limit: int = 100
-    ) -> list[IngestionJob]:
+    async def list_for_dataset(self, dataset_id: UUID, *, limit: int = 100) -> list[IngestionJob]:
         stmt = (
             select(IngestionJob)
             .where(IngestionJob.dataset_id == dataset_id)
@@ -92,9 +88,7 @@ class DataProvenanceRepository(BaseRepository[DataProvenance]):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_for_dataset(
-        self, dataset_id: UUID, *, limit: int = 500
-    ) -> list[DataProvenance]:
+    async def list_for_dataset(self, dataset_id: UUID, *, limit: int = 500) -> list[DataProvenance]:
         stmt = (
             select(DataProvenance)
             .where(DataProvenance.dataset_id == dataset_id)
@@ -104,9 +98,7 @@ class DataProvenanceRepository(BaseRepository[DataProvenance]):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_for_entity(
-        self, entity_id: UUID, *, limit: int = 100
-    ) -> list[DataProvenance]:
+    async def list_for_entity(self, entity_id: UUID, *, limit: int = 100) -> list[DataProvenance]:
         stmt = (
             select(DataProvenance)
             .where(DataProvenance.entity_id == entity_id)

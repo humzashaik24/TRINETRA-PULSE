@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.api.app import create_real_app
 from app.db.seed import seed_database
 from app.models import Base, Investigation
+from tests.auth_stubs import install_auth_stub
 
 
 @pytest.fixture
@@ -37,6 +38,7 @@ async def client():
     from app.api.deps import get_session
 
     app.dependency_overrides[get_session] = override_get_session
+    install_auth_stub(app)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

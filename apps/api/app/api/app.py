@@ -9,20 +9,22 @@ from fastapi import FastAPI
 
 from app.api.errors import install_error_handlers
 from app.api.routers import (
+    admin,
     assistant,
+    auth,
+    candidate_resolution,
     datasets,
     entities,
     events,
     evidence,
-    evidence_integrity,
     findings,
     investigation_resources,
     investigations,
     network,
     notes,
-    relationship_intelligence,
+    patterns,
+    providers,
     relationships,
-    resolution,
     timeline,
 )
 from app.core.config import get_settings
@@ -51,21 +53,25 @@ def create_real_app() -> FastAPI:
         tags=["investigation-resources"],
     )
     app.include_router(entities.router, prefix="/entities", tags=["entities"])
-    app.include_router(
-        relationships.router, prefix="/relationships", tags=["relationships"]
-    )
+    app.include_router(relationships.router, prefix="/relationships", tags=["relationships"])
     app.include_router(findings.router, prefix="/findings", tags=["findings"])
     app.include_router(evidence.router, prefix="/evidence", tags=["evidence"])
-    app.include_router(evidence_integrity.router, prefix="/evidence", tags=["evidence-integrity"])
     app.include_router(events.router, prefix="/events", tags=["events"])
     app.include_router(notes.router, prefix="/notes", tags=["notes"])
+    app.include_router(patterns.router, prefix="/investigations", tags=["patterns"])
     app.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
     app.include_router(network.router, prefix="/networks", tags=["network"])
     app.include_router(datasets.router, prefix="/datasets", tags=["datasets"])
     app.include_router(assistant.router, prefix="/ai", tags=["assistant"])
-    app.include_router(resolution.router, tags=["entity-resolution"])
+    # Phase 18.1 — authentication + RBAC. /auth/login is the only public v2
+    # surface (health lives on /api/v1 / /health outside this app).
+    app.include_router(auth.router, prefix="/auth", tags=["auth"])
+    app.include_router(admin.router, prefix="/admin", tags=["admin"])
+    app.include_router(providers.router, prefix="", tags=["admin-providers"])
     app.include_router(
-        relationship_intelligence.router, tags=["relationship-intelligence"]
+        candidate_resolution.router,
+        prefix="/investigations",
+        tags=["candidate-resolution"],
     )
 
     @app.get("/")

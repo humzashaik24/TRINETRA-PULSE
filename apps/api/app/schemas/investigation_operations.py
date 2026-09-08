@@ -276,9 +276,7 @@ class CrossReference(BaseModel):
     links: list[CrossReferenceLink] = Field(default_factory=list)
 
 
-ProvenanceNodeType = Literal[
-    "source", "dataset", "record", "entity", "relationship", "finding"
-]
+ProvenanceNodeType = Literal["source", "dataset", "record", "entity", "relationship", "finding"]
 
 
 class ProvenanceChainNode(BaseModel):

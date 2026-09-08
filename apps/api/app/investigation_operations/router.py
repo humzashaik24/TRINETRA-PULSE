@@ -148,9 +148,7 @@ async def list_graph_bookmarks(investigation_id: str) -> list[GraphBookmark]:
         raise _error(e) from e
 
 
-@router.post(
-    "/{investigation_id}/graph-bookmarks", response_model=GraphBookmark, status_code=201
-)
+@router.post("/{investigation_id}/graph-bookmarks", response_model=GraphBookmark, status_code=201)
 async def create_graph_bookmark(
     investigation_id: str, payload: SaveGraphBookmarkRequest
 ) -> GraphBookmark:
@@ -233,9 +231,7 @@ async def list_provenance(
 # ---------------------------------------------------------------------------
 
 
-@router.get(
-    "/{investigation_id}/search", response_model=SearchAcrossResult
-)
+@router.get("/{investigation_id}/search", response_model=SearchAcrossResult)
 async def search_within(
     investigation_id: str,
     q: str = Query(default=""),

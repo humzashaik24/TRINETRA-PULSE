@@ -18,7 +18,7 @@ function colorForIndex(i: number): string {
   return `hsl(${HUE_PALETTE[i % HUE_PALETTE.length]}, 65%, 50%)`;
 }
 
-export function ComponentView({ components }: { components: NetworkComponent[] }) {
+export function ComponentView({ components, unavailable = false }: { components: NetworkComponent[]; unavailable?: boolean }) {
   const overlay = useAnalyticsStore((s) => s.overlay);
   const setOverlay = useAnalyticsStore((s) => s.setOverlay);
   const selectedComponentId = useAnalyticsStore((s) => s.selectedComponentId);
@@ -54,7 +54,9 @@ export function ComponentView({ components }: { components: NetworkComponent[] }
 
       <DistributionBar segments={segments} />
 
-      {sorted.length === 0 ? (
+      {unavailable ? (
+        <p className="py-6 text-center text-xs text-foreground-muted">Component analysis is unavailable from the API for this network.</p>
+      ) : sorted.length === 0 ? (
         <p className="py-6 text-center text-xs text-foreground-muted">No components detected.</p>
       ) : (
         <ul className="space-y-2">

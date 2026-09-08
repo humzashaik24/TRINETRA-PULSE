@@ -13,6 +13,7 @@ import {
   graphNodeToContext,
 } from './graph-inspector';
 import { useShellStore } from '@/state/shell.store';
+import { useInvestigationStore } from '@/state/investigation.store';
 import type { GraphNode, GraphEdge } from '@trinetra-pulse/types';
 
 // ============================================================
@@ -58,6 +59,7 @@ export function NetworkGraph() {
   const edges = useGraphStore((s) => s.edges);
   const clusterCount = useGraphStore((s) => s.clusters.length);
   const selectContext = useShellStore((s) => s.selectContext);
+  const investigationId = useInvestigationStore((s) => s.investigationId);
 
   const render = useNetworkRender(size.width, size.height);
 
@@ -104,14 +106,14 @@ export function NetworkGraph() {
   useEffect(() => {
     if (selectedNodeId) {
       const node = nodes.find((n) => n.id === selectedNodeId);
-      if (node) selectContext(graphNodeToContext(node));
+      if (node)       selectContext(graphNodeToContext(node, investigationId ?? undefined));
     } else if (selectedEdgeId) {
       const edge = edges.find((e) => e.id === selectedEdgeId);
       if (edge) {
         const labels = new Map(
           nodes.map((n) => [n.id, { name: n.label, type: n.type }])
         );
-        selectContext(graphEdgeToContext(edge, labels));
+        selectContext(graphEdgeToContext(edge, labels, investigationId ?? undefined));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

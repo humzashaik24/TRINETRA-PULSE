@@ -30,9 +30,7 @@ class BaseRepository(Generic[M]):
         return list(result.scalars().all())
 
     async def count(self) -> int:
-        result = await self.session.execute(
-            select(self.model.id).with_only_columns(self.model.id)
-        )
+        result = await self.session.execute(select(self.model.id).with_only_columns(self.model.id))
         return len(result.all())
 
     async def add(self, instance: M) -> M:

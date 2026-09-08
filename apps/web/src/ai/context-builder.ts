@@ -4,7 +4,6 @@ import type {
   AIContextSource,
   AISourceReference,
   AISourceType,
-  EvidenceIntegrityContextPayload,
 } from '@trinetra-pulse/types';
 
 // ============================================================
@@ -47,10 +46,10 @@ function ref(type: AISourceType, sourceId: string, label: string, relevance: num
 export type ContextSourceBundle = {
   investigation?: { id: string; title: string; status: string; priority: string; description: string | null; entityCount: number; relationshipCount: number; evidenceCount: number } | null;
   entity?: { id: string; name: string; entityType: string; description?: string; resolutionState: string; confidence: number; connectionsCount: number } | null;
-  relationships?: { id: string; sourceName: string; targetName: string; type: string; confidence: number; sourceEntityId: string; targetEntityId: string; intelligence?: { status: string; confidenceLabel: string; sourceCount: number; correlationKey: string } }[];
+  relationships?: { id: string; sourceName: string; targetName: string; type: string; confidence: number; sourceEntityId: string; targetEntityId: string }[];
   network?: { id: string; name: string; nodeCount: number; relationshipCount: number; clusterCount: number } | null;
   analytics?: { nodes: number; relationships: number; communityCount: number; connectedComponents: number; topConnectedEntity: string | null; averageDegree: number; density: number; bridgeEntityCount: number } | null;
-  evidence?: { id: string; title: string; summary: string; evidenceType: string; integrity?: EvidenceIntegrityContextPayload | null }[];
+  evidence?: { id: string; title: string; summary: string; evidenceType: string }[];
   findings?: { id: string; title: string; description: string; category: string; confidence: string }[];
   timeline?: { id: string; timestamp: string; title: string; description: string | null; category: string }[];
 };
@@ -105,9 +104,6 @@ export function buildInvestigationContext(
   const evidence = limit(bundle?.evidence ?? [], CONTEXT_BUDGETS.evidence);
   if (evidence.length < (bundle?.evidence?.length ?? 0)) truncated = true;
   evidence.forEach((e, i) => {
-    const integrityLine = e.integrity
-      ? `Integrity: ${e.integrity.verificationState.replace(/_/g, ' ').toLowerCase()}${e.integrity.isMock ? ' (mock registry)' : ''}`
-      : null;
     sources.push({
       type: 'Evidence',
       sourceId: e.id,
@@ -115,30 +111,8 @@ export function buildInvestigationContext(
       summary: summarize(e.title, [
         `Type: ${e.evidenceType}`,
         e.summary ? `Summary: ${e.summary}` : null,
-        integrityLine,
       ]),
-      references: [
-        ref('Evidence', e.id, e.title, 0.6 - i * 0.02),
-        ...(e.integrity
-          ? [
-              {
-                id: `evidence-integrity:${e.id}`,
-                sourceType: 'Evidence' as const,
-                sourceId: e.id,
-                label: `${e.title} anchor state`,
-                relevance: 0.6 - i * 0.02,
-                payload: {
-                  verificationState: e.integrity.verificationState,
-                  isMock: e.integrity.isMock,
-                  network: e.integrity.network ?? '',
-                  anchorDigest: e.integrity.anchorDigest ?? '',
-                  custodyChainHash: e.integrity.custodyChainHash ?? '',
-                  checksumPrefixed: e.integrity.checksumPrefixed ?? '',
-                },
-              },
-            ]
-          : []),
-      ],
+      references: [ref('Evidence', e.id, e.title, 0.6 - i * 0.02)],
     });
   });
 
@@ -146,40 +120,14 @@ export function buildInvestigationContext(
   const relationships = limit(bundle?.relationships ?? [], CONTEXT_BUDGETS.relationships);
   if (relationships.length < (bundle?.relationships?.length ?? 0)) truncated = true;
   relationships.forEach((r, i) => {
-    const intel = r.intelligence;
-    const correlationLine =
-      intel && intel.sourceCount >= 2
-        ? `Corroborated: ${intel.sourceCount} independent sources (${intel.confidenceLabel})`
-        : intel
-          ? `Single-source (${intel.confidenceLabel}) — pending corroboration`
-          : null;
     sources.push({
       type: 'Relationship',
       sourceId: r.id,
       label: `${r.sourceName} — ${r.type} — ${r.targetName}`,
       summary: summarize(`${r.sourceName} ${r.type} ${r.targetName}`, [
         `Confidence: ${fmtPct(r.confidence)}`,
-        correlationLine,
       ]),
-      references: [
-        ref('Relationship', r.id, `${r.sourceName} — ${r.type} — ${r.targetName}`, 0.5 - i * 0.02),
-        ...(intel
-          ? [
-              {
-                id: `${intel.correlationKey || 'relationship-intelligence'}:${r.id}`,
-                sourceType: 'Relationship' as const,
-                sourceId: r.id,
-                label: `${r.sourceName} — ${r.targetName} correlation`,
-                relevance: 0.5 - i * 0.02,
-                payload: {
-                  sourceCount: intel.sourceCount,
-                  confidenceLabel: intel.confidenceLabel,
-                  status: intel.status,
-                },
-              },
-            ]
-          : []),
-      ],
+      references: [ref('Relationship', r.id, `${r.sourceName} — ${r.type} — ${r.targetName}`, 0.5 - i * 0.02)],
     });
   });
 

@@ -2,15 +2,6 @@ export * from './entity';
 export * from './relationship';
 export * from './case';
 export type { VerificationState } from './entity-resolution';
-export type {
-  EntityResolutionCandidate,
-  MatchFeature,
-  ResolutionCandidatesResponse,
-  ResolutionContradiction,
-  ResolutionEvaluationResult,
-  ResolutionMethod,
-  ResolutionSourceRef,
-} from './entity-resolution';
 export * from './entity-intelligence';
 export * from './provenance';
 export * from './common';
@@ -22,5 +13,4 @@ export * from './investigation';
 export * from './investigation-operations';
 export * from './ai-investigation';
 export * from './evidence-intelligence';
-export * from './relationship-intelligence';
-export * from './evidence-integrity';
+export * from './patterns';

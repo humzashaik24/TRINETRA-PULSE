@@ -45,14 +45,6 @@ export interface RenderEdge {
   timestamp?: string;
   dimmed?: boolean;
   focused?: boolean;
-  /** Phase 21 — optional relationship-intelligence correlation summary. */
-  intelligence?: {
-    status: string;
-    confidence: number;
-    confidenceLabel: string;
-    sourceCount: number;
-    correlationKey: string;
-  };
   [key: string]: unknown;
 }
 
@@ -90,7 +82,6 @@ export function transformEdge(edge: GraphEdge): RenderEdge {
     timestamp: edge.timestamp,
     dimmed: false,
     focused: false,
-    intelligence: edge.intelligence,
   };
 }
 

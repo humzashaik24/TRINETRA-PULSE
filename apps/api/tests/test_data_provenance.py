@@ -98,12 +98,14 @@ async def test_provenance_created_on_successful_upload(db_factory):
 
     async with db_factory() as session:
         prov = (
-            await session.execute(
-                select(DataProvenance).where(
-                    DataProvenance.investigation_id == inv_id
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.investigation_id == inv_id)
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(prov) == result.provenance_created
 
 
@@ -127,12 +129,14 @@ async def test_provenance_tied_to_correct_investigation(db_factory):
 
     async with db_factory() as session:
         prov = (
-            await session.execute(
-                select(DataProvenance).where(
-                    DataProvenance.investigation_id == inv_id
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.investigation_id == inv_id)
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(prov) > 0
         assert all(p.investigation_id == inv_id for p in prov)
 
@@ -157,12 +161,14 @@ async def test_provenance_tied_to_correct_dataset(db_factory):
 
     async with db_factory() as session:
         prov = (
-            await session.execute(
-                select(DataProvenance).where(
-                    DataProvenance.dataset_id == ds_id
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.dataset_id == ds_id)
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(prov) > 0
         assert all(p.dataset_id == ds_id for p in prov)
 
@@ -203,20 +209,24 @@ async def test_provenance_does_not_leak_across_investigations(db_factory):
     async with db_factory() as session:
         # Provenance for the original investigation
         prov_inv1 = (
-            await session.execute(
-                select(DataProvenance).where(
-                    DataProvenance.investigation_id == inv_id
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.investigation_id == inv_id)
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         # Provenance for the unrelated investigation
         prov_inv2 = (
-            await session.execute(
-                select(DataProvenance).where(
-                    DataProvenance.investigation_id == inv2_id
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.investigation_id == inv2_id)
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         assert len(prov_inv1) > 0
         assert len(prov_inv2) == 0  # No provenance leaked
@@ -288,15 +298,23 @@ async def test_repeated_upload_creates_provenance_both_times(db_factory):
     # Both datasets should have provenance
     async with db_factory() as session:
         prov_ds1 = (
-            await session.execute(
-                select(DataProvenance).where(DataProvenance.dataset_id == ds_id1)
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.dataset_id == ds_id1)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         prov_ds2 = (
-            await session.execute(
-                select(DataProvenance).where(DataProvenance.dataset_id == ds_id2)
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.dataset_id == ds_id2)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(prov_ds1) > 0
         assert len(prov_ds2) > 0
 
@@ -321,12 +339,14 @@ async def test_checksum_recorded_on_provenance(db_factory):
 
     async with db_factory() as session:
         prov = (
-            await session.execute(
-                select(DataProvenance).where(
-                    DataProvenance.investigation_id == inv_id
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.investigation_id == inv_id)
                 )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         assert prov is not None
         assert prov.checksum is not None
         assert len(prov.checksum) == 64  # SHA-256 hex digest
@@ -360,15 +380,23 @@ async def test_same_content_same_checksum(db_factory):
 
     async with db_factory() as session:
         prov1 = (
-            await session.execute(
-                select(DataProvenance).where(DataProvenance.dataset_id == ds_id1)
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.dataset_id == ds_id1)
+                )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         prov2 = (
-            await session.execute(
-                select(DataProvenance).where(DataProvenance.dataset_id == ds_id2)
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.dataset_id == ds_id2)
+                )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         assert prov1.checksum == prov2.checksum
 
 
@@ -388,28 +416,32 @@ async def test_operation_meridian_seed_intact(db_factory):
 
         # Should have seeded entities
         entities = (
-            await session.execute(
-                select(Entity).where(Entity.investigation_id == inv.id)
-            )
-        ).scalars().all()
+            (await session.execute(select(Entity).where(Entity.investigation_id == inv.id)))
+            .scalars()
+            .all()
+        )
         assert len(entities) == 6
 
         # Should have seeded evidence
         evidence = (
-            await session.execute(
-                select(InvestigationEvidence).where(
-                    InvestigationEvidence.investigation_id == inv.id
+            (
+                await session.execute(
+                    select(InvestigationEvidence).where(
+                        InvestigationEvidence.investigation_id == inv.id
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(evidence) == 4
 
         # Datasets
         datasets = (
-            await session.execute(
-                select(Dataset).where(Dataset.investigation_id == inv.id)
-            )
-        ).scalars().all()
+            (await session.execute(select(Dataset).where(Dataset.investigation_id == inv.id)))
+            .scalars()
+            .all()
+        )
         assert len(datasets) == 3
 
 
@@ -433,12 +465,14 @@ async def test_provenance_metadata_correct(db_factory):
 
     async with db_factory() as session:
         prov = (
-            await session.execute(
-                select(DataProvenance).where(
-                    DataProvenance.investigation_id == inv_id
+            (
+                await session.execute(
+                    select(DataProvenance).where(DataProvenance.investigation_id == inv_id)
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for p in prov:
             assert p.source_type == ProvenanceSourceType.DATABASE
             assert p.extraction_method == "csv_ingestion"
@@ -469,12 +503,14 @@ async def test_events_created_during_ingestion(db_factory):
 
     async with db_factory() as session:
         events = (
-            await session.execute(
-                select(InvestigationEvent).where(
-                    InvestigationEvent.investigation_id == inv_id
+            (
+                await session.execute(
+                    select(InvestigationEvent).where(InvestigationEvent.investigation_id == inv_id)
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         event_types = {e.event_type for e in events}
         assert "dataset_uploaded" in event_types
         assert "ingestion_started" in event_types
@@ -498,12 +534,14 @@ async def test_failed_ingestion_creates_failure_event(db_factory):
 
     async with db_factory() as session:
         events = (
-            await session.execute(
-                select(InvestigationEvent).where(
-                    InvestigationEvent.investigation_id == inv_id
+            (
+                await session.execute(
+                    select(InvestigationEvent).where(InvestigationEvent.investigation_id == inv_id)
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         event_types = {e.event_type for e in events}
         assert "dataset_uploaded" in event_types
         assert "ingestion_started" in event_types
@@ -555,21 +593,29 @@ async def test_provenance_for_entities_and_relationships(db_factory):
 
     async with db_factory() as session:
         entity_prov = (
-            await session.execute(
-                select(DataProvenance).where(
-                    DataProvenance.investigation_id == inv_id,
-                    DataProvenance.entity_id.isnot(None),
+            (
+                await session.execute(
+                    select(DataProvenance).where(
+                        DataProvenance.investigation_id == inv_id,
+                        DataProvenance.entity_id.isnot(None),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         rel_prov = (
-            await session.execute(
-                select(DataProvenance).where(
-                    DataProvenance.investigation_id == inv_id,
-                    DataProvenance.relationship_id.isnot(None),
+            (
+                await session.execute(
+                    select(DataProvenance).where(
+                        DataProvenance.investigation_id == inv_id,
+                        DataProvenance.relationship_id.isnot(None),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         assert len(entity_prov) > 0
         assert len(rel_prov) > 0

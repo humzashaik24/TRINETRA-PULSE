@@ -46,9 +46,7 @@ async def list_entities(
     _user: CurrentUserDep,
 ) -> list[EntityRead]:
     await _require_investigation(session, investigation_id)
-    items = await EntityRepository(session).list_for_investigation(
-        investigation_id, limit=500
-    )
+    items = await EntityRepository(session).list_for_investigation(investigation_id, limit=500)
     return [EntityRead.model_validate(i) for i in items]
 
 
@@ -72,9 +70,7 @@ async def list_findings(
     _user: CurrentUserDep,
 ) -> list[FindingRead]:
     await _require_investigation(session, investigation_id)
-    items = await FindingRepository(session).list_for_investigation(
-        investigation_id
-    )
+    items = await FindingRepository(session).list_for_investigation(investigation_id)
     return [FindingRead.model_validate(i) for i in items]
 
 
@@ -85,10 +81,18 @@ async def list_evidence(
     _user: CurrentUserDep,
 ) -> list[EvidenceRead]:
     await _require_investigation(session, investigation_id)
-    items = await EvidenceRepository(session).list_for_investigation(
-        investigation_id
-    )
-    return [EvidenceRead.model_validate(i) for i in items]
+    items = await EvidenceRepository(session).list_for_investigation(investigation_id)
+    service = InvestigationService(session)
+    reads = []
+    for item in items:
+        read = EvidenceRead.model_validate(item)
+        metadata = item.metadata_ or {}
+        read.filename = metadata.get("filename")
+        read.content_type = metadata.get("content_type")
+        read.size = metadata.get("size")
+        read.integrity = service.evidence_integrity(item)
+        reads.append(read)
+    return reads
 
 
 @router.get("/{investigation_id}/events", response_model=list[EventRead])
@@ -98,9 +102,7 @@ async def list_events(
     _user: CurrentUserDep,
 ) -> list[EventRead]:
     await _require_investigation(session, investigation_id)
-    items = await EventRepository(session).list_for_investigation(
-        investigation_id
-    )
+    items = await EventRepository(session).list_for_investigation(investigation_id)
     return [EventRead.model_validate(i) for i in items]
 
 
@@ -111,9 +113,7 @@ async def list_notes(
     _user: CurrentUserDep,
 ) -> list[NoteRead]:
     await _require_investigation(session, investigation_id)
-    items = await NoteRepository(session).list_for_investigation(
-        investigation_id
-    )
+    items = await NoteRepository(session).list_for_investigation(investigation_id)
     return [NoteRead.model_validate(i) for i in items]
 
 
@@ -124,22 +124,16 @@ async def list_datasets(
     _user: CurrentUserDep,
 ) -> list[DatasetRead]:
     await _require_investigation(session, investigation_id)
-    items = await DatasetRepository(session).list_for_investigation(
-        investigation_id
-    )
+    items = await DatasetRepository(session).list_for_investigation(investigation_id)
     return [DatasetRead.model_validate(i) for i in items]
 
 
-@router.get(
-    "/{investigation_id}/ingestion-jobs", response_model=list[IngestionJobRead]
-)
+@router.get("/{investigation_id}/ingestion-jobs", response_model=list[IngestionJobRead])
 async def list_ingestion_jobs(
     investigation_id: UUID,
     session: SessionDep,
     _user: CurrentUserDep,
 ) -> list[IngestionJobRead]:
     await _require_investigation(session, investigation_id)
-    items = await IngestionJobRepository(session).list_for_investigation(
-        investigation_id
-    )
+    items = await IngestionJobRepository(session).list_for_investigation(investigation_id)
     return [IngestionJobRead.model_validate(i) for i in items]

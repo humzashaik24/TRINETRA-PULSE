@@ -334,6 +334,11 @@ export interface EvidenceItem {
   timeline: EvidenceTimelineEvent[];
   /** Whether this is demo/mock data. */
   isDemoData: boolean;
+  /** SHA-256 integrity block from the persisted relational API (Phase 17.6). */
+  integrity?: { checksum: string | null; status: string; storage_status?: string };
+  filename?: string;
+  contentType?: string;
+  size?: number;
   /** Tags for filtering. */
   tags: string[];
 }
@@ -524,4 +529,218 @@ export interface EntityEvidenceSummary {
   linkedFindingIds: string[];
   linkedRelationshipIds: string[];
   linkedEventIds: string[];
+}
+
+// ------------------------------------------------------------
+// Phase 18.2 — Evidence custody chain
+// ------------------------------------------------------------
+// A tamper-evident SHA-256 hash chain persisted per evidence item (relational
+// API only). Every chain entry hashes the prior link (``previous_entry_hash``)
+// plus its own canonical payload/metadata/action/actor fields, so retroactive
+// edits are detectable on verification. This is NOT a public blockchain — it is
+// an application-level chain of custody stored in the investigation database.
+
+export type EvidenceChainAction =
+  | 'evidence_created'
+  | 'evidence_uploaded'
+  | 'evidence_accessed'
+  | 'evidence_verified'
+  | 'evidence_metadata_updated'
+  | 'evidence_exported'
+  | 'evidence_transferred'
+  | 'integrity_checked';
+
+export const EVIDENCE_CHAIN_ACTIONS: readonly EvidenceChainAction[] = [
+  'evidence_created',
+  'evidence_uploaded',
+  'evidence_accessed',
+  'evidence_verified',
+  'evidence_metadata_updated',
+  'evidence_exported',
+  'evidence_transferred',
+  'integrity_checked',
+];
+
+/** Outcome of running the custody-chain verifier. */
+export type EvidenceChainStatus =
+  | 'VALID'
+  | 'TAMPERED'
+  | 'BROKEN_CHAIN'
+  | 'MISSING'
+  | 'INVALID_SCOPE';
+
+export interface EvidenceChainEntry {
+  id: string;
+  evidence_id: string;
+  investigation_id: string;
+  /** Monotonic, gap-free link index (1-based). */
+  sequence_number: number;
+  event_timestamp: string;
+  action: EvidenceChainAction;
+  /** SHA-256 of the evidence payload at chain time. */
+  payload_hash: string;
+  /** SHA-256 of the canonicalised action/metadata at chain time. */
+  metadata_hash: string;
+  previous_entry_hash: string | null;
+  entry_hash: string;
+  actor_id: string | null;
+  actor_email: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EvidenceChainVerification {
+  status: EvidenceChainStatus;
+  valid: boolean;
+  entries: number;
+  verified_events: number;
+  first_event_at: string | null;
+  last_event_at: string | null;
+  chain_head_hash: string | null;
+  failures: Array<{
+    event_id?: string;
+    reason: string;
+    expected?: string;
+    actual?: string;
+  }>;
+  reason: string | null;
+  verified_at: string;
+}
+
+/** Compact custody-chain summary embedded in inspector views (API mode). */
+export interface EvidenceCustodySummary {
+  status: EvidenceChainStatus;
+  entries: number;
+  verifiedAt?: string;
+}
+
+// ------------------------------------------------------------
+// Phase 24 — Multimedia evidence intelligence
+// ------------------------------------------------------------
+// Server-side AI understanding of IMAGE / VIDEO / AUDIO evidence through the
+// configured provider capabilities (VISION / VIDEO / TRANSCRIPTION). Results
+// are persisted per run on the backend; the browser never calls an AI provider
+// directly and never sees provider credentials. Reads are relational-only —
+// there is no fabricated analysis of the mock universe. Structured results are
+// AI-generated candidates, never verified facts.
+
+export type EvidenceAnalysisMediaKind = 'IMAGE' | 'VIDEO' | 'AUDIO';
+
+export type EvidenceAnalysisStatus = 'succeeded' | 'failed';
+
+export type EvidenceAnalysisMode = 'MOCK' | 'EXTERNAL' | 'LOCAL';
+
+export interface EvidenceAnalysisObservation {
+  text: string;
+}
+
+export interface EvidenceAnalysisEntityObservation {
+  name: string;
+  type?: string;
+  context?: string;
+  confidence?: number | null;
+}
+
+export interface EvidenceAnalysisTimestampedObservation {
+  start_seconds: number;
+  end_seconds: number;
+  timestamp?: string | null;
+  description: string;
+}
+
+export interface EvidenceAnalysisSegment {
+  start_seconds: number;
+  end_seconds: number;
+  timestamp?: string | null;
+  text: string;
+}
+
+export interface EvidenceAnalysisResult {
+  summary: string;
+  observations: EvidenceAnalysisObservation[];
+  entities: EvidenceAnalysisEntityObservation[];
+  locations: string[];
+  warnings: string[];
+  timestamps?: EvidenceAnalysisTimestampedObservation[];
+  transcript?: string;
+  segments?: EvidenceAnalysisSegment[];
+  /** Language tag of an audio transcription (Phase 25). */
+  language?: string;
+  /** Audio duration in seconds (Phase 25). */
+  duration_seconds?: number;
+}
+
+// ------------------------------------------------------------
+// Phase 25 — Local (on-device) Whisper transcription
+// ------------------------------------------------------------
+// The browser transcribes AUDIO evidence with on-device Whisper through a
+// dedicated Web Worker (Transformers.js / ONNX / WASM), then submits the
+// structured result to the backend, which re-verifies the payload checksum
+// against its stored authority and persists an immutable
+// ``provider_type=LOCAL`` analysis row. The audio NEVER leaves the browser
+// for inference (only the authorized payload is fetched once for the
+// authenticated session and the model weights are cached by the browser via
+// the library's supported cache).
+
+export type LocalWhisperModelId = 'Xenova/whisper-tiny' | 'Xenova/whisper-base';
+
+export const LOCAL_WHISPER_MODELS: readonly LocalWhisperModelId[] = [
+  'Xenova/whisper-tiny',
+  'Xenova/whisper-base',
+];
+
+export interface LocalTranscriptionSegment {
+  /** Timecode at the start of the segment, in seconds. */
+  start_seconds: number;
+  /** Timecode at the end of the segment, in seconds. */
+  end_seconds: number;
+  /** Spoken text for the segment. */
+  text: string;
+}
+
+/** Canonical result of an on-device Whisper run (ready for submission). */
+export interface LocalTranscriptionResult {
+  model_id: string;
+  transcript: string;
+  language: string;
+  duration_seconds: number;
+  segments: LocalTranscriptionSegment[];
+  warnings: string[];
+}
+
+/** Strict submission body for ``POST /evidence/{id}/analyses/local-transcription``. */
+export interface LocalTranscriptionSubmitPayload {
+  mode: 'LOCAL';
+  /** SHA-256 (64 hex) taken from the evidence integrity block; the server
+   *  re-verifies this against its stored authority before persisting. */
+  checksum: string;
+  model_id: string;
+  transcript: string;
+  language: string;
+  duration_seconds: number;
+  segments: LocalTranscriptionSegment[];
+  warnings: string[];
+}
+
+/** One persisted analysis run (mirrors the backend read shape). */
+export interface EvidenceAnalysis {
+  id: string;
+  evidence_id: string;
+  investigation_id: string;
+  media_type: EvidenceAnalysisMediaKind;
+  capability: string;
+  provider_type: string;
+  provider_name: string;
+  model: string;
+  status: EvidenceAnalysisStatus;
+  result: EvidenceAnalysisResult;
+  checksum_at_analysis: string;
+  started_at: string;
+  completed_at: string | null;
+  error_code: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  mode: EvidenceAnalysisMode;
 }

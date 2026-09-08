@@ -24,9 +24,7 @@ export interface RoutingResult {
 const KEYWORDS: Record<AIQueryType, string[]> = {
   ENTITY_LOOKUP: ['who is', 'who was', 'what is this entity', 'about this entity', 'about this person', 'who is this'],
   ENTITY_SUMMARY: ['summarize this entity', 'entity summary', 'overview of this entity', 'describe this entity', 'describe this person', 'details about this entity'],
-  RELATIONSHIP_INTELLIGENCE: ['relationship intelligence', 'how corroborated is', 'how many sources', 'multi-source', 'corroborat', 'independent sources', 'jointly observed', 'relationship confidence', 'cross-source'],
   RELATIONSHIP_EXPLANATION: ['why is this relationship', 'what is this relationship', 'explain this relationship', 'why are these connected', 'what connects these two', 'why are they connected'],
-  BLOCKCHAIN_ANCHOR: ['blockchain anchor', 'anchor digest', 'on-chain digest', 'on the blockchain', 'on-chain', 'immutable integrity', 'tamper-evident', 'custody chain', 'verified on chain', 'blockchain integrity', 'transaction hash', 'what is the anchor', 'integrity verified', 'is this evidence anchored'],
   NETWORK_EXPLORATION: ['what does this network', 'network look like', 'what connects', 'connect these', 'strongest connections', 'which entities connect', 'what connections exist'],
   NETWORK_ANALYSIS: ['most connected', 'centrality', 'betweenness', 'most important entity', 'key entities', 'network analysis', 'structural importance'],
   COMMUNITY_EXPLANATION: ['communities', 'clusters', 'groups in this network', 'explain this community'],

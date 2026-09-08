@@ -65,9 +65,7 @@ class Dataset(BaseModel):
     source_name = Column(String(500), nullable=True)
     format = Column(String(50), nullable=False)
     category = Column(String(100), nullable=False)
-    status = Column(
-        Enum(DatasetStatus), default=DatasetStatus.UPLOADING, nullable=False
-    )
+    status = Column(Enum(DatasetStatus), default=DatasetStatus.UPLOADING, nullable=False)
     record_count = Column(Integer, default=0, nullable=False)
     file_size = Column(Integer, default=0, nullable=False)
     file_name = Column(String(1000), nullable=True)
@@ -79,9 +77,7 @@ class Dataset(BaseModel):
     metadata_ = Column("metadata", JSONB, default=dict, nullable=False)
 
     investigation = relationship("Investigation", back_populates="datasets")
-    ingestion_jobs = relationship(
-        "IngestionJob", back_populates="dataset", lazy="selectin"
-    )
+    ingestion_jobs = relationship("IngestionJob", back_populates="dataset", lazy="selectin")
 
 
 class IngestionJob(BaseModel):

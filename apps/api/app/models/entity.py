@@ -30,9 +30,7 @@ class Entity(BaseModel):
         nullable=False,
         index=True,
     )
-    entity_type = Column(
-        Enum(EntityType), nullable=False, index=True
-    )
+    entity_type = Column(Enum(EntityType), nullable=False, index=True)
     canonical_name = Column(String(500), nullable=False, index=True)
     name = Column(String(500), nullable=False, index=True)
     description = Column(Text, nullable=True)

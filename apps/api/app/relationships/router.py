@@ -38,6 +38,7 @@ async def get_relationship(relationship_id: UUID):
     rel = _relationships_store.get(str(relationship_id))
     if not rel:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Relationship not found")
     return RelationshipResponse(**rel)
 
@@ -47,8 +48,8 @@ async def list_relationships(entity_id: UUID | None = None, limit: int = 20):
     items = list(_relationships_store.values())
     if entity_id:
         items = [
-            r for r in items
-            if r["source_entity_id"] == entity_id
-            or r["target_entity_id"] == entity_id
+            r
+            for r in items
+            if r["source_entity_id"] == entity_id or r["target_entity_id"] == entity_id
         ]
     return [RelationshipResponse(**r) for r in items[:limit]]

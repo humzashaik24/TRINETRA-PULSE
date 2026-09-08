@@ -16,7 +16,6 @@ import {
   type EntityActivityItem,
   type ResolutionHistoryEntry,
   type EntityResolution,
-  type EntityResolutionCandidate,
 } from '@trinetra-pulse/types';
 import {
   mockEntityActivity,
@@ -29,13 +28,23 @@ import {
   mockEntityProfiles,
   mockEntityRelationships,
   mockEntityResolutions,
-  mockEntityResolutionCandidates,
   mockExtractionJobs,
   mockResolutionHistory,
 } from '@/mock';
 import { queryEntities } from '@/lib/entity-search';
-import { buildLinkageCandidates, LINKAGE_ALGORITHM_VERSION } from '@/lib/linkage';
-import { relationshipIntelligenceSnapshot } from '@/services/relationship-intelligence.service';
+import { isMockData } from '@/lib/api/config';
+import {
+  cancelApiExtractionJob,
+  decideApiResolution,
+  fetchApiAuditEvents,
+  fetchApiCandidate,
+  fetchApiCandidates,
+  fetchApiExtractionJobs,
+  fetchApiResolutions,
+  mergeApiResolution,
+  reviewApiCandidate,
+  startApiExtractionJob,
+} from '@/lib/api/entity-intelligence';
 
 // ============================================================
 // ENTITY SERVICE (mock-backed)
@@ -60,7 +69,6 @@ let profileById: Map<string, EntityIntelligence> = new Map(mockEntityProfileById
 let candidates: EntityCandidate[] = [...mockEntityCandidates];
 let candidateById: Map<string, EntityCandidate> = new Map(mockCandidateById);
 let resolutions: EntityResolution[] = [...mockEntityResolutions];
-let resolutionCandidates: EntityResolutionCandidate[] = [...mockEntityResolutionCandidates];
 type RelationshipStore = Omit<EntityRelationship, 'sourceEntityType' | 'targetEntityType'>;
 
 let relationships: RelationshipStore[] = [...mockEntityRelationships];
@@ -119,7 +127,6 @@ function withTypes(rel: RelationshipStore): EntityRelationship {
     ...rel,
     sourceEntityType: profileByIdPublic(rel.sourceEntityId)?.entityType ?? 'person',
     targetEntityType: profileByIdPublic(rel.targetEntityId)?.entityType ?? 'person',
-    intelligence: relationshipIntelligenceSnapshot(rel.id),
   };
 }
 
@@ -288,7 +295,7 @@ export async function fetchEntitySources(id: string): Promise<EntitySourceRef[]>
     .forEach((e) => upsert(e.datasetId, e.datasetName ?? e.sourceName, e.sourceName, e.sourceRecord ?? '—'));
   candidates
     .filter((c) => c.resolvedEntityId === id)
-    .forEach((c) => upsert(c.datasetId, c.datasetName, c.source, c.sourceRecord));
+    .forEach((c) => upsert(c.datasetId, c.datasetName ?? c.source, c.source, c.sourceRecord));
 
   return Array.from(refsByDataset.values()).sort((a, b) => b.evidenceCount - a.evidenceCount);
 }
@@ -303,6 +310,7 @@ export interface CandidateFilter {
 }
 
 export async function fetchCandidates(filter: CandidateFilter = {}): Promise<EntityCandidate[]> {
+  if (!isMockData()) return fetchApiCandidates(filter);
   await delay(140);
   let list = [...candidates];
   if (filter.status && filter.status !== 'all') {
@@ -329,6 +337,7 @@ export async function fetchCandidates(filter: CandidateFilter = {}): Promise<Ent
 }
 
 export async function fetchCandidate(id: string): Promise<EntityCandidate> {
+  if (!isMockData()) return fetchApiCandidate(id);
   await delay(100);
   const c = candidateById.get(id);
   if (!c) throw new Error(`Candidate not found: ${id}`);
@@ -336,6 +345,7 @@ export async function fetchCandidate(id: string): Promise<EntityCandidate> {
 }
 
 export async function fetchResolutions(): Promise<EntityResolution[]> {
+  if (!isMockData()) return fetchApiResolutions();
   await delay(140);
   return [...resolutions].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -347,6 +357,7 @@ export async function reviewCandidate(
   decision: 'accept' | 'reject',
   reviewer: string
 ): Promise<EntityCandidate> {
+  if (!isMockData()) return reviewApiCandidate(candidateId, decision, reviewer);
   await delay();
   const c = candidateById.get(candidateId);
   if (!c) throw new Error(`Candidate not found: ${candidateId}`);
@@ -378,6 +389,7 @@ export async function confirmResolution(
   reviewer: string,
   reason: string
 ): Promise<EntityResolution> {
+  if (!isMockData()) return decideApiResolution(resolutionId, 'confirm', reviewer, reason);
   await delay();
   const idx = resolutions.findIndex((r) => r.id === resolutionId);
   if (idx === -1) throw new Error(`Resolution not found: ${resolutionId}`);
@@ -421,6 +433,7 @@ export async function rejectResolution(
   reviewer: string,
   reason: string
 ): Promise<EntityResolution> {
+  if (!isMockData()) return decideApiResolution(resolutionId, 'reject', reviewer, reason);
   await delay();
   const idx = resolutions.findIndex((r) => r.id === resolutionId);
   if (idx === -1) throw new Error(`Resolution not found: ${resolutionId}`);
@@ -459,140 +472,8 @@ export async function rejectResolution(
   return next;
 }
 
-// ---- Phase 20: linkage candidates (real /api/v2 shape) ------------------
-
-const pairKey = (a: EntityResolutionCandidate) => `${a.entity_id_1}::${a.entity_id_2}`;
-
-export interface ResolutionEvaluationResult {
-  algorithm_version: string;
-  evaluated_pairs: number;
-  created_resolutions: number;
-  candidates: EntityResolutionCandidate[];
-}
-
-export async function fetchEntityResolutions(
-  entityId: string
-): Promise<EntityResolutionCandidate[]> {
-  await delay(100);
-  return resolutionCandidates
-    .filter((c) => c.entity_id_1 === entityId || c.entity_id_2 === entityId)
-    .sort((a, b) => b.linkage_score - a.linkage_score);
-}
-
-export async function fetchInvestigationResolutions(
-  investigationId: string
-): Promise<EntityResolutionCandidate[]> {
-  await delay(120);
-  return resolutionCandidates
-    .filter((c) => c.investigation_id === investigationId)
-    .sort((a, b) => b.linkage_score - a.linkage_score);
-}
-
-/**
- * Re-runs the deterministic linkage engine over the current entity profiles.
- * Purely recomputed pairs preserve any analyst confirm/reject already recorded.
- */
-export async function evaluateInvestigationResolutions(
-  investigationId: string,
-  actor: string
-): Promise<ResolutionEvaluationResult> {
-  await delay(260);
-  const computed = buildLinkageCandidates([...profiles], investigationId, nowIso());
-  const existing = new Map(resolutionCandidates.map((c) => [pairKey(c), c]));
-  const merged: EntityResolutionCandidate[] = computed.map((c) => existing.get(pairKey(c)) ?? c);
-  resolutionCandidates = merged;
-
-  const created = computed.length;
-  pushAudit({
-    actor,
-    actorName: actor,
-    action: 'RESOLUTION_ENGINE_RAN',
-    actionLabel: 'Resolution engine run',
-    object: `Investigation ${investigationId}`,
-    objectType: 'investigation',
-    objectId: investigationId,
-    reason: `Evaluated ${created} candidate pair(s), algorithm ${LINKAGE_ALGORITHM_VERSION}`,
-  });
-
-  return {
-    algorithm_version: LINKAGE_ALGORITHM_VERSION,
-    evaluated_pairs: created,
-    created_resolutions: created,
-    candidates: [...resolutionCandidates],
-  };
-}
-
-const applyResolutionDecision = (
-  entityId: string,
-  state: EntityResolutionCandidate['verification_state'],
-  reviewer: string,
-  reason: string
-): EntityResolutionCandidate[] => {
-  const updated: EntityResolutionCandidate[] = [];
-  resolutionCandidates = resolutionCandidates.map((c) => {
-    const involves = c.entity_id_1 === entityId || c.entity_id_2 === entityId;
-    if (!involves || c.verification_state === state) return c;
-    if (c.verification_state === 'confirmed' || c.verification_state === 'rejected') return c;
-    const next: EntityResolutionCandidate = {
-      ...c,
-      verification_state: state,
-      verified_by: reviewer,
-      verified_at: nowIso(),
-      rejection_reason: state === 'rejected' ? reason : null,
-      metadata: { ...(c.metadata ?? {}), analyst_note: reason },
-      updated_at: nowIso(),
-    };
-    updated.push(next);
-    return next;
-  });
-return updated;
-}
-
-export async function confirmEntityResolutions(
-  entityId: string,
-  reviewer: string,
-  reason: string
-): Promise<EntityResolutionCandidate[]> {
-  await delay();
-  const updated = applyResolutionDecision(entityId, 'confirmed', reviewer, reason);
-  if (updated.length) {
-    pushAudit({
-      actor: reviewer,
-      actorName: reviewer,
-      action: 'RESOLUTION_CONFIRMED',
-      actionLabel: 'Resolution confirmed',
-      object: `Entity ${entityId}`,
-      objectType: 'entity',
-      objectId: entityId,
-      reason,
-    });
-  }
-  return updated;
-}
-
-export async function rejectEntityResolutions(
-  entityId: string,
-  reviewer: string,
-  reason: string
-): Promise<EntityResolutionCandidate[]> {
-  await delay();
-  const updated = applyResolutionDecision(entityId, 'rejected', reviewer, reason);
-  if (updated.length) {
-    pushAudit({
-      actor: reviewer,
-      actorName: reviewer,
-      action: 'RESOLUTION_REJECTED',
-      actionLabel: 'Resolution rejected',
-      object: `Entity ${entityId}`,
-      objectType: 'entity',
-      objectId: entityId,
-      reason,
-    });
-  }
-  return updated;
-}
-
 export interface MergeInput {
+  resolutionId?: string;
   targetId: string;
   sourceId: string;
   reason: string;
@@ -602,6 +483,16 @@ export interface MergeInput {
 const archiveSourceProfiles = true;
 
 export async function mergeEntities(input: MergeInput): Promise<EntityIntelligence> {
+  if (!isMockData()) {
+    if (!input.resolutionId) throw new Error('A resolution id is required to merge in API mode');
+    await mergeApiResolution({
+      resolutionId: input.resolutionId,
+      targetEntityId: input.targetId,
+      reviewer: input.reviewer,
+      reason: input.reason,
+    });
+    return fetchEntity(input.targetId);
+  }
   await delay(260);
   const target = profileById.get(input.targetId);
   const source = profileById.get(input.sourceId);
@@ -690,6 +581,7 @@ export async function mergeEntities(input: MergeInput): Promise<EntityIntelligen
 // ---- extraction jobs -----------------------------------------------------
 
 export async function fetchExtractionJobs(): Promise<ExtractionJob[]> {
+  if (!isMockData()) return fetchApiExtractionJobs();
   await delay(120);
   return [...jobs].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -703,6 +595,7 @@ export interface StartExtractionInput {
 }
 
 export async function startExtractionJob(input: StartExtractionInput): Promise<ExtractionJob> {
+  if (!isMockData()) return startApiExtractionJob(input);
   await delay();
   const job: ExtractionJob = {
     id: seq('job'),
@@ -734,6 +627,7 @@ export async function startExtractionJob(input: StartExtractionInput): Promise<E
 }
 
 export async function cancelExtractionJob(jobId: string, actor: string): Promise<ExtractionJob> {
+  if (!isMockData()) return cancelApiExtractionJob(jobId);
   await delay();
   const idx = jobs.findIndex((j) => j.id === jobId);
   if (idx === -1) throw new Error(`Job not found: ${jobId}`);
@@ -752,6 +646,7 @@ export async function cancelExtractionJob(jobId: string, actor: string): Promise
 }
 
 export async function fetchAuditEvents(): Promise<AuditEvent[]> {
+  if (!isMockData()) return fetchApiAuditEvents();
   await delay(100);
   return [...audit].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -787,9 +682,8 @@ export async function fetchEntityDetailBundle(id: string): Promise<{
   activity: EntityActivityItem[];
   sources: EntitySourceRef[];
   resolutionHistory: ResolutionHistoryEntry[];
-  resolutions: EntityResolutionCandidate[];
 }> {
-  const [entity, summary, relationshipsList, related, entityEvidence, entityEvents, entityActivity, sources, history, entityResolutions] =
+  const [entity, summary, relationshipsList, related, entityEvidence, entityEvents, entityActivity, sources, history] =
     await Promise.all([
       fetchEntity(id),
       fetchEntityIntelligenceSummary(id),
@@ -800,7 +694,6 @@ export async function fetchEntityDetailBundle(id: string): Promise<{
       fetchEntityActivity(id),
       fetchEntitySources(id),
       fetchResolutionHistory(id),
-      fetchEntityResolutions(id),
     ]);
   return {
     entity,
@@ -812,14 +705,12 @@ export async function fetchEntityDetailBundle(id: string): Promise<{
     activity: entityActivity,
     sources,
     resolutionHistory: history,
-    resolutions: entityResolutions,
   };
 }
 
 export type {
   EntityRelationship,
   EntityResolution,
-  EntityResolutionCandidate,
   EntityCandidate,
   ResolutionDecision,
   CandidateStatus,

@@ -125,20 +125,6 @@ describe('InvestigationTimelineTab', () => {
     });
   });
 
-  it('renders and opens a relationship-category entry (Phase 21)', () => {
-    seed('inv-001');
-    render(<InvestigationTimelineTab />);
-
-    expect(screen.getByText('Corroboration requested for KNOWS link')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Corroboration requested for KNOWS link'));
-    expect(useShellStore.getState().inspectorContext).toEqual({
-      type: 'relationship',
-      id: 'rel-003',
-      investigationId: 'inv-001',
-    });
-  });
-
   it('renders the empty state when the stream is empty', () => {
     useInvestigationStore.setState({
       investigationId: 'inv-empty',

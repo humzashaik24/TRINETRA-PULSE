@@ -41,6 +41,8 @@ export interface AlgorithmMetadata {
   timeRange: { from: string | null; to: string | null };
   /** Node set the metric was computed over (filtered scope). */
   nodeCount: number;
+  /** Sections the server could not calculate for this response. */
+  unavailableSections?: string[];
 }
 
 // ------------------------------------------------------------
@@ -187,6 +189,9 @@ export interface NetworkAnalyticsSummary {
   bridgeRelationshipCount: number;
   topConnectedEntity: string | null;
   topBridgeEntity: string | null;
+  networkInfluenceLeader?: string | null;
+  largestComponentSize?: number;
+  isolatedEntityCount?: number;
 }
 
 // ------------------------------------------------------------

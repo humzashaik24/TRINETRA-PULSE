@@ -7,16 +7,20 @@ fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 sqlalchemy>=2.0.0
 asyncpg>=0.29.0
+# Alembic migrations run against PostgreSQL with a synchronous driver
+# (config.database_url_sync -> postgresql://). asyncpg is async-only.
+psycopg2-binary>=2.9.0
 alembic>=1.13.0
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
 python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
+# Password hashing. passlib is unmaintained and incompatible with modern bcrypt
+# releases (its __about__ import vanished in bcrypt >= 4.1); app.core.security
+# uses the bcrypt package directly instead.
+bcrypt>=4.1.0
+email-validator>=2.1.0
 python-multipart>=0.0.9
+boto3>=1.34.0
 httpx>=0.27.0
 tenacity>=8.2.0
 structlog>=24.1.0
-
-# Blockchain evidence anchoring (Phase 21): real EVM testnet provider.
-# Install within the backend extra; the `mock` provider (default) does not need it.
-web3>=6.20.0

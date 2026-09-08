@@ -1,5 +1,12 @@
 import { useEvidenceStore } from './evidence.store';
 
+// Phase 25 compatibility: the real store now imports the on-device whisper
+// orchestrator; jest mocks that module (import.meta lives only in worker-url.ts).
+jest.mock('@/lib/whisper/local-whisper', () => ({
+  detectLocalWhisperCapability: jest.fn(() => ({ supported: true })),
+  runLocalWhisper: jest.fn(),
+}));
+
 // ============================================================
 // EVIDENCE STORE TESTS (Phase 12)
 // ============================================================
@@ -94,5 +101,18 @@ describe('evidence.store', () => {
     expect(after.investigationId).toBeNull();
     expect(after.items).toHaveLength(0);
     expect(after.selectedItemId).toBeNull();
+  });
+
+  it('keeps the custody chain honestly absent in mock mode (Phase 18.2)', async () => {
+    const s = useEvidenceStore.getState();
+    s.setInvestigationId('inv-006');
+    await new Promise((r) => setTimeout(r, 300));
+
+    await s.fetchChain('ev-intel-001');
+    const after = useEvidenceStore.getState();
+    // No fabricated chain for demo rows: never a hash from the mock universe.
+    expect(after.chain).toBeNull();
+    expect(after.chainVerification).toBeNull();
+    expect(after.chainAvailable).toBe(false);
   });
 });

@@ -7,7 +7,7 @@ import type {
 import { buildRegistry, validateResponse, sourceIsValid } from '@/ai/validation';
 import { routeQuery } from '@/ai/query-router';
 import { createProvider, type AIProvider } from '@/ai/provider';
-import { buildInvestigationContext, CONTEXT_BUDGETS, type ContextSourceBundle } from '@/ai/context-builder';
+import { buildInvestigationContext, type ContextSourceBundle } from '@/ai/context-builder';
 import type { SerializedContextBundle } from '@/lib/api/assistant';
 import {
   getInvestigation,
@@ -20,8 +20,6 @@ import {
 import { getNetworkSummary, getNetwork } from '@/services/network.service';
 import { getSummary as getAnalyticsSummary } from '@/services/network-analytics.service';
 import { fetchEntity } from '@/services/entity.service';
-import { relationshipIntelligenceSnapshot } from '@/services/relationship-intelligence.service';
-import { evidenceIntegrityContextPayload } from '@/services/evidence-integrity.service';
 import { registerProvider } from '@/ai/provider';
 import { MockAIProvider } from '@/ai/providers/mock-provider';
 import { ApiInvestigationProvider } from '@/ai/providers/api-provider';
@@ -160,38 +158,12 @@ export class AIInvestigationOrchestrator {
   ): Promise<{ bundle: ContextSourceBundle; serialized?: SerializedContextBundle }> {
     if (!isMockData()) {
       const retrieval = await retrieveInvestigationContext(scope);
-      const bundle = retrieval?.bundle ?? {};
-      await this.enrichEvidenceIntegrity(bundle);
       return {
-        bundle,
+        bundle: retrieval?.bundle ?? {},
         serialized: retrieval?.serialized,
       };
     }
-    const bundle = await this.assembleMockContext(scope);
-    await this.enrichEvidenceIntegrity(bundle);
-    return { bundle };
-  }
-
-  /**
-   * PHASE 21 — attach the bounded blockchain-integrity payload to the evidence
-   * slice of the context bundle so the assistant answers anchor-state questions
-   * strictly from persisted data (never invented). Bounded to the context budget.
-   */
-  private async enrichEvidenceIntegrity(bundle: ContextSourceBundle): Promise<void> {
-    const slice = bundle.evidence?.slice(0, CONTEXT_BUDGETS.evidence) ?? [];
-    const payloads = await Promise.all(
-      slice.map(async (e) => ({
-        id: e.id,
-        integrity: await evidenceIntegrityContextPayload(e.id),
-      })),
-    );
-    if (!bundle.evidence) return;
-    bundle.evidence = bundle.evidence.map((e) => {
-      const withIntegrity = payloads.find((p) => p.id === e.id);
-      return withIntegrity && withIntegrity.integrity
-        ? { ...e, integrity: withIntegrity.integrity }
-        : e;
-    });
+    return { bundle: await this.assembleMockContext(scope) };
   }
 
   /** Mock-mode context assembly from the in-memory demo services. */
@@ -229,7 +201,6 @@ export class AIInvestigationOrchestrator {
         confidence: r.confidence,
         sourceEntityId: r.source_entity_id,
         targetEntityId: r.target_entity_id,
-        intelligence: relationshipIntelligenceSnapshot(r.relationship_id),
       }));
 
       bundle.evidence = evidence.map((e) => ({

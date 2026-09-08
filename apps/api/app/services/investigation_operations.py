@@ -442,9 +442,7 @@ def seed_operations() -> None:
             "investigation_id": "inv-006",
             "name": "Meridian Core Cluster",
             "description": "Primary device, account and flagged transaction.",
-            "network_filters": {
-                "relationshipTypes": ["USES", "OWNS_ACCOUNT", "SENT_TRANSACTION"]
-            },
+            "network_filters": {"relationshipTypes": ["USES", "OWNS_ACCOUNT", "SENT_TRANSACTION"]},
             "timeline_range": {"from": "2026-08-18T00:00:00Z", "to": None},
             "selected_entities": [
                 "ent-person-001",
@@ -1197,9 +1195,7 @@ def create_saved_view(investigation_id: str, payload: dict[str, Any]) -> SavedIn
 def delete_saved_view(investigation_id: str, view_id: str) -> None:
     _require(investigation_id)
     seed_operations()
-    _VIEWS[investigation_id] = [
-        v for v in _VIEWS.get(investigation_id, []) if v["id"] != view_id
-    ]
+    _VIEWS[investigation_id] = [v for v in _VIEWS.get(investigation_id, []) if v["id"] != view_id]
 
 
 def list_graph_bookmarks(investigation_id: str) -> list[GraphBookmark]:
@@ -1208,9 +1204,7 @@ def list_graph_bookmarks(investigation_id: str) -> list[GraphBookmark]:
     return [GraphBookmark(**b) for b in _GRAPH_BOOKMARKS.get(investigation_id, [])]
 
 
-def create_graph_bookmark(
-    investigation_id: str, payload: dict[str, Any]
-) -> GraphBookmark:
+def create_graph_bookmark(investigation_id: str, payload: dict[str, Any]) -> GraphBookmark:
     _require(investigation_id)
     seed_operations()
     bookmark = GraphBookmark(
@@ -1240,9 +1234,7 @@ def list_timeline_bookmarks(investigation_id: str) -> list[TimelineBookmark]:
     return [TimelineBookmark(**b) for b in _TIMELINE_BOOKMARKS.get(investigation_id, [])]
 
 
-def create_timeline_bookmark(
-    investigation_id: str, payload: dict[str, Any]
-) -> TimelineBookmark:
+def create_timeline_bookmark(investigation_id: str, payload: dict[str, Any]) -> TimelineBookmark:
     _require(investigation_id)
     seed_operations()
     bookmark = TimelineBookmark(
@@ -1282,9 +1274,7 @@ def list_cross_references(
     return [CrossReference(**c) for c in items]
 
 
-def list_provenance(
-    investigation_id: str, target_id: str | None = None
-) -> list[ProvenanceChain]:
+def list_provenance(investigation_id: str, target_id: str | None = None) -> list[ProvenanceChain]:
     _require(investigation_id)
     seed_operations()
     items = _PROVENANCE.get(investigation_id, [])
@@ -1302,9 +1292,7 @@ def list_provenance(
 # ---------------------------------------------------------------------------
 
 
-def search_investigation(
-    investigation_id: str, query: str
-) -> list[InvestigationSearchResult]:
+def search_investigation(investigation_id: str, query: str) -> list[InvestigationSearchResult]:
     _require(investigation_id)
     seed_operations()
     pool = _SEARCH.get(investigation_id, [])

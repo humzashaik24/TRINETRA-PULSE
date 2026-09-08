@@ -24,7 +24,16 @@ export type ExtractionMethod =
   | 'ML'
   | 'LLM'
   | 'MANUAL'
-  | 'ANALYTICAL';
+  | 'ANALYTICAL'
+  /** Persisted API vocabulary. Kept explicit so the UI does not overclaim
+   * a more specific extraction technique than the server reported. */
+  | 'DATABASE_IMPORT'
+  | 'DOCUMENT_PARSE'
+  | 'AI_NLP'
+  | 'AI_CV'
+  | 'AI_AUDIO'
+  | 'NETWORK_ANALYSIS'
+  | 'OTHER';
 
 export const EXTRACTION_METHODS: readonly ExtractionMethod[] = [
   'RULE_BASED',
@@ -35,6 +44,13 @@ export const EXTRACTION_METHODS: readonly ExtractionMethod[] = [
   'LLM',
   'MANUAL',
   'ANALYTICAL',
+  'DATABASE_IMPORT',
+  'DOCUMENT_PARSE',
+  'AI_NLP',
+  'AI_CV',
+  'AI_AUDIO',
+  'NETWORK_ANALYSIS',
+  'OTHER',
 ];
 
 // ============================================================
@@ -74,8 +90,8 @@ export type CandidateStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'REVIEWED';
 
 export interface EntityCandidate {
   id: string;
-  datasetId: string;
-  datasetName: string;
+  datasetId?: string;
+  datasetName?: string;
   entityType: EntityType;
   /** Original value exactly as extracted from the source. */
   rawValue: string;
@@ -95,6 +111,8 @@ export interface EntityCandidate {
   status: CandidateStatus;
   resolutionState?: ResolutionState;
   resolvedEntityId?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
   createdAt: string;
 }
 
@@ -129,8 +147,10 @@ export interface EntityResolution {
   entityBDisplayValue: string;
   entityAType: EntityType;
   entityBType: EntityType;
-  /** Structural similarity score (0-1), combining signals. */
-  similarity: number;
+  /** Backend resolution type, e.g. "person_match". */
+  resolutionType?: string;
+  /** Structural similarity score (0-1), when the backend provides one. */
+  similarity?: number;
   /** Confidence in the resolution decision (0-1). */
   confidence: number;
   state: ResolutionState;
@@ -139,6 +159,16 @@ export interface EntityResolution {
   /** Human-readable reason summary. */
   summaryReason: string;
   evidence: string[];
+  /** Server-provided reasons, without client-side re-matching. */
+  reasons?: string[];
+  /** Server-provided method (for example "probabilistic"). */
+  method?: string;
+  /** Explicit contradictions, when supplied by the backend. */
+  contradictions?: string[];
+  /** Evidence references returned by the resolution pipeline. */
+  evidenceRefs?: string[];
+  /** Provenance metadata returned by the pipeline. */
+  provenance?: Record<string, unknown>;
   createdBy: string;
   reviewedBy?: string;
   reviewedAt?: string;
@@ -228,14 +258,6 @@ export interface EntityRelationship {
   verificationStatus: RelationshipCandidateStatus;
   metadata: Record<string, unknown>;
   createdAt: string;
-  /** Phase 21 — optional relationship-intelligence summary. */
-  intelligence?: {
-    status: string;
-    confidence: number;
-    confidenceLabel: string;
-    sourceCount: number;
-    correlationKey: string;
-  };
 }
 
 // ============================================================
@@ -306,6 +328,7 @@ export interface ResolutionHistoryEntry {
 
 export type ExtractionJobStatus =
   | 'QUEUED'
+  | 'RUNNING'
   | 'EXTRACTING'
   | 'NORMALIZING'
   | 'RESOLVING'
@@ -315,6 +338,7 @@ export type ExtractionJobStatus =
 
 export const EXTRACTION_JOB_STATUSES: readonly ExtractionJobStatus[] = [
   'QUEUED',
+  'RUNNING',
   'EXTRACTING',
   'NORMALIZING',
   'RESOLVING',
@@ -355,10 +379,7 @@ export type AuditAction =
   | 'RELATIONSHIP_VERIFIED'
   | 'RELATIONSHIP_REJECTED'
   | 'CANDIDATE_REVIEWED'
-  | 'EXTRACTION_STARTED'
-  | 'RESOLUTION_ENGINE_RAN'
-  | 'RESOLUTION_CONFIRMED'
-  | 'RESOLUTION_REJECTED';
+  | 'EXTRACTION_STARTED';
 
 export interface AuditEvent {
   id: string;

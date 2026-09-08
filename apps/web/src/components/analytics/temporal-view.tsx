@@ -11,7 +11,7 @@ import { useAnalyticsStore } from '@/state/analytics.store';
 // TEMPORAL NETWORK VIEW — how the network evolved over time
 // ============================================================
 
-export function TemporalView({ temporal }: { temporal: TemporalAnalyticsResult | null }) {
+export function TemporalView({ temporal, unavailable = false }: { temporal: TemporalAnalyticsResult | null; unavailable?: boolean }) {
   const [periodIndex, setPeriodIndex] = useState<number | null>(null);
   const selectEntity = useAnalyticsStore((s) => s.selectEntity);
 
@@ -31,6 +31,9 @@ export function TemporalView({ temporal }: { temporal: TemporalAnalyticsResult |
     [snapshots]
   );
 
+  if (unavailable) {
+    return <p className="py-6 text-center text-xs text-foreground-muted">Timeline analysis is unavailable from the API for this network.</p>;
+  }
   if (!temporal || snapshots.length === 0) {
     return <p className="py-6 text-center text-xs text-foreground-muted">Insufficient temporal data to build snapshots.</p>;
   }

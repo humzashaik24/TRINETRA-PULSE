@@ -6,7 +6,6 @@ import { Badge } from '@trinetra-pulse/ui';
 import { useEvidenceStore } from '@/state/evidence.store';
 import { EVIDENCE_TYPE_LABELS, EVIDENCE_STATUS_LABELS, formatCount, EVIDENCE_STATUS_VARIANT } from '@/lib/format';
 import { EVIDENCE_TYPE_VARIANT } from '@/components/evidence/evidence-domain';
-import { mockRelationshipEvidenceSupport } from '@/mock';
 import type { EvidenceSource } from '@trinetra-pulse/types';
 
 // ============================================================
@@ -36,6 +35,7 @@ export function NetworkEvidenceMode({
   onSelectEvidence?: (id: string) => void;
 }) {
   const items = useEvidenceStore((s) => s.items);
+  const relationshipSupport = useEvidenceStore((s) => s.relationshipSupport);
   const selectItem = useEvidenceStore((s) => s.selectItem);
   const handleSelect = onSelectEvidence ?? selectItem;
 
@@ -115,21 +115,27 @@ export function NetworkEvidenceMode({
           <Link2 className="h-4 w-4 text-evidence" />
           <h4 className="text-sm font-semibold text-foreground">Edge evidence support</h4>
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {mockRelationshipEvidenceSupport.map((r) => (
-            <div key={r.relationshipId} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/40 px-2.5 py-2">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-medium text-foreground">
-                  {DEMO_RELATIONSHIP_LABELS[r.relationshipId] ?? r.relationshipId}
-                </p>
-                <p className="font-mono text-[10px] text-foreground-muted">{r.relationshipId}</p>
+        {relationshipSupport.length === 0 ? (
+          <p className="mt-3 rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-foreground-muted">
+            No relationship evidence support data available.
+          </p>
+        ) : (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {relationshipSupport.map((r) => (
+              <div key={r.relationshipId} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/40 px-2.5 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium text-foreground">
+                    {DEMO_RELATIONSHIP_LABELS[r.relationshipId] ?? r.relationshipId}
+                  </p>
+                  <p className="font-mono text-[10px] text-foreground-muted">{r.relationshipId}</p>
+                </div>
+                <Badge size="sm" variant="info">
+                  {formatCount(r.evidenceIds.length)} items
+                </Badge>
               </div>
-              <Badge size="sm" variant="info">
-                {formatCount(r.evidenceIds.length)} items
-              </Badge>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

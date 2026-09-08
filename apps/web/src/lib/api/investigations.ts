@@ -17,7 +17,10 @@ import type {
   GraphNodeStatus,
   NetworkGraph,
   NetworkSummary,
+  NetworkPath,
   RelationshipKind,
+  AnalyticsFilter,
+  NetworkAnalytics,
 } from '@trinetra-pulse/types';
 
 export type JsonObject = Record<string, unknown>;
@@ -89,6 +92,8 @@ export interface RealRelationship {
   confidence: number;
   source: string | null;
   evidence_refs: string[];
+  /** Phase 17.8 — persisted extraction method (manual/ai_nlp/…), when present. */
+  extraction_method?: string | null;
   verification_status: string | null;
   description: string | null;
   weight: number;
@@ -121,9 +126,21 @@ export interface RealEvidence {
   provenance: JsonObject;
   collected_at: string | null;
   storage_ref: string | null;
+  filename?: string | null;
+  content_type?: string | null;
+  size?: number | null;
   metadata: JsonObject;
+  /** Phase 17.6 — SHA-256 integrity block {checksum, status} when available. */
+  integrity?: RealEvidenceIntegrity | null;
   created_at: string;
   updated_at: string;
+}
+
+/** SHA-256 integrity block attached to persisted evidence rows. */
+export interface RealEvidenceIntegrity {
+  checksum: string | null;
+  status: string;
+  storage_status?: string;
 }
 
 export interface RealEvent {
@@ -247,6 +264,54 @@ export interface RealAnalyticsOverview {
   flagged_entity_count: number;
   verified_entity_count: number;
   high_risk_entity_count: number;
+  density?: number;
+  largest_component_size?: number;
+  isolated_entity_count?: number;
+  highest_degree_entity_id?: Uuid | null;
+  network_influence_leader_id?: Uuid | null;
+  strongest_bridge_entity_id?: Uuid | null;
+  centrality?: Record<string, unknown> | null;
+  communities?: NetworkAnalytics['communities'] | null;
+  components?: NetworkAnalytics['components'] | null;
+  bridges?: NetworkAnalytics['bridges'] | null;
+  temporal?: NetworkAnalytics['temporal'];
+}
+
+/** Wire contract for the Phase 19 server-side analytics bundle. */
+export interface RealAdvancedAnalyticsResponse {
+  investigation_id?: Uuid;
+  network_id?: Uuid;
+  status?: string;
+  filters?: Partial<AnalyticsFilter>;
+  summary?: Partial<NonNullable<NetworkAnalytics['summary']>> | null;
+  degree?: NetworkAnalytics['degree'] | null;
+  centrality?: unknown;
+  betweenness?: NetworkAnalytics['betweenness'] | null;
+  closeness?: NetworkAnalytics['closeness'] | null;
+  pagerank?: NetworkAnalytics['pagerank'] | null;
+  influence?: NetworkAnalytics['influence'] | null;
+  communities?: NetworkAnalytics['communities'] | null;
+  groups?: NetworkAnalytics['communities'] | null;
+  components?: NetworkAnalytics['components'] | null;
+  connected_components_detail?: NetworkAnalytics['components'] | null;
+  density?: NetworkAnalytics['density'] | null;
+  bridges?: NetworkAnalytics['bridges'] | null;
+  bridge_entities?: NetworkAnalytics['bridges'] | null;
+  bridge_relationships?: NetworkAnalytics['bridgeRelationships'] | null;
+  bridgeRelationships?: NetworkAnalytics['bridgeRelationships'] | null;
+  patterns?: NetworkAnalytics['patterns'] | null;
+  temporal?: NetworkAnalytics['temporal'] | null;
+  metadata?: Partial<NonNullable<NetworkAnalytics['metadata']>> | null;
+  error?: string | null;
+}
+
+export type RealAnalyticsResponse = Partial<RealAnalyticsOverview> &
+  Omit<RealAdvancedAnalyticsResponse, keyof RealAnalyticsOverview>;
+
+export interface NetworkAnalyticsQuery {
+  filter?: Partial<AnalyticsFilter>;
+  /** Optional server-supported path scope (entity ids or a named path). */
+  path?: string | { from?: string; to?: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -318,6 +383,40 @@ export async function getEntity(entityId: Uuid): Promise<RealEntity> {
   return apiFetch<RealEntity>(API_BASE_URL, `/entities/${entityId}`);
 }
 
+/**
+ * Investigation-scoped entity detail. When ``investigationId`` is supplied the
+ * backend treats a cross-investigation match as 404 (no existence leak), so
+ * the caller must scope every detail read to the active investigation.
+ */
+export async function getEntityScoped(
+  entityId: Uuid,
+  investigationId?: Uuid,
+): Promise<RealEntity> {
+  const scope = investigationId ? `?investigation_id=${investigationId}` : '';
+  return apiFetch<RealEntity>(API_BASE_URL, `/entities/${entityId}${scope}`);
+}
+
+export async function getRelationship(relationshipId: Uuid): Promise<RealRelationship> {
+  return apiFetch<RealRelationship>(API_BASE_URL, `/relationships/${relationshipId}`);
+}
+
+/**
+ * Investigation-scoped relationship detail. When ``investigationId`` is
+ * supplied the backend treats a cross-investigation match as 404 (no
+ * existence leak), so the caller must scope every detail read to the active
+ * investigation. Phase 17.8.
+ */
+export async function getRelationshipScoped(
+  relationshipId: Uuid,
+  investigationId?: Uuid,
+): Promise<RealRelationship> {
+  const scope = investigationId ? `?investigation_id=${investigationId}` : '';
+  return apiFetch<RealRelationship>(
+    API_BASE_URL,
+    `/relationships/${relationshipId}${scope}`,
+  );
+}
+
 export async function listRelationshipsForInvestigation(
   investigationId: Uuid,
 ): Promise<RealRelationship[]> {
@@ -334,6 +433,24 @@ export async function listFindingsForInvestigation(
     API_BASE_URL,
     `/investigations/${investigationId}/findings`,
   );
+}
+
+export async function getFinding(findingId: Uuid): Promise<RealFinding> {
+  return apiFetch<RealFinding>(API_BASE_URL, `/findings/${findingId}`);
+}
+
+/**
+ * Investigation-scoped finding detail. When ``investigationId`` is supplied
+ * the backend treats a cross-investigation match as 404 (no existence leak),
+ * so the caller must scope every detail read to the active investigation.
+ * Phase 17.9.
+ */
+export async function getFindingScoped(
+  findingId: Uuid,
+  investigationId?: Uuid,
+): Promise<RealFinding> {
+  const scope = investigationId ? `?investigation_id=${investigationId}` : '';
+  return apiFetch<RealFinding>(API_BASE_URL, `/findings/${findingId}${scope}`);
 }
 
 export async function listEvidenceForInvestigation(
@@ -354,6 +471,24 @@ export async function listEventsForInvestigation(
   );
 }
 
+export async function getEvent(eventId: Uuid): Promise<RealEvent> {
+  return apiFetch<RealEvent>(API_BASE_URL, `/events/${eventId}`);
+}
+
+/**
+ * Investigation-scoped event detail. When ``investigationId`` is supplied
+ * the backend treats a cross-investigation match as 404 (no existence leak),
+ * so the caller must scope every detail read to the active investigation.
+ * Phase 17.9.
+ */
+export async function getEventScoped(
+  eventId: Uuid,
+  investigationId?: Uuid,
+): Promise<RealEvent> {
+  const scope = investigationId ? `?investigation_id=${investigationId}` : '';
+  return apiFetch<RealEvent>(API_BASE_URL, `/events/${eventId}${scope}`);
+}
+
 export async function listNotesForInvestigation(
   investigationId: Uuid,
 ): Promise<RealNote[]> {
@@ -361,6 +496,24 @@ export async function listNotesForInvestigation(
     API_BASE_URL,
     `/investigations/${investigationId}/notes`,
   );
+}
+
+export async function getNote(noteId: Uuid): Promise<RealNote> {
+  return apiFetch<RealNote>(API_BASE_URL, `/notes/${noteId}`);
+}
+
+/**
+ * Investigation-scoped note detail. When ``investigationId`` is supplied
+ * the backend treats a cross-investigation match as 404 (no existence leak),
+ * so the caller must scope every detail read to the active investigation.
+ * Phase 17.9.
+ */
+export async function getNoteScoped(
+  noteId: Uuid,
+  investigationId?: Uuid,
+): Promise<RealNote> {
+  const scope = investigationId ? `?investigation_id=${investigationId}` : '';
+  return apiFetch<RealNote>(API_BASE_URL, `/notes/${noteId}${scope}`);
 }
 
 export async function createEntityForInvestigation(
@@ -547,11 +700,62 @@ export function mapApiGraphToSummary(graph: NetworkGraph): NetworkSummary {
 
 export async function getNetworkAnalytics(
   investigationId: Uuid,
-): Promise<RealAnalyticsOverview> {
-  return apiFetch<RealAnalyticsOverview>(
+  query: NetworkAnalyticsQuery = {},
+): Promise<RealAnalyticsResponse> {
+  const params = new URLSearchParams();
+  const filter = query.filter;
+  if (filter) {
+    if (filter.entityTypes?.length) params.set('entity_types', filter.entityTypes.join(','));
+    if (filter.relationshipTypes?.length) params.set('relationship_types', filter.relationshipTypes.join(','));
+    if (filter.communityIds?.length) params.set('community_ids', filter.communityIds.join(','));
+    if (filter.componentIds?.length) params.set('component_ids', filter.componentIds.join(','));
+    if (filter.sources?.length) params.set('sources', filter.sources.join(','));
+    if (filter.from) params.set('from', filter.from);
+    if (filter.to) params.set('to', filter.to);
+    if ((filter.minConfidence ?? 0) > 0) params.set('min_confidence', String(filter.minConfidence));
+  }
+  if (query.path) {
+    params.set('path', typeof query.path === 'string' ? query.path : JSON.stringify(query.path));
+  }
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return apiFetch<RealAnalyticsResponse>(
     API_BASE_URL,
-    `/networks/${investigationId}/analytics`,
+    `/networks/${investigationId}/analytics${suffix}`,
   );
+}
+
+/** Resolve a shortest path through the API when the backend supports it. */
+export async function findNetworkPath(
+  investigationId: Uuid,
+  startEntityId: string,
+  endEntityId: string,
+): Promise<NetworkPathResponse | null> {
+  const params = new URLSearchParams({
+    start_entity_id: startEntityId,
+    end_entity_id: endEntityId,
+  });
+  return apiFetch<NetworkPathResponse | null>(
+    API_BASE_URL,
+    `/networks/${investigationId}/path?${params.toString()}`,
+  );
+}
+
+export interface NetworkPathResponse {
+  investigation_id?: string;
+  source_entity_id?: string;
+  target_entity_id?: string;
+  found?: boolean;
+  start_entity_id?: string;
+  end_entity_id?: string;
+  startEntityId?: string;
+  endEntityId?: string;
+  node_ids?: string[];
+  nodeIds?: string[];
+  edge_ids?: string[];
+  edgeIds?: string[];
+  length: number;
+  confidence?: number;
+  explanation?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -646,5 +850,7 @@ export async function uploadDataset(
     isFormData: true,
   });
 }
+
+export interface RealEvidenceUploadResult extends RealEvidence {}
 
 export type { ApiErrorBody };

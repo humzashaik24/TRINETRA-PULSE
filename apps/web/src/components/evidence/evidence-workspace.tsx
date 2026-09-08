@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FileSearch, Layers, Network, Clock, ShieldCheck, CircleGauge } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, LoadingState } from '@trinetra-pulse/ui';
 import { useEvidenceStore } from '@/state/evidence.store';
@@ -14,17 +14,31 @@ import { NetworkEvidenceMode } from './network/network-evidence-mode';
 import { TimelineEvidenceMode } from './timeline/timeline-evidence-mode';
 import { EvidenceRetrievalPanel } from './retrieval/evidence-retrieval-panel';
 import { mockEvidenceById } from '@/mock';
+import { isMockData } from '@/lib/api/config';
+import {
+  OPERATION_MERIDIAN_ID,
+  OPERATION_MERIDIAN_EVIDENCE_001,
+} from '@/lib/api/evidence';
 import type { EvidenceType, EvidenceStatus } from '@trinetra-pulse/types';
 
 // ============================================================
-// EVIDENCE INTELLIGENCE WORKSPACE (Phase 12)
+// EVIDENCE INTELLIGENCE WORKSPACE (Phase 12 / 17.6)
 // ============================================================
 // Evidence Repository + Grounded Retrieval + Coverage + Modes.
 // Evidence items/looks reference canonical IDs only (invariant).
 // Coverage "unsupported" = no linked evidence currently available.
+// Phase 17.6 — in API mode the workspace anchors on the Operation
+// Meridian uuid seeded into the relational database; in mock mode it
+// keeps the canonical demo id. No silent fallback between modes.
 // ============================================================
 
-const DEMO_INVESTIGATION_ID = 'inv-006';
+/** Investigation id the Evidence Workspace demonstrates: canonical demo id
+ *  in mock mode, the deterministic Operation Meridian uuid in API mode. */
+const DEMO_INVESTIGATION_ID = isMockData() ? 'inv-006' : OPERATION_MERIDIAN_ID;
+
+/** Demo evidence to open from the empty detail state: canonical mock id in
+ *  mock mode, the deterministic seeded evidence row in API mode. */
+const DEMO_EVIDENCE_ID = isMockData() ? 'ev-intel-001' : OPERATION_MERIDIAN_EVIDENCE_001;
 
 export function EvidenceWorkspace() {
   const {
@@ -50,6 +64,17 @@ export function EvidenceWorkspace() {
 
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState('repository');
+
+  // Title lookup for coverage chips: prefer persisted-sourced items from the
+  // current scope, fall back to the deterministic mock universe for demo ids.
+  const evidenceById = useMemo(() => {
+    const map = new Map<string, { title: string }>();
+    for (const item of items) map.set(item.id, { title: item.title });
+    if (isMockData()) {
+      for (const [id, item] of mockEvidenceById) map.set(id, { title: item.title });
+    }
+    return map;
+  }, [items]);
 
   useEffect(() => {
     setInvestigationId(DEMO_INVESTIGATION_ID);
@@ -170,7 +195,7 @@ export function EvidenceWorkspace() {
                   <FileSearch className="mx-auto h-6 w-6 text-foreground-muted" />
                   <p className="mt-2 text-sm text-foreground-muted">Select an evidence item to view its provenance and links.</p>
                   <button
-                    onClick={() => selectItem('ev-intel-001')}
+                    onClick={() => selectItem(DEMO_EVIDENCE_ID)}
                     className="mt-3 text-xs text-evidence hover:underline"
                   >
                     Try opening a demo item
@@ -184,7 +209,7 @@ export function EvidenceWorkspace() {
         <TabsContent value="coverage" className="focus:outline-none">
           <EvidenceCoveragePanel
             coverage={coverage}
-            evidenceById={mockEvidenceById}
+            evidenceById={evidenceById}
             onSelectEvidence={selectItem}
           />
         </TabsContent>

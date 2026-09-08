@@ -9,7 +9,6 @@ import { InspectorHeader } from './inspector-header';
 import { InspectorContent } from './inspector-content';
 import { journeyHref, DEMO_NETWORK_ID } from '@/navigation/journey';
 import type { EntityType } from '@trinetra-pulse/types';
-import { confirmRelationship, rejectRelationship } from '@/services/relationship-intelligence.service';
 
 // ============================================================
 // PHASE 3.5 — CONTEXT INSPECTOR PANEL
@@ -122,27 +121,6 @@ export function ContextInspector({ variant = 'panel', onClose, className }: Cont
     handleClose();
   };
 
-  // Phase 21 — relationship-intelligence review. The web app has no role
-  // store, so review is shown by default; the backend enforces RBAC
-  // (auditors cannot confirm/reject) and actor identity is taken from the
-  // authenticated context, never from the client.
-  const canReview = true;
-
-  const reviewRelationship = async (decision: 'confirm' | 'reject') => {
-    if (context.type !== 'relationship' || !context.id) return;
-    try {
-      if (decision === 'confirm') {
-        await confirmRelationship(context.id);
-      } else {
-        await rejectRelationship(context.id);
-      }
-      // Re-select the context so the inspector re-resolves fresh intelligence.
-      selectContext({ ...context });
-    } catch {
-      // Surface nothing here; the panel stays on the previous decision state.
-    }
-  };
-
   const primaryOpen = () => {
     if (context.type === 'entity') {
       openEntity(context.id);
@@ -200,7 +178,7 @@ export function ContextInspector({ variant = 'panel', onClose, className }: Cont
           onClose={handleClose}
         />
       </div>
-      <InspectorContent context={context} contextKey={contextKey} onOpen={primaryOpen} onInspectEntity={inspectEntity} onInspectFinding={inspectFinding} onOpenNetwork={openEntityInNetwork} onConfirmRelationship={() => reviewRelationship('confirm')} onRejectRelationship={() => reviewRelationship('reject')} canReview={canReview} />
+      <InspectorContent context={context} contextKey={contextKey} onOpen={primaryOpen} onInspectEntity={inspectEntity} onInspectFinding={inspectFinding} onOpenNetwork={openEntityInNetwork} />
     </div>
   );
 }

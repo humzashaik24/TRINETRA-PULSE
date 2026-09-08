@@ -90,6 +90,152 @@ fully intact. Each surface now branches on `isMockData()`:
   (`NEXT_PUBLIC_USE_MOCK_API=true`). API keys never reach the client;
   provider configuration stays server-side. `GET /api/v2/ai/status` reports the
   active provider/model so the UI can name the non-real fallback honestly.
+- **17.6 — Real evidence intelligence with SHA-256 integrity.** The `isMockData()`
+  boundary extends to the Evidence Intelligence workspaces: `state/evidence.store.ts`
+  (list/detail/selection) and `services/inspector.service.ts` (Context Inspector)
+  branch to a new typed evidence adapter (`src/lib/api/evidence.ts` — `getEvidenceById`,
+  `getEvidenceIntegrity`, `loadEvidenceSearch`) when `NEXT_PUBLIC_USE_MOCK_API=false`.
+  The backend serves investigation-scoped reads (`GET /evidence/{id}?investigation_id=…`,
+  `GET /evidence/{id}/integrity`, per-row `integrity` on the nested list) and computes a
+  **SHA-256 checksum** of a canonicalised evidence payload at create time
+  (`app/services/evidence_integrity.py`), verified against the deterministic blob digest
+  in `app/storage/evidence_storage.py`. The checksum surfaces as `EvidenceItem.provenance.hash`
+  and as an `integrity: {checksum, status}` block on the UI detail panel. UI-only link
+  arrays, coverage, relationship/finding support, entity summaries and collections have
+  **no relational endpoints yet** — the evidence↔entity/finding/event link model is the
+  Phase 17.7 boundary — so in API mode those slices stay **honestly empty** (graceful
+  empty states, never fabricated from mock). There is **no silent API→mock fallback**;
+  an API failure surfaces the store error state. See
+  [EVIDENCE_INTELLIGENCE.md](EVIDENCE_INTELLIGENCE.md).
+- **17.7 — Real entity intelligence (investigation-scoped).** The `isMockData()` boundary
+  extends to the Entity workspace (`/entities` + `/entities/[id]`), its Zustand store
+  (`state/entity.store.ts`) and the Context Inspector entity resolution
+  (`services/inspector.service.ts`): when `NEXT_PUBLIC_USE_MOCK_API=false` all reads branch
+  to a typed entity adapter (`src/lib/api/entities.ts` — `mapEntityIntelligence`,
+  `loadEntityList`, `loadEntityDetail`/`loadEntityDetailBundle`, `apiEntityOverviewSummary`).
+  The backend detail read is now investigation-scoped (`GET /entities/{id}?investigation_id=…`
+  → 404 on scope mismatch, `get_entity_scoped`), so a cross-investigation entity can never
+  leak. Mapping is honest: `resolutionState` derives from the persisted verified flag,
+  relational counters and the entities↔relationships/evidence/event link surfaces are
+  later-phase domains so they stay at 0 / empty in API mode (never fabricated from mock);
+  candidates / resolutions / extraction-job counts in the SummaryStrip are likewise 0.
+  No silent API→mock fallback. See [PHASE_17.7_COMPLETE.md](PHASE_17.7_COMPLETE.md).
+- **17.8 -- Real relationships (investigation-scoped).** The relationship detail read is now
+  investigation-scoped (`GET /relationships/{id}?investigation_id=...` -> 404 on scope
+  mismatch, `get_relationship_scoped`), and the persisted `extraction_method` column is
+  exposed on `RelationshipRead`. A new typed relationship adapter
+  (`src/lib/api/relationships.ts`: `mapApiRelationship`, `loadRelationshipDetail`,
+  `loadEntityRelationships`, `relatedFrom`) maps persisted relationship rows into the Phase 0
+  `EntityRelationship` shape with resolved entity names/types, using deterministic documented
+  translations for the persisted vocabularies (`relationship_type`, incl. the
+  `known_associiate` spelling, -> `RelationshipKind` with entity-type-aware USES/WORKS_FOR
+  special cases; `verification_status`, incl. `possible` -> `CANDIDATE`; `extraction_method`
+  -> `ExtractionMethod`). The entity detail Relations tab (`loadEntityDetailBundle`) and the
+  Context Inspector relationship resolution (`inspector.service.ts`, always authoritative in
+  API mode -- the graph-hint shortcut is mock-mode only) now read real persisted rows. The
+  investigation workspace relationship list and network graph edges already surfaced real
+  relationships (Phases 17.2/17.4). Relationship creation stays deferred (no UI flow, no
+  POST endpoint). No silent API->mock fallback. See
+  [PHASE_17.8_COMPLETE.md](PHASE_17.8_COMPLETE.md).
+- **17.9 -- Real findings, notes & events detail (investigation-scoped).** The
+  finding / note detail reads are now investigation-scoped (`GET /findings/{id}?investigation_id=...`,
+  `GET /notes/{id}?investigation_id=...`, `GET /events/{id}?investigation_id=...` -> 404 on scope
+  mismatch, via `get_finding_scoped` / `get_note_scoped` / `get_event_scoped`), closing the last
+  unscoped detail reads in the workspace family. The Context Inspector finding/note/event branches
+  (`services/inspector.service.ts`) resolve persisted scoped rows in API mode through new typed
+  adapters (`src/lib/api/findings.ts`, `src/lib/api/notes.ts`, `src/lib/api/events.ts`:
+  `loadFindingDetail` resolves entity_refs names/types from the scoped entity rows with
+  deterministic severity/confidence translations; `loadNoteDetail`; `loadEventDetail`). Events
+  continue through the existing `events` table / scoped list / merged timeline (no duplicate
+  table): ingestion-created events (`dataset_uploaded`, `ingestion_started`, `ingestion_completed`,
+  `ingestion_failed`) remain visible per investigation. Discovery (lists), the findings/notes tabs,
+  overview counts and the unified timeline already read persisted rows (Phases 14.2/17.4); the
+  finding/note/event POST endpoints keep working unchanged. No silent API->mock fallback. See
+  [PHASE_17.9_COMPLETE.md](PHASE_17.9_COMPLETE.md).
+- **17.10 -- Render production + PostgreSQL integration verification.** The
+  production path (Next.js -> Render native Node -> FastAPI native Python ->
+  Render managed PostgreSQL -> persisted workspace + graph/analytics/timeline/
+  grounded AI) was audited, hardened and validated: `render.yaml` now runs
+  `python -m alembic upgrade head` as the API service's `preDeployCommand`
+  (schema always applied on deploy); `Settings.database_url` normalizes
+  Render's bare `postgres://`/`postgresql://` connection string to
+  `postgresql+asyncpg://` for the async engine; `psycopg2-binary` was added so
+  Alembic's synchronous URL works against PostgreSQL; and the async engine pool
+  is configurable (`DB_POOL_SIZE`/`DB_MAX_OVERFLOW`, 3/2 in `render.yaml`)
+  to fit free-tier connection limits. A genuine write-path bug was fixed: the
+  investigation PATCH endpoint crashed with `MissingGreenlet` because the DB-side
+  `updated_at` (`onupdate=func.now()`) is expired after flush -- the service now
+  `refresh()`es before validation (regression test added). Live Render
+  deployment and live PostgreSQL verification **remain pending** (no Render
+  access in the environment); everything else was verified in production mode
+  against a seeded SQLite override (startup guard, CORS without wildcard,
+  auth gate, health, every /api/v2 read + write path, cross-investigation
+  isolation for all six resource types, evidence integrity, production web
+  build in API mode with no localhost in the bundle). See
+  [PHASE_17.10_COMPLETE.md](PHASE_17.10_COMPLETE.md).
+- **18.1 -- Authentication + RBAC (real layer).** The dev-identity `X-User-Id`
+  gate was replaced by real JWT authentication and a role-based access-control
+  model. `POST /api/v2/auth/login` (the only public v2 endpoint) verifies bcrypt
+  hashes and issues a 30-minute HS256 JWT; `GET /auth/me` returns the safe
+  profile; `/admin/users` and `/admin/audit` expose user management and the auth
+  audit trail (`permission_denied` events are recorded on every RBAC denial).
+  Every v2 mutation is gated by `CanMutateDep`, investigation delete by
+  `SupervisorDep`, and assistant reads by any authenticated user; the role
+  hierarchy is `admin` > `supervisor` > `investigator` with a distinct read-only
+  `auditor`. The token is a stateless JWT — forged roles are rejected with 403,
+  malformed/expired tokens with 401, and `X-User-Id` is never trusted. A new
+  Alembic revision (`c4d5e6f7a8b9`) adds `users` + `auth_audit_events`; the seed
+  idempotently creates four demo users. The web app gained `/login`, an
+  `AuthGate` route guard, `AuthBootstrap` (401 -> logout), a profile page, a
+  role-gated Security page (users + audit) and role-filtered navigation with
+  auditor read-only gating; the API client attaches `Authorization: Bearer`.
+  Backend: 207 pytest, ruff clean. Frontend: 81 suites / 667 tests, tsc +
+  eslint clean, `next build` green both modes. Live Render deployment remains
+  pending. See [PHASE_18.1_COMPLETE.md](PHASE_18.1_COMPLETE.md).
+- **18.2 -- Tamper-evident evidence chain of custody.** Every evidence lifecycle
+  transition appends a SHA-256 hash-chain link in PostgreSQL
+  (`evidence_chain_entries`, migration `d5e6f7a8b9c0`, 19 model tables). **This is
+  NOT a blockchain** — no distributed ledger, consensus, nodes or tokens; the
+  chain is a per-evidence sequence of links (action, payload/metadata/previous/
+  entry hashes, actor snapshot) pinned by `previous_entry_hash` and replayed by
+  `EvidenceChainVerifier`, which also recomputes the live payload checksum so a
+  post-hoc evidence-body edit reports `TAMPERED` (deleted/missing link →
+  `BROKEN_CHAIN`, no links → `MISSING`). Genesis links are appended
+  automatically by interactive evidence create and CDR ingestion (actor
+  resolution centralized in `EvidenceChainService.append`); the seed
+  idempotently blocks existing demo evidence. API: `GET /{id}/chain`,
+  `GET /{id}/chain/verify` (read-only, auditor-friendly, never writes audit),
+  `POST /{id}/chain/verify` (audited `evidence_chain_verified` /
+  `evidence_chain_verify_failed`), `POST /evidence` (audited
+  `evidence_chain_created`); all reads scoped 404-safe by `investigation_id`.
+  Frontend: `EvidenceChainPanel` on the evidence detail view + compact custody
+  section in `EvidenceContextView`, mock-mode honestly absent (no fabricated
+  hashes). Backend: 227 pytest, ruff clean. Frontend: 83 suites / 687 tests,
+  tsc + eslint clean, `next build` green in mock + API modes. Live Render
+  deployment remains pending. See [PHASE_18.2_COMPLETE.md](PHASE_18.2_COMPLETE.md).
+- **18.4 -- Blockchain-inspired custody hardening.** The existing relational
+  chain now uses deterministic `GENESIS` linking, canonical SHA-256 event
+  hashes, authoritative evidence checksums, authenticated actor/timestamp
+  inputs, structured verification failures, and explicit investigation
+  isolation. This is a permissioned, relational, SHA-256 hash-linked
+  tamper-evident evidence chain. It is not a public blockchain. See
+  [PHASE_18.4_COMPLETE.md](PHASE_18.4_COMPLETE.md).
+- **18.6 -- Durable evidence object storage.** The existing storage boundary
+  now supports local filesystem development and server-configured
+  S3-compatible production storage with deterministic investigation-scoped
+  object keys. PostgreSQL remains the metadata/checksum/provenance/custody
+  source of truth; raw payload storage never bypasses authorization.
+ - **18.7 -- Real evidence payload lifecycle.** `POST /evidence/upload` is a
+  JWT/RBAC-protected multipart endpoint. It validates the server-configured
+  `EVIDENCE_MAX_UPLOAD_BYTES` limit and safe filename, assigns the existing
+  investigation-scoped object key, stores bytes through `EvidenceStorage`,
+  records the raw SHA-256 through `evidence_integrity`, persists metadata plus
+  `DataProvenance`, and appends `EVIDENCE_UPLOADED` in the existing custody
+  chain. `GET /evidence/{id}/download` checks scope and storage integrity
+  before streaming; it never creates a public URL. Storage-first failures and
+  database failures attempt compensating object deletion. CSV ingestion remains
+  unchanged; non-CSV files in the existing Data Intelligence uploader use the
+  evidence endpoint.
 
 ---
 
@@ -205,24 +351,32 @@ handler. Mounted in `app/main.py` beside the legacy `/api/v1` routers:
 
 | Router | Purpose |
 |---|---|
+| `auth` | `POST /auth/login` (public), `GET /auth/me` (Phase 18.1) |
+| `admin` | `GET /admin/users`, `GET /admin/audit` (role-gated, Phase 18.1) |
 | `investigations` | CRUD + paginated list + summary |
-| `entities` / `relationships` | CRUD |
-| `findings` / `evidence` / `events` / `notes` | CRUD |
+| `entities` / `relationships` | CRUD (+ scoped entity read `?investigation_id=`, Phase 17.7; + scoped relationship read `?investigation_id=`, Phase 17.8) |
+| `findings` / `evidence` / `events` / `notes` | CRUD (+ scoped evidence read & `/evidence/{id}/integrity`, Phase 17.6; + scoped findings/events/notes reads `?investigation_id=`, Phase 17.9) |
+| `evidence` chain (Phase 18.2) | `GET /evidence/{id}/chain` (scoped read), `GET /evidence/{id}/chain/verify` (read-only verify, auditor OK), `POST /evidence/{id}/chain/verify` (audited verify) |
 | `timeline` | unified timeline for an investigation |
 | `network` | graph + analytics |
 | `investigation_resources` | nested lists under `/investigations/{id}/…` |
+| `assistant` | `/status`, `/providers`, AI query (authenticated; read-only by role) |
 
 **Error contract** — every failure serializes as
 `{code, message, details, status_code}` via domain exceptions in
 `app/api/errors.py` (`NotFoundError`, `ConflictError`, `IntegrityError`,
 `AuthRequiredError`, `NotAuthorizedError`, with `*Error` suffixes per ruff N818).
 
-**Dependencies** (`app/api/deps.py`) — `get_session` FastAPI dep and a
-dev-identity gateway (`get_current_user`): in production an `X-User-Id` header
-is required and must **match** the server-configured `AUTH_ACTOR_EMAIL`
-(default `inspector.mehta@trinetra.local`); any other value is rejected with
-401 so a caller cannot impersonate a different identity (Phase 22). In
-development the header is optional and falls back to the default investigator.
+**Dependencies** (`app/api/deps.py`) — `get_session` FastAPI dep and the
+Phase 18.1 authentication/RBAC gateway:
+- `CurrentUserDep` — parses the `Authorization: Bearer <JWT>`, rejects
+  malformed/expired tokens with 401 `unauthorized` and loads the active user.
+- `CanMutateDep` — `CurrentUserDep` + not the read-only `auditor` (403
+  `forbidden`, audit event recorded).
+- `SupervisorDep` — `CanMutateDep` + rank >= `supervisor` (incumbent protection
+  forbids an admin from demoting/deactivating themselves).
+The old `X-User-Id` header is **no longer trusted** — identity comes only from
+the bearer token.
 
 ---
 
@@ -275,46 +429,31 @@ list/detail/nested/graph/analytics reads are fully API-backed.
   payload + metadata for an evidence id under a configurable base directory
   (`<base>/<evidence_id>/payload` + `meta.json`), with `save/load/delete/exists/
   list_ids`. Idempotent and dependency-free; the production swap is object
-  storage. Links to the `storage_ref` field on relational evidence.
+  storage. Since Phase 17.6 the digest of the payload blob is computed with a
+  deterministic SHA-256 helper and compared against the row's `integrity`
+  checksum at ingestion. Links to the `storage_ref` field on relational evidence.
 - **`CsvReader`** (`app/intelligence/csv_reader.py`) — parses CSV into
   provenance-carrying `CsvRow`s (dataset name, physical row index, record
   identifier via `id_column`), validating `required_columns`. This is the
   ingestion boundary for CDR / bank / FIR / GST extracts.
-
-## Blockchain Evidence Integrity (Phase 21)
-
-Phase 21 layers a deterministic integrity anchoring mechanism onto the evidence
-architecture. For each evidence item the system derives a SHA-256 checksum and a
-replayable custody chain hash. These hashes are optionally anchored on an
-abstracted EVM-compatible blockchain through a provider abstraction that ships
-with a deterministic mock registry and a lazy-import real `web3` provider.
-
-The anchor payload is the 64-character digest only — raw evidence and personally
-identifiable information never cross a provider boundary. The custody chain is
-derived (replayed from the evidence record plus the anchor row), not persisted
-as a separate ledger. Backend endpoints live under `/evidence/{id}/*` and the
-frontend surfaces the integrity state through the `EvidenceDetailPanel`.
-
-See [PHASE_21_COMPLETE.md](PHASE_21_COMPLETE.md) and
-[PHASE_21_REPORT.md](PHASE_21_REPORT.md) for the full specification.
 
 ---
 
 ## Verification
 
 ```bash
-# Backend — SQLite override for local verification
+# Backend -- SQLite override for local verification
 cd apps/api
-.\venv\Scripts\python.exe -m pytest -q        # 139 passing (Phase 17.5)
+.\venv\Scripts\python.exe -m pytest -q        # 227 passing (Phase 18.2); warnings pre-existing
 .\venv\Scripts\python.exe -m ruff check .     # clean (alembic/ excluded)
-alembic upgrade head                          # 16 tables apply
+alembic upgrade head                          # 19 tables apply (incl. users, auth_audit_events, evidence_chain_entries)
 
 # Frontend
 cd apps/web
 npx tsc --noEmit                              # clean
 npx eslint src --ext .ts,.tsx                 # clean (1 pre-existing font warning)
-npx jest                                      # 62 suites + 8 new suites (Phase 17.5)
-npx next build                                # routes green
+npx jest                                      # 83 suites / 687 tests (Phase 18.2)
+npx next build                                # routes green (mock + API modes)
 ```
 
 > PostgreSQL is the production target; integration is verified against
@@ -326,7 +465,9 @@ npx next build                                # routes green
 > PostgreSQL only. Phase 15 additionally exercises the full production path
 > (migrate → seed → `/api/v2` list/detail/summary/nested/timeline/network/
 > analytics) in production mode and confirms the API boots with a `DATABASE_URL`
-> wired exactly as the Render Blueprint does.
+> wired exactly as the Render Blueprint does. Phase 18.1 adds real login
+> (`/api/v2/auth/*`) and RBAC across the v2 surface; unauthenticated requests in
+> production receive 401 `unauthorized`.
 
 ---
 
@@ -337,3 +478,30 @@ npx next build                                # routes green
 - `@trinetra-pulse/types` shared package remains the single source of type
   truth; the v2 client defines its own response shapes matching the backend
   schemas so it can evolve independently of the demo-mirror types.
+
+## Phase 18.3 — real suspicious-pattern detection
+
+Pattern detection is a read-time service boundary at
+`app/services/real/patterns.py`, backed by deterministic detector functions in
+`app/intelligence/anomaly_detection.py`. It batches the current investigation's
+entities, relationships, and evidence, then returns a typed
+`PatternDetectionResponse`; no new database table is required.
+
+The detectors are deliberately analytical:
+
+- directed cycles up to six entities, canonicalized to remove rotation
+  duplicates, with amounts only when numeric persisted relationship metadata
+  contains them;
+- person-to-phone multiplicity, shared phone associations, and rapid switching
+  only when relationship timestamps support that language;
+- degree-based high-connectivity hubs using the investigation's own degree
+  distribution;
+- articulation points in the undirected persisted graph as bridge-entity leads;
+- relationship-count expansion across the available `start_date`/`end_date`
+  range, with no result when timestamps are insufficient.
+
+`GET /api/v2/investigations/{investigation_id}/patterns` uses the existing JWT
+and RBAC dependencies and the existing error contract. The frontend API client
+maps the result into the established analytics panel and Context Inspector;
+entity and evidence IDs remain navigable. Mock mode still uses the existing
+in-memory structural engine and API mode has no mock fallback.

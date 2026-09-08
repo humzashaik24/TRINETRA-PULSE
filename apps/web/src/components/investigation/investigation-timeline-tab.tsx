@@ -7,7 +7,6 @@ import {
   StickyNote,
   GitBranch,
   Magnet,
-  GitFork,
 } from 'lucide-react';
 import { useInvestigationStore } from '@/state/investigation.store';
 import { useShellStore } from '@/state/shell.store';
@@ -32,14 +31,7 @@ import { cn } from '@/lib/utils';
 //   SYSTEM       — system milestones (created, updated)
 // ============================================================
 
-type TimelineCategory =
-  | 'event'
-  | 'evidence'
-  | 'finding'
-  | 'note'
-  | 'activity'
-  | 'system'
-  | 'relationship';
+type TimelineCategory = 'event' | 'evidence' | 'finding' | 'note' | 'activity' | 'system';
 
 const CATEGORY_META: Record<
   TimelineCategory,
@@ -81,18 +73,11 @@ const CATEGORY_META: Record<
     chip: 'text-foreground-muted bg-surface-elevated',
     dot: 'bg-foreground-muted',
   },
-  relationship: {
-    label: 'RELATIONSHIP',
-    icon: GitFork,
-    chip: 'text-evidence bg-evidence-subtle',
-    dot: 'bg-evidence',
-  },
 };
 
 const CATEGORY_ORDER: TimelineCategory[] = [
   'event',
   'evidence',
-  'relationship',
   'finding',
   'note',
   'activity',
@@ -191,8 +176,7 @@ export function InvestigationTimelineTab() {
             (item.refType === 'event' ||
               item.refType === 'evidence' ||
               item.refType === 'note' ||
-              item.refType === 'finding' ||
-              item.refType === 'relationship');
+              item.refType === 'finding');
           return (
             <div
               key={item.id}
@@ -204,7 +188,6 @@ export function InvestigationTimelineTab() {
                   'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
                   item.category === 'event' && 'bg-network-subtle text-network',
                   (item.category === 'evidence') && 'bg-brand/10 text-brand',
-                  item.category === 'relationship' && 'bg-evidence-subtle text-evidence',
                   (item.category === 'finding') && 'bg-surface-elevated text-foreground',
                   item.category === 'note' && 'bg-surface-elevated text-foreground',
                   (item.category === 'activity' || item.category === 'system') && 'bg-surface-elevated text-foreground-muted'
@@ -254,9 +237,6 @@ function contextForEntry(
     case 'finding':
       return { type: 'finding', id: item.refId!, title: item.title, investigationId };
     case 'evidence':
-      return { type: 'evidence', id: item.refId!, title: item.title, investigationId };
-    case 'relationship':
-      return { type: 'relationship', id: item.refId!, investigationId };
     default:
       return { type: 'evidence', id: item.refId!, title: item.title, investigationId };
   }

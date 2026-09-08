@@ -21,7 +21,7 @@ import { AIAssistantBridge } from '@/components/ai/ai-assistant-bridge';
 // so the primary surface is never lost.
 // ============================================================
 
-const TABLET_BREAKPOINT = 1024;
+const TABLET_BREAKPOINT = 1080;
 const MOBILE_BREAKPOINT = 768;
 
 function ViewportObserver() {

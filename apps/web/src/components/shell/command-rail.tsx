@@ -24,8 +24,10 @@ import {
 import {
   PRIMARY_RAIL_SECTIONS,
   UTILITY_RAIL_SECTIONS,
+  filterRailItemsByRole,
   type RailItem,
 } from '@/components/navigation/rail-config';
+import { useAuthStore } from '@/state/auth.store';
 
 // ============================================================
 // PHASE 3.5 — COMMAND RAIL
@@ -155,10 +157,20 @@ export function CommandRail() {
   const expanded = useShellStore((s) => s.railExpanded);
   const viewport = useShellStore((s) => s.viewport);
   const reduced = useReducedMotion();
+  const role = useAuthStore((s) => s.session?.user.role);
 
   if (viewport === 'mobile') {
     return <MobileBottomNav />;
   }
+
+  const primarySections = PRIMARY_RAIL_SECTIONS.map((section) => ({
+    ...section,
+    items: filterRailItemsByRole(section.items, role),
+  }));
+  const utilitySections = UTILITY_RAIL_SECTIONS.map((section) => ({
+    ...section,
+    items: filterRailItemsByRole(section.items, role),
+  }));
 
   const width = expanded ? RAIL_EXPANDED_WIDTH : RAIL_COLLAPSED_WIDTH;
 
@@ -179,7 +191,7 @@ export function CommandRail() {
         )}
         aria-label="Global sections"
       >
-        {PRIMARY_RAIL_SECTIONS.map((section) => (
+        {primarySections.map((section) => (
           <div key={section.id} className="space-y-0.5">
             {expanded && (
               <p className="tp-data-label px-2.5 pb-1 pt-1">{section.label}</p>
@@ -195,7 +207,7 @@ export function CommandRail() {
         className={cn('shrink-0 space-y-0.5 py-3', expanded ? 'px-3' : 'px-2')}
         aria-label="Workspace"
       >
-        {UTILITY_RAIL_SECTIONS.map((section) =>
+        {utilitySections.map((section) =>
           section.items.map((item) => (
             <RailLink key={item.href} item={item} expanded={expanded} />
           ))

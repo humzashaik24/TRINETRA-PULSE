@@ -19,11 +19,16 @@ API (app/api/routers)
 
 - `Settings.database_url` (`apps/api/app/core/config.py`): an explicit
   `DATABASE_URL` wins; otherwise `POSTGRES_*` components compose
-  `postgresql+asyncpg://…`.
+  `postgresql+asyncpg://…`. Since Phase 17.10 a bare `postgres://` or
+  `postgresql://` connection string (exactly what Render's managed database
+  exposes) is normalized to `postgresql+asyncpg://…` for the async engine.
 - `Settings.database_url_sync`: Alembic's synchronous URL (strips `+asyncpg` /
-  `+aiosqlite` driver segments).
+  `+aiosqlite` driver segments, normalizes `postgres://` → `postgresql://`);
+  requires the `psycopg2` driver (in `requirements.txt` since Phase 17.10).
 - `app/db/session.py`: `create_async_engine` + `async_sessionmaker`
-  (`expire_on_commit=False`). FastAPI dependency `get_session` in
+  (`expire_on_commit=False`). Pool sizing is configurable via `DB_POOL_SIZE` /
+  `DB_MAX_OVERFLOW` (defaults 5/5; `render.yaml` sets 3/2 for free-tier
+  PostgreSQL connection limits). FastAPI dependency `get_session` in
   `app/api/deps.py`.
 - **Portable types** (`app/db/types.py`): `Uuid` (native `UUID` on PG,
   `CHAR(32)` on SQLite) and `JSONB` TypeDecorator (true `JSONB` on PG,
@@ -31,7 +36,7 @@ API (app/api/routers)
 
 ---
 
-## Schema (16 tables)
+## Schema (19 tables)
 
 | Table | Model | Notes |
 |---|---|---|
@@ -39,7 +44,7 @@ API (app/api/routers)
 | `entities` | `Entity` | investigation-scoped; `entity_type` enum |
 | `relationships` | `Relationship` | investigation-scoped; source/target FKs |
 | `findings` | `InvestigationFinding` | investigation-scoped |
-| `evidence` | `InvestigationEvidence` | investigation-scoped; `storage_ref` → payload store |
+| `evidence` | `InvestigationEvidence` | investigation-scoped; `storage_ref` → payload store; SHA-256 `checksum` kept in the `metadata` JSONB (Phase 17.6) |
 | `events` | `InvestigationEvent` | investigation-scoped |
 | `investigation_notes` | `InvestigationNote` | investigation-scoped |
 | `data_sources` | `DataSource` | catalog of import sources |
@@ -51,12 +56,43 @@ API (app/api/routers)
 | `entity_resolutions` | `EntityResolution` | resolution graph |
 | `evidence_entity_links` | `EvidenceEntityLink` | links evidence ↔ entities |
 | `data_provenance` | `DataProvenance` | provenance trail |
+| `users` | `User` | Phase 18.1 — auth identities (email unique, bcrypt password, `UserRole`) |
+| `auth_audit_events` | `AuthAuditEvent` | Phase 18.1 — login/Permission/evidence-chain audit trail |
+| `evidence_chain_entries` | `EvidenceChainEntry` | Phase 18.2 — per-evidence SHA-256 chain of custody |
 
-> **Organization / User**: Phase 14.2 deliberately models organization as an
-> `entity_type` (`Entity.entity_type = ORGANIZATION`) and identity as a
-> `CurrentUser` dependency (`app/api/deps.py`), rather than inventing
-> dedicated `organization`/`users` tables. This preserves the established
-> schema and domain contracts — no unnecessary tables are created.
+> **Evidence chain of custody (Phase 18.2).** `evidence_chain_entries` is the
+> tamper-evident, per-evidence hash chain — **deliberately NOT a blockchain**
+> (relational, replayable from PostgreSQL only; no distributed ledger). Every
+> lifecycle transition (create, upload, access, verification, metadata update,
+> export) appends a link: `payload_hash` (canonical evidence row + metadata
+> JSON), `metadata_hash`, `previous_entry_hash` (pins the link to its
+> predecessor), and `entry_hash = SHA-256(previous:sequence:action:payload:
+> metadata)`. `UNIQUE (evidence_id, sequence_number)` preserves ordering; FKs to
+> `evidence` + `investigations` cascade on delete; the verifier replays the
+> chain **and** recomputes the live payload checksum, so post-hoc edits report
+> `TAMPERED` and deleted/missing links report `BROKEN_CHAIN`. `action` is a
+> plain `VARCHAR(32)` (no server-side enum/CHECK) → identical semantics on
+> SQLite/PostgreSQL.
+
+> **Phase 18.4 hardening.** The custody ledger is a permissioned, relational,
+> SHA-256 hash-linked tamper-evident evidence chain. It is not a public
+> blockchain. Entries use a deterministic `GENESIS` link, canonical metadata,
+> authoritative evidence checksums, actor snapshots, and event timestamps.
+> Verification recomputes hashes and links; the focused follow-up migration
+> backfills timestamps for existing PostgreSQL rows.
+
+> **Phase 18.6 storage.** Raw payload bytes are outside PostgreSQL and are
+> addressed through the existing `EvidenceStorage` abstraction. Metadata,
+> `storage_ref`, checksums, provenance, and custody hashes remain relational.
+> Production uses an operator-configured S3-compatible bucket; no database
+> table or migration was added.
+
+> **Identity model**: Phase 14.2 modeled organization as an `entity_type`
+> (`Entity.entity_type = ORGANIZATION`) and operators via the `CurrentUser`
+> dependency rather than inventing tables. Phase 18.1 superseded only the
+> operator half of that with a real `users` table (`User`, bcrypt-hashed
+> passwords) + `auth_audit_events`, while organization-as-entity_type remains
+> the domain contract. No unnecessary tables were created.
 
 ## Investigation scoping & isolation
 
@@ -68,6 +104,20 @@ services resolve the investigation first. This guarantees no cross-investigation
 leakage — e.g. listing entities under `inv-006` never returns another
 investigation's rows (covered by `tests/test_investigation_isolation.py`).
 
+## Integrity metadata (Phase 17.6)
+
+Every persisted `evidence` row carries an `integrity` JSONB block:
+`{"checksum": "<sha256 hex>", "status": "VERIFIED"}`. The checksum is the
+SHA-256 digest of a **canonicalised evidence payload** (title, description,
+evidence type, collected date, canonical provenance fields), computed by
+`app/services/evidence_integrity.py` at write time through the service layer
+(the row's `integrity`), and by `app/storage/evidence_storage.py` over the
+payload blob at ingestion (so a tampered blob mismatches the row checksum).
+Canonicalisation normalises datetimes (naive UTC, microsecond-trimmed) so the
+digest is stable across SQLite/PostgreSQL datetime round-trips. It is surfaced
+by `GET /api/v2/evidence/{id}/integrity` and as a per-row `integrity` field on
+the nested evidence list.
+
 ---
 
 ## Migrations (Alembic)
@@ -78,6 +128,15 @@ investigation's rows (covered by `tests/test_investigation_isolation.py`).
   - `029f568507fd_initial_schema` — base 13 tables.
   - `a1b2c3d4e5f6_add_datasets` — `data_sources`, `datasets`,
     `ingestion_jobs` (→ 16 tables).
+  - `b2c3d4e5f6a7_extend_provenance` — `data_provenance` gains
+    `investigation_id` / `dataset_id` / `ingestion_job_id` FKs and `checksum`
+    (investigation scoping + integrity). Uses `op.batch_alter_table` so the
+    constraint DDL applies on both SQLite (batch table rebuild) and PostgreSQL
+    (passthrough).
+  - `c4d5e6f7a8b9_add_users_auth_audit` — `users` + `auth_audit_events`
+    (Phase 18.1, → 18 tables).
+  - `d5e6f7a8b9c0_add_evidence_chain_entries` — `evidence_chain_entries`
+    (Phase 18.2, → 19 tables).
 - From an **empty** database:
 
 ```bash
@@ -86,7 +145,19 @@ DATABASE_URL="<postgres url>" python -m alembic upgrade head
 ```
 
 Verified to generate clean PostgreSQL DDL in offline mode and to apply on
-SQLite; designed to be applied against a fresh Render PostgreSQL.
+SQLite; designed to be applied against a fresh Render PostgreSQL. Phase 18.1/18.2:
+`alembic upgrade head` re-verified against a fresh DB (**19 model tables** +
+`alembic_version`; Phase 18.1 added `users` + `auth_audit_events`, Phase 18.2
+added `evidence_chain_entries`) and `alembic upgrade head --sql` re-generated
+valid PostgreSQL DDL. All **five** revisions are **additive** (create → add
+datasets → extend provenance → auth tables → evidence chain) — no destructive
+migration exists.
+
+> On Render, `render.yaml` configures the API service's `preDeployCommand` to
+> run `python -m alembic upgrade head` before every deploy, so the managed
+> PostgreSQL schema is always current. Still, **live PostgreSQL verification
+> remains pending** (Phase 17.10 could not reach a managed database from the
+> working environment).
 
 > Generation of new migrations must go through Alembic. `Base.metadata.create_all`
 > exists only inside `app.db.seed` for one-shot fresh-demo convenience and is

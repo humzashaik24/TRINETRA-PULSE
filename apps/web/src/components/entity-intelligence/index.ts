@@ -18,7 +18,6 @@ export { EntityEvents } from './entity-events';
 export { EntityEvidence } from './entity-evidence';
 export { EntityActivity } from './entity-activity';
 export { EntitySources } from './entity-sources';
-export { EntityResolutionSection } from './entity-resolution-section';
 export { ExtractionJobs } from './extraction-jobs';
 export { CandidateReview } from './candidate-review';
 export { ResolutionReview } from './resolution-review';

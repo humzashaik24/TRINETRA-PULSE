@@ -5,17 +5,24 @@ import { Search, CircleGauge, FileText, Link2, Sparkles, AlertTriangle } from 'l
 import { Badge, Button } from '@trinetra-pulse/ui';
 import { useEvidenceStore } from '@/state/evidence.store';
 import { retrieveEvidenceContext } from '@/ai/evidence-retrieval';
+import { retrieveInvestigationContext } from '@/ai/retrieval';
+import { isMockData } from '@/lib/api/config';
+import { OPERATION_MERIDIAN_ID } from '@/lib/api/evidence';
 import { EVIDENCE_TYPE_LABELS, formatPercent } from '@/lib/format';
 import { EVIDENCE_TYPE_VARIANT } from '@/components/evidence/evidence-domain';
-import type { AIContextSource, AIContextScope } from '@trinetra-pulse/types';
+import type { AIContextSource, AIContextScope, AISourceReference } from '@trinetra-pulse/types';
 
 // ============================================================
-// EVIDENCE RETRIEVAL (Grounded AI) — Phase 12
+// EVIDENCE RETRIEVAL (Grounded AI) — Phase 12 / 17.6
 // ============================================================
 // Query-driven grounded retrieval. Sources are evidence items
 // that carry provenance + clickable references. A truncated run
 // is surfaced explicitly so callers never mistake it for a
 // complete result set.
+// Phase 17.6 — mock mode uses the deterministic in-memory retrieval;
+// API mode uses the persisted investigation-scoped retrieval
+// (GET /api/v2 ... from ai/retrieval.ts). No silent fallback.
+// ============================================================
 
 interface RetrievalResult {
   sources: AIContextSource[];
@@ -31,12 +38,36 @@ const SAMPLE_QUERIES = [
   'Summarize the movement to Chennai in February',
 ];
 
+/** Map persisted evidence rows from the bounded retrieval bundle into the
+ *  panel's AIContextSource shape, keeping the evidence-type chip payload. */
+function sourcesFromApiBundle(
+  bundle: Awaited<ReturnType<typeof retrieveInvestigationContext>> | null,
+): AIContextSource[] {
+  if (!bundle) return [];
+  return (bundle.bundle.evidence ?? []).map((e): AIContextSource => ({
+    type: 'Evidence',
+    sourceId: e.id,
+    label: e.title,
+    summary: e.summary,
+    references: [
+      {
+        id: `Evidence:${e.id}`,
+        sourceType: 'Evidence',
+        sourceId: e.id,
+        label: e.title,
+        relevance: 0.6,
+        payload: { evidenceType: e.evidenceType },
+      } satisfies AISourceReference,
+    ],
+  }));
+}
+
 export function EvidenceRetrievalPanel({
   onSelectEvidence,
 }: {
   onSelectEvidence?: (id: string) => void;
 }) {
-  const investigationId = useEvidenceStore((s) => s.investigationId) ?? 'inv-006';
+  const investigationId = useEvidenceStore((s) => s.investigationId) ?? (isMockData() ? 'inv-006' : OPERATION_MERIDIAN_ID);
   const selectItem = useEvidenceStore((s) => s.selectItem);
   const handleSelect = onSelectEvidence ?? selectItem;
 
@@ -50,14 +81,32 @@ export function EvidenceRetrievalPanel({
     setRunning(true);
     setResult(null);
     const scope: AIContextScope = {};
-    const r = await retrieveEvidenceContext({ query: trimmed, investigationId, scope });
-    setResult({
-      sources: r.evidenceSources,
-      linkedEntityIds: r.linkedEntityIds,
-      linkedFindingIds: r.linkedFindingIds,
-      truncated: r.truncated,
-      note: r.note,
-    });
+    let next: RetrievalResult;
+    if (isMockData()) {
+      const r = await retrieveEvidenceContext({ query: trimmed, investigationId, scope });
+      next = {
+        sources: r.evidenceSources,
+        linkedEntityIds: r.linkedEntityIds,
+        linkedFindingIds: r.linkedFindingIds,
+        truncated: r.truncated,
+        note: r.note,
+      };
+    } else {
+      const r = await retrieveInvestigationContext({ investigationId });
+      const sources = sourcesFromApiBundle(r);
+      next = {
+        sources,
+        linkedEntityIds: (r?.sources ?? [])
+          .filter((s) => s.sourceType === 'Entity')
+          .map((s) => s.sourceId),
+        linkedFindingIds: (r?.sources ?? [])
+          .filter((s) => s.sourceType === 'Finding')
+          .map((s) => s.sourceId),
+        truncated: r?.truncated ?? false,
+        note: r ? undefined : 'Retrieval encountered an error. Evidence context may be incomplete.',
+      };
+    }
+    setResult(next);
     setRunning(false);
   };
 

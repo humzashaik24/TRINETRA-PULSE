@@ -47,42 +47,59 @@ export interface RequestOptions {
   isFormData?: boolean;
 }
 
-/**
- * SIH demonstration identity sent to the backend on every request.
- *
- * The real application layer gates on an identity via the ``X-User-Id`` header
- * (``app/api/deps.py``): in production the header is required AND must match the
- * server-configured actor (``AUTH_ACTOR_EMAIL``), so a client can not impersonate
- * an arbitrary identity; any non-matching value is rejected with 401. For the
- * demonstration the web client presents the documented default inspector so the
- * deployed browser → FastAPI → PostgreSQL flow works end-to-end without a full
- * authentication system. A real auth layer would replace this value with the
- * authenticated user's identifier rather than altering the API contract.
- */
-const DEMO_USER_ID = 'inspector.mehta@trinetra.local';
+// ---------------------------------------------------------------------------
+// Phase 18.1 authentication wiring.
+//
+// The client attaches the authenticated user's Bearer token to every request
+// to the real layer. The token is registered by the auth store (never read by
+// us or stored in this module); a fixed demo identity header was removed
+// because ``X-User-Id`` is no longer trusted by the backend. When a request
+// comes back 401 while a token was attached, the optional handler lets the
+// auth layer end the (now invalid) session.
+// ---------------------------------------------------------------------------
+
+let currentAccessToken: string | null = null;
+let onUnauthorizedHandler: (() => void) | null = null;
+
+/** Register the active JWT (or clear it) for outgoing requests. */
+export function setAuthAccessToken(token: string | null): void {
+  currentAccessToken = token;
+}
+
+/** Register a callback invoked when an authenticated request returns 401. */
+export function setOnUnauthorized(handler: (() => void) | null): void {
+  onUnauthorizedHandler = handler;
+}
+
+function buildHeaders(options: RequestOptions): Record<string, string> {
+  const inferred: Record<string, string> = currentAccessToken
+    ? { Authorization: `Bearer ${currentAccessToken}` }
+    : {};
+  if (!(options.isFormData && options.body instanceof FormData)) {
+    inferred['Content-Type'] = 'application/json';
+  }
+  return { ...inferred, ...(options.headers ?? {}) };
+}
 
 export async function apiFetch<T>(
   baseUrl: string,
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { method = 'GET', body, signal, headers, isFormData } = options;
+  const { method = 'GET', body, signal, isFormData } = options;
   const isForm = isFormData && body instanceof FormData;
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     signal,
-    headers: isForm
-      ? { 'X-User-Id': DEMO_USER_ID, ...(headers ?? {}) }
-      : {
-          'Content-Type': 'application/json',
-          'X-User-Id': DEMO_USER_ID,
-          ...(headers ?? {}),
-        },
+    headers: buildHeaders(options),
     body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   });
 
   if (!response.ok) {
     const payload = await parseBody(response);
+    if (response.status === 401 && currentAccessToken) {
+      onUnauthorizedHandler?.();
+    }
     const errBody: ApiErrorBody =
       payload && typeof payload === 'object' && 'code' in (payload as object)
         ? (payload as ApiErrorBody)
@@ -97,4 +114,31 @@ export async function apiFetch<T>(
 
   if (response.status === 204) return undefined as T;
   return (await parseBody(response)) as T;
+}
+
+/** Authenticated binary response helper for evidence retrieval. */
+export async function apiFetchBlob(
+  baseUrl: string,
+  path: string,
+  options: Omit<RequestOptions, 'body' | 'isFormData'> = {},
+): Promise<Blob> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: options.method ?? 'GET',
+    signal: options.signal,
+    headers: buildHeaders(options),
+  });
+  if (!response.ok) {
+    const payload = await parseBody(response);
+    const errBody: ApiErrorBody =
+      payload && typeof payload === 'object' && 'code' in (payload as object)
+        ? (payload as ApiErrorBody)
+        : {
+            code: 'http_error',
+            message: `Request failed with status ${response.status}`,
+            details: {},
+            status_code: response.status,
+          };
+    throw new ApiClientError(errBody);
+  }
+  return response.blob();
 }

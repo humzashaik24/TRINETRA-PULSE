@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/app.store';
 import type { EntityIntelligence } from '@trinetra-pulse/types';
 import { useShellStore } from '@/state/shell.store';
@@ -11,9 +11,12 @@ import {
   type EntitySummaryCounts,
 } from '@/components/entity-intelligence';
 import {
-  fetchEntities,
-  fetchEntityOverviewSummary,
-} from '@/services/entity.service';
+  DEMO_INVESTIGATION_ID,
+  useEntityStore,
+} from '@/state/entity.store';
+import { apiEntityOverviewSummary } from '@/lib/api/entities';
+import { isMockData } from '@/lib/api/config';
+import * as entityService from '@/services/entity.service';
 import {
   Button,
   Panel,
@@ -27,33 +30,54 @@ export default function EntitiesPage() {
   const setContextLabel = useAppStore((s) => s.setContextLabel);
   const selectContext = useShellStore((s) => s.selectContext);
 
-  const [entities, setEntities] = useState<Awaited<ReturnType<typeof fetchEntities>>['items']>([]);
-  const [counts, setCounts] = useState<EntitySummaryCounts | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    all,
+    loading,
+    error,
+    setInvestigationId,
+    fetchEntities,
+  } = useEntityStore();
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    Promise.all([fetchEntities({ pageSize: 200 }), fetchEntityOverviewSummary()])
-      .then(([list, summary]) => {
-        setEntities(list.items);
-        setCounts({
-          entities: summary.totalEntities,
-          candidates: summary.totalCandidates,
-          pendingResolutions: summary.pendingResolutions,
-          jobsRunning: summary.jobsRunning,
-        });
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load entities'))
-      .finally(() => setLoading(false));
+  const [mockCounts, setMockCounts] = useState<EntitySummaryCounts | null>(null);
+
+  const refreshMockCounts = useCallback(async () => {
+    const s = await entityService.fetchEntityOverviewSummary();
+    setMockCounts({
+      entities: s.totalEntities,
+      candidates: s.totalCandidates,
+      pendingResolutions: s.pendingResolutions,
+      jobsRunning: s.jobsRunning,
+    });
   }, []);
 
+  // Phase 17.7 — API mode reads the persisted investigation-scoped entities
+  // through the typed store; mock mode keeps the deterministic universe.
   useEffect(() => {
     setContextLabel('Entities');
-    load();
-    return () => setContextLabel(null);
-  }, [setContextLabel, load]);
+    setInvestigationId(DEMO_INVESTIGATION_ID);
+    if (isMockData()) {
+      void refreshMockCounts();
+    } else {
+      setMockCounts(null);
+    }
+    return () => {
+      setContextLabel(null);
+      setInvestigationId(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setContextLabel, setInvestigationId]);
+
+  const load = useCallback(() => {
+    if (isMockData()) void refreshMockCounts();
+    void fetchEntities();
+  }, [fetchEntities, refreshMockCounts]);
+
+  const counts: EntitySummaryCounts | null = useMemo(() => {
+    if (isMockData()) return mockCounts;
+    // API mode: only the persisted entity count is real; candidates /
+    // resolutions / jobs are pipeline surfaces without relational endpoints.
+    return apiEntityOverviewSummary(all.length);
+  }, [all, mockCounts]);
 
   const handleEntityClick = useCallback(
     (entity: EntityIntelligence) => {
@@ -65,6 +89,7 @@ export default function EntitiesPage() {
         id: entity.id,
         name: entity.displayName,
         entityType: entity.entityType,
+        investigationId: DEMO_INVESTIGATION_ID,
       });
     },
     [selectContext]
@@ -104,8 +129,8 @@ export default function EntitiesPage() {
             }
           >
             <EntityTable
-              entities={entities}
-              loading={loading && entities.length === 0}
+              entities={all}
+              loading={loading && all.length === 0}
               error={error}
               onRetry={load}
               onView={handleEntityClick}

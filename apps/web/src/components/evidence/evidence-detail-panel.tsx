@@ -10,8 +10,9 @@ import {
   ShieldCheck,
   History,
   ShieldAlert,
+  Download,
 } from 'lucide-react';
-import { Badge } from '@trinetra-pulse/ui';
+import { Badge, Button } from '@trinetra-pulse/ui';
 import { cn } from '@/lib/utils';
 import type { EvidenceItem, EvidenceLink } from '@trinetra-pulse/types';
 import {
@@ -26,7 +27,10 @@ import {
   EVIDENCE_TYPE_VARIANT,
   EVIDENCE_STATUS_VARIANT,
 } from './evidence-domain';
-import { EvidenceIntegritySection } from './evidence-integrity-section';
+import { EvidenceChainPanel } from './evidence-chain-panel';
+import { EvidenceAnalysisPanel } from './evidence-analysis-panel';
+import { downloadEvidence } from '@/lib/api/evidence';
+import { isMockData } from '@/lib/api/config';
 
 // ============================================================
 // EVIDENCE DETAIL PANEL
@@ -81,6 +85,26 @@ export function EvidenceDetailPanel({
   const eventLinks = evidence.links.filter((l) => l.targetType === 'event');
   const relationshipLinks = evidence.links.filter((l) => l.targetType === 'relationship');
   const evidenceLinks = evidence.links.filter((l) => l.targetType === 'evidence');
+  const [downloadError, setDownloadError] = React.useState<string | null>(null);
+
+  const handleDownload = async () => {
+    if (isMockData()) {
+      setDownloadError('Payload retrieval is available in API mode only.');
+      return;
+    }
+    setDownloadError(null);
+    try {
+      const blob = await downloadEvidence(evidence.id, evidence.investigationId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = evidence.filename ?? `${evidence.id}.payload`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'Download failed');
+    }
+  };
 
   return (
     <div className={cn('space-y-5', className)} data-testid="evidence-detail-panel">
@@ -153,6 +177,17 @@ export function EvidenceDetailPanel({
         {evidence.provenance.hash && (
           <DetailRow label="Hash" value={`${evidence.provenance.hash.slice(0, 12)}…`} mono />
         )}
+        {evidence.integrity && (
+          <>
+            <DetailRow label="Integrity" value={evidence.integrity.status} />
+            {'storage_status' in evidence.integrity && (
+              <DetailRow
+                label="Payload storage"
+                value={String(evidence.integrity.storage_status)}
+              />
+            )}
+          </>
+        )}
         {evidence.provenance.reviewState === 'FLAGGED' && (
           <div className="flex items-center gap-1.5 rounded-md bg-danger-subtle px-2 py-1 text-xs text-danger">
             <ShieldAlert className="h-3 w-3" /> Flagged for review
@@ -160,12 +195,14 @@ export function EvidenceDetailPanel({
         )}
       </div>
 
-      {/* Blockchain integrity (Phase 21) */}
-      <div>
-        <SectionTitle icon={<ShieldCheck className="h-3 w-3" />}>
-          Blockchain integrity
-        </SectionTitle>
-        <EvidenceIntegritySection evidence={evidence} />
+      <div className="space-y-2">
+        <Button size="sm" variant="secondary" onClick={() => void handleDownload()}>
+          <Download className="mr-1.5 h-3.5 w-3.5" /> View / Download payload
+        </Button>
+        {evidence.filename && <DetailRow label="Filename" value={evidence.filename} />}
+        {evidence.contentType && <DetailRow label="Type" value={evidence.contentType} />}
+        {evidence.size !== undefined && <DetailRow label="Size" value={`${evidence.size} bytes`} />}
+        {downloadError && <p className="text-xs text-danger">{downloadError}</p>}
       </div>
 
       {/* Linked entities */}
@@ -294,6 +331,24 @@ export function EvidenceDetailPanel({
             ))}
           </ol>
         </div>
+      )}
+
+      {/* Phase 18.2 — custody chain */}
+      {evidence.id && (
+        <EvidenceChainPanel
+          evidenceId={evidence.id}
+          investigationId={evidence.investigationId}
+        />
+      )}
+
+      {/* Phase 24 — multimedia understanding (+ Phase 25 local whisper) */}
+      {evidence.id && (
+        <EvidenceAnalysisPanel
+          evidenceId={evidence.id}
+          investigationId={evidence.investigationId}
+          evidenceType={evidence.evidenceType}
+          checksum={evidence.integrity?.checksum}
+        />
       )}
     </div>
   );
