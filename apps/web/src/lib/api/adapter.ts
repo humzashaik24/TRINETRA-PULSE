@@ -23,6 +23,7 @@ import type {
   Investigation,
   InvestigationAnalyticsSnapshot,
   InvestigationEntity,
+  InvestigationEvent,
   InvestigationEvidence,
   InvestigationFinding,
   InvestigationMember,
@@ -50,6 +51,7 @@ import {
   listRelationshipsForInvestigation,
   updateInvestigation,
   type RealEntity,
+  type RealEvent,
   type RealEvidence,
   type RealFinding,
   type RealInvestigation,
@@ -74,6 +76,15 @@ const DEFAULT_ROLE = 'Linked entity';
 
 const toIso = (value: string | null | undefined): string =>
   value ? new Date(value).toISOString() : new Date().toISOString();
+
+/**
+ * Temporal normalization for REAL temporal fields (event timestamp, evidence
+ * collected_at, timeline entry time). Unlike `toIso`, a missing value stays
+ * missing: it is never fabricated into "now" — the UI must render an honest
+ * "Time unavailable" instead.
+ */
+const toIsoOrNull = (value: string | null | undefined): string | null =>
+  value ? new Date(value).toISOString() : null;
 
 const confidenceToFinding = (value: string | null | undefined): FindingConfidenceLevel => {
   const v = (value ?? '').toUpperCase();
@@ -196,6 +207,10 @@ export function mapEvidence(evidence: RealEvidence): InvestigationEvidence {
     summary: evidence.description ?? '',
     linked_by: evidence.source ?? DEFAULT_LINKED_BY,
     linked_at: toIso(evidence.collected_at ?? evidence.created_at),
+    // Phase 29 — surface the persisted collection time as its own field so
+    // the UI can distinguish when evidence was COLLECTED from when it was
+    // LINKED into the investigation. Null stays null ("Time unavailable").
+    collected_at: toIsoOrNull(evidence.collected_at),
     metadata: evidence.metadata ?? {},
   };
 }
@@ -257,22 +272,41 @@ export function mapTimeline(
   investigationId: string,
 ): InvestigationTimelineItem[] {
   // The API timeline is a merged feed (event / note / finding / evidence),
-  // but the investigation workspace renders findings from its dedicated
-  // findings slice (InvestigationFinding), which the unified timeline tab
-  // merges separately. Mock timeline arrays never contain finding entries,
-  // so dropping them here keeps API mode identical to mock mode and
-  // prevents findings from being listed twice in the timeline UI.
-  const source = entries.filter((e) => e.kind !== 'finding');
+  // but the investigation workspace renders findings and evidence from their
+  // dedicated slices (InvestigationFinding / InvestigationEvidence), which
+  // the unified timeline tab merges separately. Mock timeline arrays never
+  // contain finding or evidence entries, so dropping them here keeps API mode
+  // identical to mock mode and prevents findings/evidence from being listed
+  // twice in the timeline UI.
+  const source = entries.filter((e) => e.kind !== 'finding' && e.kind !== 'evidence');
   return source.map((e, idx) => ({
     id: `tl-${e.ref_id ?? idx}`,
     investigation_id: investigationId,
-    timestamp: toIso(e.at),
+    timestamp: toIsoOrNull(e.at),
     category: (e.kind as InvestigationTimelineItem['category']) ?? 'system',
     title: e.title ?? 'Event',
     description: e.description ?? null,
     ref_id: e.ref_id,
     ref_type: e.kind ?? null,
     actor: e.actor ?? null,
+  }));
+}
+
+export function mapEvents(events: RealEvent[]): InvestigationEvent[] {
+  // The relational event row carries the real-world event time in
+  // `timestamp`; `occurred_at` mirrors it (null stays null — the UI renders
+  // "Time unavailable"). The relational model has no event↔entity link, so
+  // `entity_ids` is honestly empty until a contract defines one.
+  return events.map((e) => ({
+    id: e.id,
+    investigation_id: e.investigation_id,
+    title: e.event_type,
+    description: e.description ?? null,
+    occurred_at: toIsoOrNull(e.timestamp),
+    location: e.location ?? null,
+    event_type: (e.event_type as InvestigationEvent['event_type']) ?? 'other',
+    entity_ids: [],
+    created_at: toIso(e.created_at),
   }));
 }
 
@@ -316,6 +350,7 @@ export interface MappedWorkspace {
   evidence: InvestigationEvidence[];
   findings: InvestigationFinding[];
   notes: InvestigationNote[];
+  events: InvestigationEvent[];
   timeline: InvestigationTimelineItem[];
   activity: InvestigationActivityEntry[];
   members: InvestigationMember[];
@@ -402,8 +437,6 @@ export async function loadInvestigationWorkspace(
       ]
     : [];
 
-  void events;
-
   return {
     investigation: mapInvestigation(inv, summary),
     entities: mappedEntities,
@@ -411,6 +444,9 @@ export async function loadInvestigationWorkspace(
     evidence: mappedEvidence,
     findings: mappedFindings,
     notes: mappedNotes,
+    // Phase 29 — surface the persisted events slice (the load already
+    // fetched it) so the timeline inspector can resolve event rows by id.
+    events: mapEvents(events),
     timeline: mapTimeline(timeline?.entries ?? [], id),
     activity,
     members,

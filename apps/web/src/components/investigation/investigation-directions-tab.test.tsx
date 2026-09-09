@@ -122,6 +122,7 @@ describe('InvestigationDirectionsTab — detail panel & filters (Phase 27)', () 
       findings: [...rec.findings],
       notes: [...rec.notes],
       timeline: [...rec.timeline],
+      events: [],
       activity: [...rec.activity],
       members: [...rec.members],
       networks: [...rec.networks],

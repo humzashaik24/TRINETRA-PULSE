@@ -51,7 +51,7 @@ export type ContextSourceBundle = {
   analytics?: { nodes: number; relationships: number; communityCount: number; connectedComponents: number; topConnectedEntity: string | null; averageDegree: number; density: number; bridgeEntityCount: number } | null;
   evidence?: { id: string; title: string; summary: string; evidenceType: string }[];
   findings?: { id: string; title: string; description: string; category: string; confidence: string }[];
-  timeline?: { id: string; timestamp: string; title: string; description: string | null; category: string }[];
+  timeline?: { id: string; timestamp: string | null; title: string; description: string | null; category: string }[];
 };
 
 export interface BuildContextOptions {
@@ -160,7 +160,7 @@ export function buildInvestigationContext(
       sourceId: t.id,
       label: t.title,
       summary: summarize(t.title, [
-        `Timestamp: ${fmtDate(t.timestamp)}`,
+        `Timestamp: ${t.timestamp ? fmtDate(t.timestamp) : 'Time unavailable'}`,
         `Category: ${t.category}`,
         t.description ? `Description: ${t.description}` : null,
       ]),

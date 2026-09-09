@@ -154,7 +154,13 @@ export function InvestigationEvidenceTab() {
                       )}
                     </div>
                     <p className="mt-0.5 text-xs text-foreground-secondary">{e.summary}</p>
-                    <p className="mt-1 text-[11px] text-foreground-muted">
+                    <p
+                      className="mt-1 text-[11px] text-foreground-muted"
+                      data-testid={`evidence-collected-${e.evidence_id}`}
+                    >
+                      Evidence collected {e.collected_at ? formatDateTime(e.collected_at) : 'Time unavailable'}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-foreground-muted">
                       {EVIDENCE_TYPE_LABELS[e.evidence_type] ?? e.evidence_type} · linked by {e.linked_by} ·{' '}
                       {formatDateTime(e.linked_at)}
                     </p>

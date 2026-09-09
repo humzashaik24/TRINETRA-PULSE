@@ -50,7 +50,7 @@ export interface SerializedContextBundle {
   findings?: { sourceId: string; label?: string; summary?: string }[];
   timeline?: {
     sourceId?: string;
-    timestamp?: string;
+    timestamp?: string | null;
     label?: string;
     summary?: string;
   }[];

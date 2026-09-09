@@ -101,8 +101,9 @@ describe('investigation.service — read API', () => {
   it('sorts the timeline newest-first', async () => {
     const timeline = await getInvestigationTimeline('inv-001');
     expect(timeline.length).toBe(3);
-    for (let i = 1; i < timeline.length; i++) {
-      expect(timeline[i - 1].timestamp >= timeline[i].timestamp).toBe(true);
+    const times = timeline.map((t) => (t.timestamp ? new Date(t.timestamp).valueOf() : -Infinity));
+    for (let i = 1; i < times.length; i++) {
+      expect(times[i - 1]).toBeGreaterThanOrEqual(times[i]);
     }
   });
 

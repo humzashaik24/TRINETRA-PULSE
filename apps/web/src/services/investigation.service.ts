@@ -5,6 +5,7 @@ import type {
   InvestigationEntity,
   InvestigationRelationship,
   InvestigationEvidence,
+  InvestigationEvent,
   InvestigationFinding,
   InvestigationNote,
   InvestigationTimelineItem,
@@ -211,6 +212,7 @@ export async function addEvidenceToInvestigation(
     summary: input.summary,
     linked_by: input.linked_by,
     linked_at: input.linked_at ?? now(),
+    collected_at: null,
     metadata: { is_mock: isMock },
   };
   rec.evidence.unshift(linked);
@@ -367,9 +369,18 @@ export async function getInvestigationTimeline(
 ): Promise<InvestigationTimelineItem[]> {
   await delay(80);
   const rec = requireRecord(investigationId);
-  return [...rec.timeline].sort((a, b) =>
-    a.timestamp < b.timestamp ? 1 : -1
-  );
+  return [...rec.timeline].sort((a, b) => {
+    const aAt = a.timestamp ? new Date(a.timestamp).valueOf() : -Infinity;
+    const bAt = b.timestamp ? new Date(b.timestamp).valueOf() : -Infinity;
+    return bAt - aAt;
+  });
+}
+
+export async function getInvestigationEvents(
+  investigationId: string
+): Promise<InvestigationEvent[]> {
+  await delay(80);
+  return requireRecord(investigationId).events ?? [];
 }
 
 export async function getInvestigationActivity(

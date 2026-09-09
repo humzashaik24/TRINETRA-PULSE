@@ -82,7 +82,7 @@ const evidenceRef = (
   summary: string,
   linkedBy: string,
   linkedAt: string,
-  options: { idx: string } & Partial<{ isMock: boolean }>
+  options: { idx: string } & Partial<{ isMock: boolean; collectedAt: string }>
 ): InvestigationEvidence => ({
   id: options.idx,
   investigation_id: investigationId,
@@ -92,6 +92,9 @@ const evidenceRef = (
   summary,
   linked_by: linkedBy,
   linked_at: iso(linkedAt),
+  // PHASE 29 — the real-world collection time where the mock universe
+  // defines one; null renders as an honest "Time unavailable".
+  collected_at: options.collectedAt ? iso(options.collectedAt) : null,
   metadata: { is_mock: options.isMock ?? false },
 });
 
@@ -142,17 +145,17 @@ const inv001: MockInvestigationRecord = {
   ],
   evidence: [
     evidenceRef('inev-001-1', 'inv-001', 'ev-001', 'FIR record - named accused', 'document', 'Canonical case scan naming the individual.', 'Inspector Mehta', '2026-08-01T09:15:00Z', { idx: 'inev-001-1' }),
-    evidenceRef('inev-001-2', 'inv-001', 'ev-004', 'CDR subscriber records', 'communication', 'Call detail subscriber records for the primary device.', 'Analyst Singh', '2026-08-01T09:20:00Z', { idx: 'inev-001-2' }),
+    evidenceRef('inev-001-2', 'inv-001', 'ev-004', 'CDR subscriber records', 'communication', 'Call detail subscriber records for the primary device.', 'Analyst Singh', '2026-08-01T09:20:00Z', { idx: 'inev-001-2', collectedAt: '2026-08-12T14:18:00Z' }),
     evidenceRef('inev-001-3', 'inv-001', 'ev-007', 'GST registration', 'structured_record', 'GST registration record for the linked company.', 'Analyst Singh', '2026-08-03T10:00:00Z', { idx: 'inev-001-3' }),
-    evidenceRef('inev-001-4', 'inv-001', 'ev-009', 'Flagged transaction record', 'transaction', 'Transaction flagged by the movement analysis.', 'Inspector Mehta', '2026-08-05T12:10:00Z', { idx: 'inev-001-4' }),
+    evidenceRef('inev-001-4', 'inv-001', 'ev-009', 'Flagged transaction record', 'transaction', 'Transaction flagged by the movement analysis.', 'Inspector Mehta', '2026-08-05T12:10:00Z', { idx: 'inev-001-4', collectedAt: '2026-08-12T14:32:00Z' }),
     evidenceRef('inev-001-5', 'inv-001', 'ev-005', 'Registration database entry', 'vehicle_record', 'Vehicle registration database entry.', 'Analyst Singh', '2026-08-06T09:00:00Z', { idx: 'inev-001-5' }),
   ],
   documents: [
     { id: 'ind-001-1', investigation_id: 'inv-001', document_id: 'doc-fir-001', title: 'FIR-2026-001 Scan', document_type: 'case', source: 'Case registry', added_by: 'Inspector Mehta', added_at: iso('2026-08-01T09:16:00Z') },
   ],
   events: [
-    { id: 'inev-1-1', investigation_id: 'inv-001', title: 'Chennai hub coordination meeting', description: 'Canonical event linked for context.', occurred_at: iso('2026-08-10T09:00:00Z'), event_type: 'observation', entity_ids: ['ent-person-001'], created_at: iso('2026-08-05T13:00:00Z') },
-    { id: 'inev-1-2', investigation_id: 'inv-001', title: 'Large transfer executed', description: 'Transfer flagged from canonical transaction record.', occurred_at: iso('2026-08-12T14:30:00Z'), event_type: 'transaction', entity_ids: ['ent-txn-001', 'ent-account-001'], created_at: iso('2026-08-05T13:05:00Z') },
+    { id: 'inev-1-1', investigation_id: 'inv-001', title: 'Chennai hub coordination meeting', description: 'Canonical event linked for context.', occurred_at: iso('2026-08-10T09:00:00Z'), event_type: 'observation', entity_ids: ['ent-person-001'], location: 'Chennai', created_at: iso('2026-08-05T13:00:00Z') },
+    { id: 'inev-1-2', investigation_id: 'inv-001', title: 'Large transfer executed', description: 'Transfer flagged from canonical transaction record.', occurred_at: iso('2026-08-12T14:30:00Z'), event_type: 'transaction', entity_ids: ['ent-txn-001', 'ent-account-001'], location: 'Pune', created_at: iso('2026-08-05T13:05:00Z') },
   ],
   findings: [
     {
@@ -235,7 +238,7 @@ const inv002: MockInvestigationRecord = {
   ],
   documents: [],
   events: [
-    { id: 'inev-2-1', investigation_id: 'inv-002', title: 'Cross-city movement', description: 'Movement event for the subject vehicle.', occurred_at: iso('2026-08-14T10:00:00Z'), event_type: 'movement', entity_ids: ['ent-vehicle-001'], created_at: iso('2026-08-07T09:00:00Z') },
+    { id: 'inev-2-1', investigation_id: 'inv-002', title: 'Cross-city movement', description: 'Movement event for the subject vehicle.', occurred_at: iso('2026-08-14T10:00:00Z'), event_type: 'movement', entity_ids: ['ent-vehicle-001'], location: 'Route NH-48', created_at: iso('2026-08-07T09:00:00Z') },
   ],
   findings: [
     {
@@ -491,13 +494,17 @@ const inv006: MockInvestigationRecord = {
     { id: 'inr-006-4', investigation_id: 'inv-006', relationship_id: 'rel-008', source_entity_id: 'ent-person-001', target_entity_id: 'ent-txn-001', source_entity_name: 'Rahul Kumar', target_entity_name: 'TXN-2026-0482', type: 'SENT_TRANSACTION', confidence: 0.99, linked_by: 'Inspector Mehta', linked_at: iso('2026-08-21T11:05:00Z') },
   ],
   evidence: [
-    evidenceRef('inev-006-1', 'inv-006', 'ev-001', 'FIR record — named accused', 'document', 'Canonical case scan referencing the person of interest.', 'Inspector Mehta', '2026-08-18T09:15:00Z', { idx: 'inev-006-1' }),
-    evidenceRef('inev-006-2', 'inv-006', 'ev-004', 'CDR subscriber records', 'communication', 'Call detail subscriber records for the primary device.', 'Analyst Singh', '2026-08-19T09:20:00Z', { idx: 'inev-006-2' }),
+    evidenceRef('inev-006-1', 'inv-006', 'ev-001', 'FIR record — named accused', 'document', 'Canonical case scan referencing the person of interest.', 'Inspector Mehta', '2026-08-18T09:15:00Z', { idx: 'inev-006-1', collectedAt: '2026-08-18T09:15:00Z' }),
+    evidenceRef('inev-006-2', 'inv-006', 'ev-004', 'CDR subscriber records', 'communication', 'Call detail subscriber records for the primary device.', 'Analyst Singh', '2026-08-19T09:20:00Z', { idx: 'inev-006-2', collectedAt: '2026-08-19T09:20:00Z' }),
     evidenceRef('inev-006-3', 'inv-006', 'ev-007', 'GST registration', 'structured_record', 'GST registration of the linked company.', 'Analyst Singh', '2026-08-20T10:00:00Z', { idx: 'inev-006-3' }),
     evidenceRef('inev-006-4', 'inv-006', 'ev-009', 'Flagged transaction record', 'transaction', 'Transaction flagged by movement analysis.', 'Inspector Mehta', '2026-08-21T11:10:00Z', { idx: 'inev-006-4' }),
   ],
   documents: [],
-  events: [],
+  events: [
+    { id: 'event-003', investigation_id: 'inv-006', title: 'Named in case proceedings', description: 'Recorded as named individual in case proceedings.', occurred_at: iso('2026-02-05T09:00:00Z'), event_type: 'related_case', entity_ids: ['ent-person-001'], location: null, created_at: iso('2026-08-18T09:02:00Z') },
+    { id: 'event-002', investigation_id: 'inv-006', title: 'Large transfer executed', description: '₹4,80,000 transferred to corporate account 884511900221.', occurred_at: iso('2026-02-14T11:05:00Z'), event_type: 'transaction', entity_ids: ['ent-txn-001', 'ent-account-001'], location: 'Pune', created_at: iso('2026-08-18T09:03:00Z') },
+    { id: 'event-001', investigation_id: 'inv-006', title: 'Chennai hub coordination meeting', description: 'Multiple target devices co-located; consistent with a coordination meeting.', occurred_at: iso('2026-02-19T18:40:00Z'), event_type: 'observation', entity_ids: ['ent-person-001', 'ent-person-003'], location: 'Chennai', created_at: iso('2026-08-18T09:03:00Z') },
+  ],
   findings: [
     {
       id: 'inf-006-1', investigation_id: 'inv-006',
@@ -520,8 +527,9 @@ const inv006: MockInvestigationRecord = {
   ],
   timeline: [
     { id: 'int-006-1', investigation_id: 'inv-006', timestamp: iso('2026-08-18T09:00:00Z'), category: 'system', title: 'Investigation created', description: 'Operation Meridian opened around the import probe.', ref_id: 'inv-006', ref_type: 'investigation', actor: 'Inspector Mehta' },
-    { id: 'int-006-2', investigation_id: 'inv-006', timestamp: iso('2026-02-14T11:05:00Z'), category: 'event', title: 'Large transfer executed', description: 'Flagged transaction surfaced on the timeline.', ref_id: 'event-002', ref_type: 'event', actor: null },
-    { id: 'int-006-3', investigation_id: 'inv-006', timestamp: iso('2026-02-19T18:40:00Z'), category: 'event', title: 'Chennai hub coordination meeting', description: 'Canonical meeting event added.', ref_id: 'event-001', ref_type: 'event', actor: null },
+    { id: 'int-006-2', investigation_id: 'inv-006', timestamp: iso('2026-02-05T09:00:00Z'), category: 'event', title: 'Named in case proceedings', description: 'Recorded as named individual in case proceedings.', ref_id: 'event-003', ref_type: 'event', actor: null },
+    { id: 'int-006-3', investigation_id: 'inv-006', timestamp: iso('2026-02-14T11:05:00Z'), category: 'event', title: 'Large transfer executed', description: 'Flagged transaction surfaced on the timeline.', ref_id: 'event-002', ref_type: 'event', actor: null },
+    { id: 'int-006-4', investigation_id: 'inv-006', timestamp: iso('2026-02-19T18:40:00Z'), category: 'event', title: 'Chennai hub coordination meeting', description: 'Canonical meeting event added.', ref_id: 'event-001', ref_type: 'event', actor: null },
   ],
   networks: [
     { id: 'innet-006-1', investigation_id: 'inv-006', network_id: 'NET-001', name: 'Operation Clean — initial relationships', linked_by: 'Inspector Mehta', linked_at: iso('2026-08-22T09:00:00Z') },

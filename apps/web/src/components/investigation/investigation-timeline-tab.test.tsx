@@ -1,13 +1,18 @@
 /**
- * Component tests for the investigation timeline tab (Phase 17.4).
+ * Component tests for the investigation timeline tab (Phase 29).
  *
- * The tab renders a single merged stream: API/mock timeline entries, the
- * investigation action log, and findings. These tests assert:
- *  - every source slice is represented exactly once (findings are sourced
- *    from the findings slice and must not be doubled by the timeline feed),
- *  - entries render newest-first,
- *  - event/evidence/note/finding entries open the context inspector,
- *  - the empty state renders when nothing is in the stream.
+ * The tab renders a single unified stream — timeline feed + action log +
+ * findings slice + evidence slice — merged, grouped by day and ordered
+ * ASCENDING by each record's real temporal field. These tests assert:
+ *  - every source slice is represented exactly once (evidence rows render
+ *    from the evidence slice; findings from the findings slice),
+ *  - the stream is ascending and grouped by day with the honest
+ *    "Time unavailable" group LAST (no fabricated dates),
+ *  - the time-source label and undated states render correctly,
+ *  - loading / error + retry / empty states,
+ *  - expanding an event or evidence row opens the TimelineEventDetailPanel,
+ *    which resolves the persisted event (entities, relationships, honest
+ *    "No linked evidence") or evidence record from workspace data.
  */
 
 import React from 'react';
@@ -29,6 +34,7 @@ function seed(id: string) {
     findings: [...rec.findings],
     notes: [...rec.notes],
     timeline: [...rec.timeline],
+    events: [...rec.events],
     activity: [...rec.activity],
     members: [...rec.members],
     networks: [...rec.networks],
@@ -55,6 +61,7 @@ afterEach(() => {
       findings: [],
       notes: [],
       timeline: [],
+      events: [],
       activity: [],
       members: [],
       networks: [],
@@ -68,28 +75,19 @@ afterEach(() => {
 });
 
 describe('InvestigationTimelineTab', () => {
-  it('renders the merged timeline stream for an investigation', () => {
+  it('renders the merged ascending stream for an investigation', () => {
     seed('inv-006');
     render(<InvestigationTimelineTab />);
     expect(screen.getByTestId('investigation-timeline-tab')).toBeInTheDocument();
 
     const state = useInvestigationStore.getState().data;
-    const expectedCount = state.timeline.length + state.activity.length + state.findings.length;
+    const expectedCount =
+      state.timeline.length + state.activity.length + state.findings.length + state.evidence.length;
     expect(screen.getAllByTestId('timeline-item')).toHaveLength(expectedCount);
 
-    // Timeline feed entries ("Investigation created" also appears once in the
-    // action log, so it legitimately renders twice in the merged stream).
-    expect(screen.getAllByText('Investigation created').length).toBeGreaterThan(0);
     expect(screen.getByText('Large transfer executed')).toBeInTheDocument();
     expect(screen.getByText('Chennai hub coordination meeting')).toBeInTheDocument();
-
-    // Action log entry.
     expect(screen.getByText('Analytics captured')).toBeInTheDocument();
-
-    // Findings come from the findings slice only.
-    expect(
-      screen.getAllByText('Coordinate cluster around the primary device').length,
-    ).toBeGreaterThan(0);
   });
 
   it('lists each finding exactly once (no duplication from the timeline feed)', () => {
@@ -101,28 +99,132 @@ describe('InvestigationTimelineTab', () => {
     }
   });
 
-  it('sorts entries newest-first in the merged stream', () => {
+  it('lists each evidence record exactly once (deduped against the timeline feed)', () => {
+    seed('inv-006');
+    render(<InvestigationTimelineTab />);
+
+    for (const ev of useInvestigationStore.getState().data.evidence) {
+      expect(screen.getAllByText(ev.title)).toHaveLength(1);
+    }
+  });
+
+  it('orders entries ascending by their real temporal field', () => {
     seed('inv-006');
     render(<InvestigationTimelineTab />);
 
     const items = screen.getAllByTestId('timeline-item');
-    // Newest entry in the merged stream leads (finding created 2026-08-25).
-    expect(items[0].textContent).toContain('Shared company relationship observed');
-    // Oldest feed entry (Large transfer executed, 2026-02-14) must trail.
-    expect(items[items.length - 1].textContent).toContain('Large transfer executed');
+    // Oldest event in the stream leads (2026-02-05).
+    expect(items[0].textContent).toContain('Named in case proceedings');
+    // Second event is the 2026-02-14 transfer — ascending, not newest-first.
+    expect(items[1].textContent).toContain('Large transfer executed');
   });
 
-  it('opens the context inspector for an event entry', () => {
+  it('groups the stream by day with the undated "Time unavailable" group last', () => {
     seed('inv-006');
     render(<InvestigationTimelineTab />);
 
-    fireEvent.click(screen.getByText('Chennai hub coordination meeting'));
-    expect(useShellStore.getState().inspectorContext).toEqual({
-      type: 'event',
-      id: 'event-001',
-      title: 'Chennai hub coordination meeting',
+    const dated = screen.getAllByTestId('timeline-group-date');
+    const undated = screen.getByTestId('timeline-group-undated');
+    const items = screen.getAllByTestId('timeline-item');
+
+    // Dated day groups render first, ascending; the undated group closes the
+    // stream so unknown times are never placed inside the dated timeline.
+    expect(dated.length).toBeGreaterThan(3);
+    expect(undated.textContent).toContain('Time unavailable');
+    expect(items[items.length - 1].textContent).toContain('GST registration');
+    expect(items[items.length - 2].textContent).toContain('Flagged transaction record');
+  });
+
+  it('renders an honest "Time unavailable" for undated evidence rows', () => {
+    seed('inv-006');
+    render(<InvestigationTimelineTab />);
+
+    // Two undated evidence rows (GST registration, Flagged transaction)
+    // each surface "Time unavailable" as their recorded time.
+    expect(screen.getAllByText('Time unavailable').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('renders the loading state while the workspace is loading', () => {
+    useInvestigationStore.setState({
+      investigationId: 'inv-006',
+      loading: true,
+      error: null,
+    });
+    render(<InvestigationTimelineTab />);
+    expect(screen.getByTestId('timeline-loading')).toBeInTheDocument();
+    expect(screen.getByText('Loading timeline…')).toBeInTheDocument();
+  });
+
+  it('renders the error state with an actionable retry', () => {
+    useInvestigationStore.setState({
+      investigationId: 'inv-006',
+      loading: false,
+      error: 'fetch failed',
+    });
+    render(<InvestigationTimelineTab />);
+    expect(screen.getByTestId('timeline-error')).toBeInTheDocument();
+    expect(screen.getByText('Unable to load timeline.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('timeline-retry'));
+    expect(screen.getByTestId('timeline-loading')).toBeInTheDocument();
+  });
+
+  it('expands an event row into the detail panel with grounded entities', () => {
+    seed('inv-006');
+    render(<InvestigationTimelineTab />);
+
+    fireEvent.click(screen.getByTestId('timeline-expand-int-006-4'));
+    expect(screen.getByTestId('timeline-event-detail-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('timeline-event-detail-event-001')).toBeInTheDocument();
+
+    // Event location + persisted event details resolve from the events slice.
+    expect(screen.getByText('Chennai')).toBeInTheDocument();
+    // Related entities resolve from the workspace entities slice.
+    expect(screen.getByTestId('timeline-event-entity-ent-person-001')).toBeInTheDocument();
+    expect(screen.getByTestId('timeline-event-entity-ent-person-003')).toBeInTheDocument();
+    // Relationships touching the event's entities resolve from the graph.
+    expect(screen.getByTestId('timeline-event-relationship-rel-001')).toBeInTheDocument();
+
+    // The relational contract defines no event↔evidence link: honest empty.
+    expect(screen.getByTestId('timeline-event-evidence-empty')).toBeInTheDocument();
+    expect(screen.getByText(/No linked evidence/)).toBeInTheDocument();
+  });
+
+  it('opens the context inspector from a grounded event entity', () => {
+    seed('inv-006');
+    render(<InvestigationTimelineTab />);
+
+    fireEvent.click(screen.getByTestId('timeline-expand-int-006-4'));
+    fireEvent.click(screen.getByTestId('timeline-event-entity-ent-person-001'));
+    expect(useShellStore.getState().inspectorContext).toMatchObject({
+      type: 'entity',
+      id: 'ent-person-001',
       investigationId: 'inv-006',
     });
+  });
+
+  it('expands an evidence row into the detail panel with honest event linkage', () => {
+    seed('inv-006');
+    render(<InvestigationTimelineTab />);
+
+    fireEvent.click(screen.getByTestId('timeline-expand-tl-ev-ev-001'));
+    expect(screen.getByTestId('timeline-evidence-detail-ev-001')).toBeInTheDocument();
+    // The "Evidence collected" time-source label renders in the row chip and
+    // inside the detail panel's TimeLine.
+    expect(screen.getAllByText(/Evidence collected/).length).toBeGreaterThanOrEqual(1);
+    // Evidence records do not reference timeline events directly.
+    expect(screen.getByTestId('timeline-evidence-events-empty')).toBeInTheDocument();
+    expect(screen.getByText(/No timeline event linked/)).toBeInTheDocument();
+  });
+
+  it('closes the detail panel', () => {
+    seed('inv-006');
+    render(<InvestigationTimelineTab />);
+
+    fireEvent.click(screen.getByTestId('timeline-expand-int-006-4'));
+    expect(screen.getByTestId('timeline-event-detail-panel')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('timeline-event-detail-close'));
+    expect(screen.queryByTestId('timeline-event-detail-panel')).not.toBeInTheDocument();
   });
 
   it('renders the empty state when the stream is empty', () => {
@@ -136,6 +238,7 @@ describe('InvestigationTimelineTab', () => {
         findings: [],
         notes: [],
         timeline: [],
+        events: [],
         activity: [],
         members: [],
         networks: [],
@@ -146,7 +249,8 @@ describe('InvestigationTimelineTab', () => {
       dirty: false,
     });
     render(<InvestigationTimelineTab />);
-    expect(screen.getByText('No timeline entries yet.')).toBeInTheDocument();
+    expect(screen.getByTestId('timeline-empty')).toBeInTheDocument();
+    expect(screen.getByText('No timeline events for this investigation.')).toBeInTheDocument();
     expect(screen.queryByTestId('investigation-timeline-tab')).not.toBeInTheDocument();
   });
 });

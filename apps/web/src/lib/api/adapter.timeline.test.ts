@@ -1,11 +1,14 @@
 /**
- * Timeline mapping tests for the real API adapter (Phase 17.4).
+ * Timeline mapping tests for the real API adapter (Phase 29).
  *
  * Verifies:
  *  - mapTimeline deterministically converts the /api/v2/timeline response
  *    into the InvestigationTimelineItem shape the UI consumes,
- *  - finding entries are NOT repeated (the workspace merges findings from
- *    its dedicated findings slice),
+ *  - finding AND evidence feed entries are deduped (the workspace merges
+ *    findings from its findings slice and evidence from its evidence slice,
+ *    so the unified timeline tab never shows the same record twice),
+ *  - missing timestamps stay honestly NULL ("Time unavailable") — the
+ *    adapter never fabricates a date when the record has none,
  *  - loadInvestigationWorkspace drives the mapped timeline from the
  *    official GET /api/v2/timeline/{investigationId} client call,
  *  - every mapped item is scoped to the active investigation.
@@ -67,16 +70,22 @@ const API_ENTRIES: RealTimelineEntry[] = [
 // ---------------------------------------------------------------------------
 
 describe('mapTimeline', () => {
-  it('maps every non-finding API entry into an InvestigationTimelineItem', () => {
+  it('maps only event and note feed entries (finding AND evidence are deduped)', () => {
     const items = mapTimeline(API_ENTRIES, INV_ID);
-    expect(items).toHaveLength(3);
-    expect(items.map((i) => i.category)).toEqual(['event', 'note', 'evidence']);
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => i.category)).toEqual(['event', 'note']);
   });
 
-  it('filters finding entries so findings are not listed twice', () => {
+  it('excludes finding entries so findings are not listed twice', () => {
     const items = mapTimeline(API_ENTRIES, INV_ID);
     expect(items.some((i) => i.category === 'finding')).toBe(false);
     expect(items.some((i) => i.title === 'Finding title')).toBe(false);
+  });
+
+  it('excludes evidence feed entries (evidence rows render from the evidence slice)', () => {
+    const items = mapTimeline(API_ENTRIES, INV_ID);
+    expect(items.some((i) => i.category === 'evidence')).toBe(false);
+    expect(items.some((i) => i.title === 'Evidence title')).toBe(false);
   });
 
   it('preserves the event timestamp', () => {
@@ -100,7 +109,7 @@ describe('mapTimeline', () => {
     }
   });
 
-  it('handles null optional fields safely', () => {
+  it('keeps a missing timestamp honestly null instead of fabricating a date', () => {
     const items = mapTimeline(
       [{ kind: 'event', at: null, title: null, ref_id: null, actor: null, description: null }],
       INV_ID,
@@ -112,8 +121,7 @@ describe('mapTimeline', () => {
     expect(item.ref_id).toBeNull();
     expect(item.ref_type).toBe('event');
     expect(item.actor).toBeNull();
-    expect(typeof item.timestamp).toBe('string');
-    expect(item.timestamp.length).toBeGreaterThan(0);
+    expect(item.timestamp).toBeNull();
   });
 
   it('returns an empty array for an empty timeline', () => {
@@ -130,6 +138,7 @@ describe('mapTimeline', () => {
     );
     expect(items[0].id).toBe('tl-0');
     expect(items[1].id).toBe('tl-1');
+    expect(items[0].timestamp).toBeNull();
   });
 });
 
@@ -197,16 +206,17 @@ describe('loadInvestigationWorkspace timeline path', () => {
     expect(getTimeline).toHaveBeenCalledWith(INV_ID);
   });
 
-  it('maps the official timeline response into the workspace timeline', async () => {
+  it('maps the official timeline response into the workspace timeline (feed deduped)', async () => {
     const workspace = await loadInvestigationWorkspace(INV_ID);
-    expect(workspace.timeline).toHaveLength(3);
-    expect(workspace.timeline.map((t) => t.category)).toEqual(['event', 'note', 'evidence']);
+    expect(workspace.timeline).toHaveLength(2);
+    expect(workspace.timeline.map((t) => t.category)).toEqual(['event', 'note']);
     expect(workspace.timeline[0].investigation_id).toBe(INV_ID);
   });
 
-  it('excludes finding entries from the mapped timeline', async () => {
+  it('excludes finding AND evidence entries from the mapped timeline', async () => {
     const workspace = await loadInvestigationWorkspace(INV_ID);
     expect(workspace.timeline.some((t) => t.category === 'finding')).toBe(false);
+    expect(workspace.timeline.some((t) => t.category === 'evidence')).toBe(false);
   });
 
   it('scopes the timeline to the loaded investigation only', async () => {
@@ -230,7 +240,7 @@ describe('loadInvestigationWorkspace timeline path', () => {
       investigation_id: other,
       entries: [
         { kind: 'event', at: '2026-03-01T09:00:00Z', title: 'Other event', ref_id: 'evt-other', actor: null, description: null },
-        { kind: 'evidence', at: '2026-03-02T09:00:00Z', title: 'Other evidence', ref_id: 'ev-other', actor: null, description: null },
+        { kind: 'note', at: '2026-03-02T09:00:00Z', title: 'Other note', ref_id: 'nt-other', actor: null, description: null },
       ],
     });
 

@@ -361,5 +361,18 @@ class InvestigationService:
                 )
             )
 
-        entries.sort(key=lambda e: e.at or e.title or "")
+        # PHASE 29 — deterministic chronological ordering. A typed composite
+        # key keeps the feed stable even when an entry has no timestamp (an
+        # event without a recorded time, or evidence without collected_at):
+        # untimed entries sort deterministically FIRST, before the dated
+        # stream, rather than crashing a mixed datetime/str comparison.
+        inf_neg = -1_000_000_000_000_000_000_000_000_000  # "minus infinity" epoch marker
+        entries.sort(
+            key=lambda e: (
+                e.at.timestamp() if e.at is not None else inf_neg,
+                e.kind or "",
+                e.title or "",
+                e.ref_id is not None,
+            )
+        )
         return entries

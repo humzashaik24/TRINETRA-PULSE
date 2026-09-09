@@ -136,6 +136,12 @@ export interface InvestigationEvidence {
   summary: string;
   linked_by: string;
   linked_at: string;
+  /**
+   * When the evidence was actually collected (Evidence.collected_at). Null
+   * when the record does not carry a real-world collection time — the UI
+   * must surface "Time unavailable" rather than substituting linked_at.
+   */
+  collected_at: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -172,7 +178,10 @@ export interface InvestigationEvent {
   investigation_id: string;
   title: string;
   description: string | null;
-  occurred_at: string;
+  /** Real-world event time (InvestigationEvent.timestamp). Null when the
+   *  event has no recorded time — never substitute created_at. */
+  occurred_at: string | null;
+  location: string | null;
   event_type: InvestigationEventType;
   /** Canonical events / entities associated. */
   entity_ids: string[];
@@ -182,7 +191,10 @@ export interface InvestigationEvent {
 export interface InvestigationTimelineItem {
   id: string;
   investigation_id: string;
-  timestamp: string;
+  /** Real temporal field for the entry kind (event time / evidence
+   *  collected_at / finding or note created_at). Null when the record has
+   *  no time — the UI must surface "Time unavailable". */
+  timestamp: string | null;
   category: 'event' | 'evidence' | 'activity' | 'note' | 'finding' | 'system';
   title: string;
   description: string | null;

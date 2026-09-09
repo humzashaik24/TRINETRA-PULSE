@@ -13,6 +13,7 @@ import {
   findingSeverityVariant,
   findingSourceVariant,
 } from '@/lib/findings-labels';
+import { relevantTimelineForFinding } from '@/lib/timeline';
 
 // ============================================================
 // INVESTIGATION — FINDING DETAIL PANEL (Phase 28)
@@ -54,6 +55,12 @@ export function FindingDetailPanel({ finding, investigationId, onClose }: Findin
   );
 
   const timelineRefs = data.timeline.filter((t) => t.ref_id === finding.id);
+
+  const relevantTimeline = relevantTimelineForFinding(finding, {
+    timeline: data.timeline,
+    events: data.events,
+    evidence: data.evidence,
+  });
 
   const unresolvedEvidence = finding.evidence_ids.length - relatedEvidence.length;
   const unresolvedEntities = finding.entity_ids.length - relatedEntities.length;
@@ -124,6 +131,12 @@ export function FindingDetailPanel({ finding, investigationId, onClose }: Findin
                   data-testid={`detail-finding-evidence-${ev.evidence_id}`}
                 >
                   {ev.title}
+                  <span
+                    className="ml-2 text-[10px] text-foreground-muted"
+                    data-testid={`detail-finding-evidence-collected-${ev.evidence_id}`}
+                  >
+                    {ev.collected_at ? formatDateTime(ev.collected_at) : 'Time unavailable'}
+                  </span>
                 </button>
               </li>
             ))}
@@ -212,19 +225,47 @@ export function FindingDetailPanel({ finding, investigationId, onClose }: Findin
         </div>
       ) : null}
 
-      {timelineRefs.length > 0 ? (
-        <div className="mt-4">
-          <h4 className="tp-data-label mb-2">Timeline context</h4>
+      <div className="mt-4">
+        <h4 className="tp-data-label mb-2">Relevant timeline events</h4>
+        {relevantTimeline.length > 0 ? (
           <ul className="space-y-1">
-            {timelineRefs.map((t) => (
-              <li key={t.id} className="text-xs text-foreground-secondary">
-                <span className="font-medium text-foreground">{t.title}</span> ·{' '}
-                {formatDateTime(t.timestamp)}
+            {relevantTimeline.map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    open({
+                      type: row.category === 'evidence' ? 'evidence' : 'event',
+                      id: row.refId ?? row.id,
+                      title: row.title,
+                      investigationId,
+                    })
+                  }
+                  className="w-full rounded-md px-2 py-1 text-left text-xs text-foreground hover:bg-surface-hover"
+                  data-testid={
+                    row.category === 'evidence'
+                      ? `detail-finding-timeline-evidence-${row.refId ?? row.id}`
+                      : `detail-finding-timeline-event-${row.refId ?? row.id}`
+                  }
+                >
+                  <span className="font-medium">{row.title}</span>
+                  <span className="ml-2 text-[10px] text-foreground-muted">
+                    {row.category === 'evidence' ? 'Evidence collected' : 'Event time'}
+                    {row.timestamp ? ` · ${formatDateTime(row.timestamp)}` : ' · Time unavailable'}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
-        </div>
-      ) : null}
+        ) : (
+          <p
+            className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-foreground-muted"
+            data-testid="finding-timeline-empty"
+          >
+            No linked timeline events.
+          </p>
+        )}
+      </div>
 
       <div className="mt-4 border-t border-border pt-3">
         <h4 className="tp-data-label mb-1.5">Provenance</h4>

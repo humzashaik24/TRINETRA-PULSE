@@ -6,6 +6,7 @@ import type {
   InvestigationEntity,
   InvestigationRelationship,
   InvestigationEvidence,
+  InvestigationEvent,
   InvestigationFinding,
   InvestigationNote,
   InvestigationTimelineItem,
@@ -22,6 +23,7 @@ import {
   getInvestigationFindings,
   getInvestigationNotes,
   getInvestigationTimeline,
+  getInvestigationEvents,
   getInvestigationActivity,
   getInvestigationMembers,
   getInvestigationNetworks,
@@ -65,6 +67,9 @@ export interface InvestigationWorkspaceData {
   evidence: InvestigationEvidence[];
   findings: InvestigationFinding[];
   notes: InvestigationNote[];
+  /** Canonical events persisted for the investigation (Phase 29). The
+   *  timeline feed references these rows by id for the event inspector. */
+  events: InvestigationEvent[];
   timeline: InvestigationTimelineItem[];
   activity: InvestigationActivityEntry[];
   members: InvestigationMember[];
@@ -122,6 +127,7 @@ const emptyData = (): InvestigationWorkspaceData => ({
   evidence: [],
   findings: [],
   notes: [],
+  events: [],
   timeline: [],
   activity: [],
   members: [],
@@ -152,6 +158,7 @@ export const useInvestigationStore = create<InvestigationState>()(
               findings,
               notes,
               timeline,
+              events,
               activity,
               members,
               networks,
@@ -164,6 +171,7 @@ export const useInvestigationStore = create<InvestigationState>()(
               getInvestigationFindings(id),
               getInvestigationNotes(id),
               getInvestigationTimeline(id),
+              getInvestigationEvents(id),
               getInvestigationActivity(id),
               getInvestigationMembers(id),
               getInvestigationNetworks(id),
@@ -176,6 +184,7 @@ export const useInvestigationStore = create<InvestigationState>()(
               evidence,
               findings,
               notes,
+              events,
               timeline,
               activity,
               members,
@@ -288,6 +297,7 @@ export const useInvestigationStore = create<InvestigationState>()(
                 summary: input.summary,
                 linked_by: input.linked_by,
                 linked_at: new Date().toISOString(),
+                collected_at: null,
                 metadata: { is_mock: input.isMock },
               },
               ...data.evidence,
