@@ -168,6 +168,9 @@ export const useGraphStore = create<GraphState>()(
               (seedEntityId && nodes.find((n) => n.entityId === seedEntityId)?.id) ??
               nodes[0]?.id ??
               '';
+            // Discard a stale resolution: the investigator may have opened a
+            // different network while this load was in flight.
+            if (get().networkId !== networkId) return;
             set({
               summary,
               nodes,
@@ -186,6 +189,7 @@ export const useGraphStore = create<GraphState>()(
               error: null,
             });
           } catch (err) {
+            if (get().networkId !== networkId) return;
             set({
               loadingState: 'error',
               error: err instanceof Error ? err.message : 'Failed to load network',
@@ -198,6 +202,7 @@ export const useGraphStore = create<GraphState>()(
             const graph = mapApiGraphToNetworkGraph(apiGraph, networkId);
             const summary = mapApiGraphToSummary(graph);
             const focusId = graph.nodes[0]?.id ?? '';
+            if (get().networkId !== networkId) return;
             set({
               summary,
               nodes: graph.nodes,
@@ -216,6 +221,7 @@ export const useGraphStore = create<GraphState>()(
               error: null,
             });
           } catch (err) {
+            if (get().networkId !== networkId) return;
             set({
               loadingState: 'error',
               error: err instanceof Error ? err.message : 'Failed to load network',

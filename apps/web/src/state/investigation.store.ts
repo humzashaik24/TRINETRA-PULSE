@@ -145,7 +145,7 @@ export const useInvestigationStore = create<InvestigationState>()(
       dirty: false,
 
       loadInvestigation: async (id) => {
-        set({ loading: true, error: null, investigationId: id, dirty: false });
+        set({ loading: true, error: null, investigationId: id, dirty: false, data: emptyData() });
         try {
           let data: Omit<InvestigationWorkspaceData, never>;
 
@@ -195,8 +195,13 @@ export const useInvestigationStore = create<InvestigationState>()(
             data = await loadInvestigationWorkspace(id);
           }
 
+          // Guard against a stale resolution: if the investigator switched to
+          // a different case while this load was in flight, discard it so data
+          // from investigation A never lands under investigation B.
+          if (get().investigationId !== id) return;
           set({ loading: false, data });
         } catch (err) {
+          if (get().investigationId !== id) return;
           set({
             loading: false,
             error: err instanceof Error ? err.message : 'Could not load investigation',

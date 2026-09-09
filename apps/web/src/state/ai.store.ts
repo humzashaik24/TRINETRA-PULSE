@@ -168,6 +168,14 @@ export const useAIStore = create<AIState>()(
             userId: get().userId ?? undefined,
           });
 
+          // The investigator may have switched cases (setScope resets the
+          // conversation) while the request was in flight — a stale answer
+          // must never be appended into another investigation's thread.
+          if (get().investigationId !== scope?.investigationId) {
+            set({ isAsking: false, streamState: 'complete', streamingText: '', lastError: null });
+            return false;
+          }
+
           const assistantMessage: AIMessage = {
             id: `m-${Date.now()}-${interactionSeq++}`,
             conversationId: get().conversationId!,
@@ -186,6 +194,10 @@ export const useAIStore = create<AIState>()(
           }));
           return true;
         } catch (err) {
+          if (get().investigationId !== scope?.investigationId) {
+            set({ isAsking: false, streamState: 'complete', streamingText: '', lastError: null });
+            return false;
+          }
           set({
             isAsking: false,
             streamState: 'error',

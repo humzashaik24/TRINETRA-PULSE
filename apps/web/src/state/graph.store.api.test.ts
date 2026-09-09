@@ -112,6 +112,30 @@ const MAPPED_SUMMARY = {
   seedEntityId: null,
 };
 
+const FAKE_API_GRAPH_B: RealNetworkGraph = {
+  investigation_id: '6c887c98-939a-50ce-ac27-f58376941de2',
+  nodes: [
+    { id: 'n3', name: 'Carol', entity_type: 'person', risk_score: 0.6, is_verified: false, is_flagged: false },
+    { id: 'n4', name: 'Dave', entity_type: 'person', risk_score: 0.3, is_verified: false, is_flagged: false },
+  ],
+  edges: [
+    { id: 'e2', source: 'n3', target: 'n4', relationship_type: 'KNOWS', weight: 0.5 },
+  ],
+};
+
+const MAPPED_GRAPH_B = {
+  ...MAPPED_GRAPH,
+  name: 'Network A (stale)',
+  nodes: [
+    { id: 'n3', entityId: 'n3', type: 'person', label: 'Carol', displayLabel: 'Carol', status: 'probable', confidence: 0.6, position: { x: 0, y: 0 }, size: 20, style: { size: 20, shape: 'circle' }, connections: 1, sources: [], metadata: {} },
+    { id: 'n4', entityId: 'n4', type: 'person', label: 'Dave', displayLabel: 'Dave', status: 'probable', confidence: 0.3, position: { x: 0, y: 0 }, size: 20, style: { size: 20, shape: 'circle' }, connections: 1, sources: [], metadata: {} },
+  ],
+  edges: [
+    { id: 'e2', relationshipId: 'e2', source: 'n3', target: 'n4', type: 'KNOWS', label: 'knows', confidence: 0.5, status: 'probable', direction: 'directed', weight: 0.5, sourceRecordLabel: 'CSV Import', evidence: [], extractionMethod: 'STRUCTURED_MAPPING', metadata: {} },
+  ],
+  metadata: { seedEntityId: null, caseId: null, sources: [], connectedComponents: 0, nodeCount: 2, relationshipCount: 1 },
+};
+
 // ---------------------------------------------------------------------------
 // TESTS
 // ---------------------------------------------------------------------------
@@ -212,5 +236,28 @@ describe('graph.store – API mode loadNetwork', () => {
     await useGraphStore.getState().findPath('n1', 'n2');
     expect(mockedFindNetworkPath).toHaveBeenCalledWith('test-investigation', 'n1', 'n2');
     expect(useGraphStore.getState().path?.nodeIds).toEqual(['n1', 'n2']);
+  });
+
+  it('discards a stale graph when a newer network superseded it mid-flight', async () => {
+    let releaseFirst!: () => void;
+    mockedGetNetworkGraph
+      .mockImplementationOnce(() => new Promise((res) => { releaseFirst = () => res(FAKE_API_GRAPH); }))
+      .mockResolvedValueOnce(FAKE_API_GRAPH_B);
+    mockedMapGraph.mockImplementation((graph) =>
+      (graph === FAKE_API_GRAPH
+        ? MAPPED_GRAPH
+        : MAPPED_GRAPH_B) as ReturnType<typeof mapApiGraphToNetworkGraph>
+    );
+
+    const first = useGraphStore.getState().loadNetwork('network-a');
+    const second = useGraphStore.getState().loadNetwork('network-b');
+    await second;
+    releaseFirst();
+    await first;
+
+    const after = useGraphStore.getState();
+    expect(after.loadingState).toBe('ready');
+    expect(after.networkId).toBe('network-b');
+    expect(after.nodes.map((n) => n.id)).toEqual(['n3', 'n4']);
   });
 });

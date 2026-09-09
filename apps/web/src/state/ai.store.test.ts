@@ -55,6 +55,20 @@ describe('ai.store', () => {
     expect(useAIStore.getState().conversationId).toBe('c1');
   });
 
+  it('never appends a stale assistant answer after the investigation changed', async () => {
+    const s = useAIStore.getState();
+    s.setScope('inv-999');
+    const promise = s.ask('Who is the alias?', { investigationId: 'inv-001' });
+    s.setScope('inv-888');
+    const ok = await promise;
+    const after = useAIStore.getState();
+    expect(ok).toBe(false);
+    expect(after.investigationId).toBe('inv-888');
+    expect(after.isAsking).toBe(false);
+    expect(after.streamState).toBe('complete');
+    expect(after.messages.some((m) => m.role === 'assistant')).toBe(false);
+  });
+
   it('newConversation clears messages and pending actions', () => {
     useAIStore.setState({
       conversationId: 'c1',

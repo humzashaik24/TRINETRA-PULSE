@@ -202,4 +202,25 @@ describe('investigation store — API mode (Phase 15)', () => {
     expect(after.loading).toBe(false);
     expect(after.error).toMatch(/could not load investigation/i);
   });
+
+  it('discards a stale workspace when a newer load superseded it mid-flight', async () => {
+    let releaseFirst!: () => void;
+    mockedAdapter.loadInvestigationWorkspace
+      .mockImplementationOnce(
+        () => new Promise((res) => { releaseFirst = () => res({ ...workspace(), investigation: { ...workspace().investigation, title: 'STALE CASE' } } as never); }),
+      )
+      .mockResolvedValueOnce(workspace() as never);
+
+    const first = useInvestigationStore.getState().loadInvestigation('investigation-a');
+    const second = useInvestigationStore.getState().loadInvestigation('investigation-b');
+    await second;
+    releaseFirst();
+    await first;
+
+    const after = useInvestigationStore.getState();
+    expect(after.investigationId).toBe('investigation-b');
+    expect(after.loading).toBe(false);
+    expect(after.error).toBeNull();
+    expect(after.data.investigation?.title).not.toBe('STALE CASE');
+  });
 });
