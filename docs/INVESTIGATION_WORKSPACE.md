@@ -111,3 +111,36 @@ npx jest --selectProjects components --testPathPattern "investigation"
 ```
 
 The Network tab imports the React Flow renderer (`NetworkGraph`), so it is **not exercised in jsdom** — the other tabs and the service/store are.
+
+## Finding & Evidence Intelligence (Phase 28)
+
+Phase 28 elevates the Findings tab from a plain list into an **evidence intelligence** surface without adding new backend endpoints or a migration. Every persisted finding (`GET /investigations/{id}/findings`, `GET /findings/{id}?investigation_id=`) is expanded — on read — with its full traceability context:
+
+| Surface | Behaviour |
+|---|---|
+| Finding detail panel | Expands a finding into supporting evidence, related entities, grounded relationships, timeline references and recorded provenance |
+| Supporting evidence | Resolves `metadata.evidence_ids` against the linked workspace evidence (matched by `id` **or** `evidence_id`, so both the mock and relational universes resolve); honest "No supporting evidence linked." empty state; unresolved references are counted, never invented |
+| Related entities | Resolves `entity_refs`/`entity_ids` against linked entities; opens in the context inspector |
+| Related relationships | Workspace relationships whose endpoints are entities the finding references; opens in the context inspector |
+| Cross-navigation | Evidence / network / timeline tab anchors (`?tab=…`) plus inspector context openings, all preserving the investigation id |
+| Provenance | Created-by / created-at / updated-at / source shown from the persisted row |
+| States | Loading, error-with-retry, empty list ("No findings detected for this investigation.") — no fabricated rows |
+| Integrity language | Confidence is finding confidence; the panel marks leads as "analytical finding supports review — not proof or a judgement" |
+
+### Phase 28 files
+
+```
+apps/web/src/
+  lib/findings-labels.ts                  # severity/confidence/source badge helpers
+  components/investigation/
+    finding-detail-panel.tsx              # grounding panel (Phase 28)
+    investigation-findings-tab.tsx        # enriched list + create/edit preserved
+    finding-detail-panel.test.tsx         # Phase 28 tests
+    investigation-findings-tab.test.tsx   # Phase 28 tests
+  lib/api/adapter.ts                      # mapFinding now surfaces metadata.evidence_ids
+
+apps/api/tests/
+  test_finding_evidence_intelligence.py   # Phase 28 contract tests (read-only)
+```
+
+Out of scope (unchanged from Phase 9 / Phase 27): findings remain analytical observations, never proof; the surface is read-only plus the investigator's own create/edit; no AI is introduced and no new engine runs.

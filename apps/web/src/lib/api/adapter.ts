@@ -58,6 +58,7 @@ import {
   type RealRelationship,
 } from './investigations';
 import type { FindingConfidenceLevel } from '@trinetra-pulse/types';
+import { findingEvidenceIdsFrom } from './findings';
 
 // -------------------------------------------------------------------
 // Identity / provenance defaults
@@ -217,7 +218,9 @@ export function mapFinding(finding: RealFinding): InvestigationFinding {
     created_at: toIso(finding.created_at),
     updated_at: toIso(finding.updated_at),
     entity_ids: finding.entity_refs ?? [],
-    evidence_ids: [],
+    // Phase 28 — surface the persisted evidence references (metadata.evidence_ids)
+    // so the workspace can resolve a finding's supporting evidence traceability.
+    evidence_ids: findingEvidenceIdsFrom(finding),
     tags: (finding.metadata?.tags as string[]) ?? [],
   };
 }
