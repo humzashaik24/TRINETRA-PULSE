@@ -293,11 +293,12 @@ export const useEvidenceStore = create<EvidenceState>()(
       fetchEvidence: async () => {
         const { investigationId, searchQuery, filters, sortBy, sortOrder, page, pageSize } = get();
         if (!investigationId) return;
+        const scopeId = investigationId;
         set({ loading: true, error: null });
         try {
           const result = isMockData()
             ? await evidenceService.listEvidence({
-                investigationId,
+                investigationId: scopeId,
                 query: searchQuery || undefined,
                 ...filters,
                 sortBy,
@@ -305,14 +306,15 @@ export const useEvidenceStore = create<EvidenceState>()(
                 page,
                 pageSize,
               })
-            : await loadEvidenceSearch(investigationId, {
-                investigationId,
+            : await loadEvidenceSearch(scopeId, {
+                investigationId: scopeId,
                 query: searchQuery || undefined,
                 sortBy,
                 sortOrder,
                 page,
                 pageSize,
               });
+          if (get().investigationId !== scopeId) return;
           set({
             items: result.items,
             total: result.total,
@@ -321,6 +323,7 @@ export const useEvidenceStore = create<EvidenceState>()(
             loading: false,
           });
         } catch (err) {
+          if (get().investigationId !== scopeId) return;
           set({ error: String(err), loading: false });
         }
       },

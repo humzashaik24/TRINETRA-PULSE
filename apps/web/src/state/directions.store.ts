@@ -23,7 +23,7 @@ interface DirectionsState {
 
 export const useDirectionsStore = create<DirectionsState>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
       investigationId: null,
       data: null,
       loading: false,
@@ -33,8 +33,10 @@ export const useDirectionsStore = create<DirectionsState>()(
         set({ investigationId, loading: true, error: null });
         try {
           const data = await getInvestigationDirections(investigationId);
+          if (get().investigationId !== investigationId) return;
           set({ data, loading: false, error: null });
         } catch (err) {
+          if (get().investigationId !== investigationId) return;
           set({
             loading: false,
             error: err instanceof Error ? err.message : 'Could not compute directions',

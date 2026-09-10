@@ -471,7 +471,7 @@ const inv006: MockInvestigationRecord = {
     evidence_count: 4,
     relationship_count: 4,
     finding_count: 2,
-    event_count: 0,
+    event_count: 3,
     created_at: iso('2026-08-18T09:00:00Z'),
     updated_at: iso('2026-08-26T12:00:00Z'),
     last_activity_at: iso('2026-08-26T12:00:00Z'),

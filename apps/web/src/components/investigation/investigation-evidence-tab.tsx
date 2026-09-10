@@ -30,6 +30,7 @@ const EVIDENCE_TYPE_LABELS: Record<EvidenceContextKind, string> = {
 
 export function InvestigationEvidenceTab() {
   const evidence = useInvestigationStore((s) => s.data.evidence);
+  const investigationId = useInvestigationStore((s) => s.investigationId);
   const linkEvidence = useInvestigationStore((s) => s.linkEvidence);
   const unlinkEvidence = useInvestigationStore((s) => s.unlinkEvidence);
   const selectContext = useShellStore((s) => s.selectContext);
@@ -140,6 +141,7 @@ export function InvestigationEvidenceTab() {
                       type: 'evidence',
                       id: e.evidence_id,
                       title: e.title,
+                      investigationId: investigationId ?? undefined,
                     })
                   }
                 >
