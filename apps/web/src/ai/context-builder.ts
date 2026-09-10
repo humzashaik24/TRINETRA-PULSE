@@ -212,6 +212,7 @@ export function buildInvestigationContext(
     evidence: sources.filter((s) => s.type === 'Evidence'),
     findings: sources.filter((s) => s.type === 'Finding'),
     timeline: sources.find((s) => s.type === 'Timeline') ?? null,
+    timelineItems: sources.filter((s) => s.type === 'Timeline'),
     truncated,
     note: notes.length ? notes.join(' ') : undefined,
   };

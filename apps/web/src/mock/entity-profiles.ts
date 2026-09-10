@@ -1,4 +1,5 @@
 import type { EntityIntelligence, EntityType, ResolutionState } from '@trinetra-pulse/types';
+import { NEXUS_ENTITIES } from './nexus-dataset';
 
 // ============================================================
 // MOCK — CANONICAL ENTITIES
@@ -680,6 +681,10 @@ export const mockEntityProfiles: EntityIntelligence[] = [
     createdAt: '2026-08-19T09:30:00Z',
     updatedAt: '2026-08-19T09:30:00Z',
   }),
+  // --------------------------------------------------------
+  // NEXUS ENTITIES (Operation Trinetra Nexus)
+  // --------------------------------------------------------
+  ...NEXUS_ENTITIES,
 ];
 
 export const mockEntityProfileById: Map<string, EntityIntelligence> = new Map(

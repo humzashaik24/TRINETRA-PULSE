@@ -252,6 +252,8 @@ export interface AIContext {
   evidence?: AIContextSource[];
   findings?: AIContextSource[];
   timeline?: AIContextSource | null;
+  /** All budgeted timeline items (ordered), for enumerative answers. */
+  timelineItems?: AIContextSource[];
   /** Whether the budget was truncated. */
   truncated: boolean;
   /** Human note shown when context is incomplete. */

@@ -22,6 +22,7 @@ import type {
   EventEvidenceSupport,
   EntityEvidenceSummary,
 } from '@trinetra-pulse/types';
+import { NEXUS_EVIDENCE_ITEMS } from './nexus-dataset';
 
 // ============================================================
 // PHASE 12 — MOCK EVIDENCE INTELLIGENCE
@@ -1931,6 +1932,10 @@ export const mockEvidenceItems: EvidenceItem[] = [
     isDemoData: true,
     tags: ['vehicle', 'insurance', 'policy', 'record'],
   },
+  // --------------------------------------------------------
+  // NEXUS EVIDENCE (Operation Trinetra Nexus)
+  // --------------------------------------------------------
+  ...NEXUS_EVIDENCE_ITEMS,
 ];
 
 // ============================================================

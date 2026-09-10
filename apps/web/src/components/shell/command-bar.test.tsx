@@ -14,7 +14,7 @@ afterEach(() => {
   cleanup();
   __resetNavigation();
   act(() => {
-    useAppStore.setState({ commandOpen: false, contextLabel: null, activeCaseId: null });
+    useAppStore.setState({ commandOpen: false, contextLabel: null, activeCaseId: null, language: 'en' });
   });
   useShellStore.setState({ railExpanded: true });
 });
@@ -54,5 +54,12 @@ describe('CommandBar', () => {
     renderBar();
     const bell = screen.getByRole('button', { name: /Notifications/ });
     expect(bell).toBeInTheDocument();
+  });
+
+  it('does not render a language toggle in the command bar (moved to Settings)', () => {
+    __setPathname('/data-intelligence');
+    renderBar();
+    expect(screen.queryByTestId('language-toggle')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'हिंदी' })).not.toBeInTheDocument();
   });
 });

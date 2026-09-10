@@ -9,6 +9,8 @@ interface NotificationItem {
   timestamp: string;
 }
 
+import type { AppLanguage } from '@/lib/i18n';
+
 interface AppState {
   searchOpen: boolean;
   commandOpen: boolean;
@@ -16,6 +18,7 @@ interface AppState {
   profileOpen: boolean;
   activeCaseId: string | null;
   contextLabel: string | null;
+  language: AppLanguage;
   notifications: NotificationItem[];
   setSearchOpen: (v: boolean) => void;
   setCommandOpen: (v: boolean) => void;
@@ -23,6 +26,7 @@ interface AppState {
   setProfileOpen: (v: boolean) => void;
   setActiveCase: (id: string | null) => void;
   setContextLabel: (label: string | null) => void;
+  setLanguage: (lang: AppLanguage) => void;
   markNotificationRead: (id: string) => void;
   unreadCount: () => number;
 }
@@ -36,6 +40,7 @@ export const useAppStore = create<AppState>()(
       profileOpen: false,
       activeCaseId: null,
       contextLabel: null,
+      language: 'en',
       notifications: [
         {
           id: '1',
@@ -65,6 +70,7 @@ export const useAppStore = create<AppState>()(
       setProfileOpen: (v) => set({ profileOpen: v }),
       setActiveCase: (id) => set({ activeCaseId: id }),
       setContextLabel: (label) => set({ contextLabel: label }),
+      setLanguage: (language) => set({ language }),
       markNotificationRead: (id) =>
         set((s) => ({
           notifications: s.notifications.map((n) =>

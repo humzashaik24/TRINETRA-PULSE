@@ -10,6 +10,7 @@ import { useInvestigationStore } from '@/state/investigation.store';
 import { Tooltip, Avatar } from '@trinetra-pulse/ui';
 import { useTheme } from '@/components/theme-provider';
 import { resolveBreadcrumbs } from '@/lib/workspace';
+import { chromeText, useChromeLanguage } from '@/lib/i18n';
 import {
   Search,
   Bell,
@@ -30,15 +31,20 @@ import {
 
 function LiveBreadcrumbs() {
   const pathname = usePathname();
+  const lang = useChromeLanguage();
   const crumbs = resolveBreadcrumbs(pathname);
+  const localized = crumbs.map((crumb) => ({
+    ...crumb,
+    label: chromeText(lang, crumb.label),
+  }));
 
-  if (crumbs.length === 0) return null;
+  if (localized.length === 0) return null;
 
   return (
-    <nav aria-label="Breadcrumb" data-testid="live-breadcrumbs">
+    <nav aria-label={chromeText(lang, 'Breadcrumb')} data-testid="live-breadcrumbs">
       <ol className="flex items-center gap-1 text-xs text-foreground-muted">
-        {crumbs.map((crumb, i) => {
-          const isLast = i === crumbs.length - 1;
+        {localized.map((crumb, i) => {
+          const isLast = i === localized.length - 1;
           const content = (
             <span
               className={cn(
@@ -108,15 +114,16 @@ function ContextIndicator() {
 
 function SearchTrigger() {
   const setCommandOpen = useAppStore((s) => s.setCommandOpen);
+  const lang = useChromeLanguage();
   return (
-    <Tooltip content="Search (Ctrl+K)">
+    <Tooltip content={chromeText(lang, 'Search (Ctrl+K)')}>
       <button
         onClick={() => setCommandOpen(true)}
         data-testid="command-bar-search"
         className="flex h-8 items-center gap-2 rounded-lg border border-border bg-surface-elevated px-2.5 text-xs text-foreground-muted tp-transition hover:border-border-strong hover:bg-surface-hover sm:w-48 md:w-56"
       >
         <Search size={14} className="shrink-0" />
-        <span className="hidden sm:inline">Search intelligence...</span>
+        <span className="hidden sm:inline">{chromeText(lang, 'Search intelligence...')}</span>
         <kbd className="ml-auto hidden sm:inline-flex h-4 items-center gap-0.5 rounded border border-border bg-surface px-1 text-[9px] font-mono text-foreground-muted">
           Ctrl K
         </kbd>
@@ -126,10 +133,11 @@ function SearchTrigger() {
 }
 
 function SystemStatus() {
+  const lang = useChromeLanguage();
   return (
     <div className="hidden xl:flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] text-foreground-muted">
       <Activity size={12} className="text-success" />
-      <span>All systems operational</span>
+      <span>{chromeText(lang, 'All systems operational')}</span>
     </div>
   );
 }
@@ -139,11 +147,12 @@ function NotificationBell() {
   const open = useAppStore((s) => s.notificationsOpen);
   const setOpen = useAppStore((s) => s.setNotificationsOpen);
   const markRead = useAppStore((s) => s.markNotificationRead);
+  const lang = useChromeLanguage();
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
     <div className="relative">
-      <Tooltip content="Notifications">
+      <Tooltip content={chromeText(lang, 'Notifications')}>
         <button
           onClick={() => setOpen(!open)}
           className="relative flex h-8 w-8 items-center justify-center rounded-lg text-foreground-muted tp-transition hover:bg-surface-hover hover:text-foreground-secondary"
@@ -163,17 +172,17 @@ function NotificationBell() {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-border bg-surface shadow-overlay animate-slide-down">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <span className="text-sm font-medium text-foreground">Notifications</span>
+              <span className="text-sm font-medium text-foreground">{chromeText(lang, 'Notifications')}</span>
               <button
                 onClick={() => notifications.filter((n) => !n.read).forEach((n) => markRead(n.id))}
                 className="text-xs text-brand hover:text-brand-hover tp-transition"
               >
-                Mark all read
+                {chromeText(lang, 'Mark all read')}
               </button>
             </div>
             <div className="max-h-80 overflow-y-auto scrollbar-thin">
               {notifications.length === 0 ? (
-                <div className="py-8 text-center text-sm text-foreground-muted">No notifications</div>
+                <div className="py-8 text-center text-sm text-foreground-muted">{chromeText(lang, 'No notifications')}</div>
               ) : (
                 notifications.map((n) => (
                   <button
@@ -204,18 +213,19 @@ function NotificationBell() {
 function UserMenu() {
   const open = useAppStore((s) => s.profileOpen);
   const setOpen = useAppStore((s) => s.setProfileOpen);
+  const lang = useChromeLanguage();
 
   return (
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 rounded-lg p-1 tp-transition hover:bg-surface-hover"
-        aria-label="Open user menu"
+        aria-label={chromeText(lang, 'Open user menu')}
       >
         <Avatar size="sm" color="brand" initials="AI" />
         <div className="hidden lg:flex flex-col items-start">
-          <span className="text-xs font-medium text-foreground leading-none">Admin</span>
-          <span className="text-[10px] text-foreground-muted leading-none mt-0.5">Analyst</span>
+          <span className="text-xs font-medium text-foreground leading-none">{chromeText(lang, 'Admin')}</span>
+          <span className="text-[10px] text-foreground-muted leading-none mt-0.5">{chromeText(lang, 'Analyst')}</span>
         </div>
       </button>
 
@@ -232,14 +242,14 @@ function UserMenu() {
               onClick={() => setOpen(false)}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground-secondary hover:bg-surface-hover tp-transition"
             >
-              Profile Settings
+              {chromeText(lang, 'Profile Settings')}
             </Link>
             <button className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground-secondary hover:bg-surface-hover tp-transition">
-              Preferences
+              {chromeText(lang, 'Preferences')}
             </button>
             <div className="border-t border-border my-1" />
             <button className="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-danger-subtle tp-transition">
-              Sign Out
+              {chromeText(lang, 'Sign Out')}
             </button>
           </div>
         </>
@@ -253,6 +263,7 @@ export function CommandBar() {
   const openAIPanel = useAIStore((s) => s.openPanel);
   const aiOpen = useAIStore((s) => s.open);
   const { theme, toggleTheme } = useTheme();
+  const lang = useChromeLanguage();
 
   return (
     <header
@@ -270,7 +281,7 @@ export function CommandBar() {
       {/* Right: actions */}
       <div className="flex items-center gap-1 shrink-0">
         <SearchTrigger />
-        <Tooltip content="AI Assistant">
+        <Tooltip content={chromeText(lang, 'AI Assistant')}>
           <button
             onClick={() => openAIPanel()}
             className={cn(
@@ -278,21 +289,21 @@ export function CommandBar() {
               'text-foreground-muted hover:bg-ai-subtle hover:text-ai',
               aiOpen && 'bg-ai-subtle text-ai'
             )}
-            aria-label="AI Assistant"
+            aria-label={chromeText(lang, 'AI Assistant')}
           >
             <BrainCircuit size={16} />
           </button>
         </Tooltip>
-        <Tooltip content={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
+        <Tooltip content={theme === 'dark' ? chromeText(lang, 'Light mode') : chromeText(lang, 'Dark mode')}>
           <button
             onClick={toggleTheme}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground-muted tp-transition hover:bg-surface-hover hover:text-foreground-secondary"
-            aria-label="Toggle theme"
+            aria-label={chromeText(lang, 'Toggle theme')}
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </Tooltip>
-        <Tooltip content="System status">
+        <Tooltip content={chromeText(lang, 'System status')}>
           <button
             onClick={() => setCommandOpen(false)}
             className="hidden xl:flex h-8 items-center justify-center rounded-lg px-1 text-success tp-transition hover:bg-surface-hover"

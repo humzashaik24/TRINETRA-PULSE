@@ -60,3 +60,11 @@ export {
   mockEvidenceByType,
   mockEvidenceByRelationshipId,
 } from './evidence-intelligence';
+export {
+  nexusInvestigationRecord,
+  nexusNetwork,
+  NEXUS_ENTITIES,
+  NEXUS_EVIDENCE_ITEMS,
+  NEXUS_FINDINGS,
+  NEXUS_PATTERNS,
+} from './nexus-dataset';

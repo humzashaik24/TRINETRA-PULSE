@@ -23,11 +23,11 @@ import type {
 // Public constants
 // ------------------------------------------------------------
 
-/** The canonical deterministic demo investigation (Operation Meridian). */
-export const DEMO_INVESTIGATION_ID = 'inv-006';
+/** The canonical deterministic demo investigation (Operation Trinetra Nexus). */
+export const DEMO_INVESTIGATION_ID = 'inv-demo-nexus';
 
 /** The canonical network linked into the demo investigation. */
-export const DEMO_NETWORK_ID = 'NET-001';
+export const DEMO_NETWORK_ID = 'NET-004';
 
 /** Query parameter names used by the journey contract. */
 export const JOURNEY_QUERY = {

@@ -28,6 +28,7 @@ import {
   type RailItem,
 } from '@/components/navigation/rail-config';
 import { useAuthStore } from '@/state/auth.store';
+import { chromeText, useChromeLanguage } from '@/lib/i18n';
 
 // ============================================================
 // PHASE 3.5 — COMMAND RAIL
@@ -39,6 +40,8 @@ import { useAuthStore } from '@/state/auth.store';
 
 function RailLink({ item, expanded }: { item: RailItem; expanded: boolean }) {
   const pathname = usePathname();
+  const lang = useChromeLanguage();
+  const label = chromeText(lang, item.label);
   const active =
     pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
@@ -46,7 +49,7 @@ function RailLink({ item, expanded }: { item: RailItem; expanded: boolean }) {
   const content = (
     <Link
       href={item.href}
-      aria-label={expanded ? undefined : item.label}
+      aria-label={expanded ? undefined : label}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'group relative flex items-center gap-2.5 rounded-lg text-sm font-medium tp-transition',
@@ -76,7 +79,7 @@ function RailLink({ item, expanded }: { item: RailItem; expanded: boolean }) {
           active ? 'text-brand' : 'text-foreground-muted group-hover:text-foreground-secondary'
         )}
       />
-      <span className={cn('truncate', !expanded && 'hidden')}>{item.label}</span>
+      <span className={cn('truncate', !expanded && 'hidden')}>{label}</span>
       {typeof item.badge === 'number' &&
         (expanded ? (
           <span className="ml-auto flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-medium text-white">
@@ -90,7 +93,7 @@ function RailLink({ item, expanded }: { item: RailItem; expanded: boolean }) {
 
   if (expanded) return content;
   return (
-    <Tooltip content={item.label} side="right">
+    <Tooltip content={label} side="right">
       {content}
     </Tooltip>
   );
@@ -99,12 +102,13 @@ function RailLink({ item, expanded }: { item: RailItem; expanded: boolean }) {
 function RailToggle() {
   const expanded = useShellStore((s) => s.railExpanded);
   const toggleRail = useShellStore((s) => s.toggleRail);
+  const lang = useChromeLanguage();
 
   return (
     <div className="border-t border-border p-3">
       <button
         onClick={toggleRail}
-        aria-label={expanded ? 'Collapse navigation rail' : 'Expand navigation rail'}
+        aria-label={expanded ? chromeText(lang, 'Collapse navigation rail') : chromeText(lang, 'Expand navigation rail')}
         className={cn(
           'flex w-full items-center gap-2 rounded-lg text-xs text-foreground-muted tp-transition',
           expanded ? 'px-2.5 py-1.5' : 'justify-center px-0 py-1.5',
@@ -114,10 +118,10 @@ function RailToggle() {
         {expanded ? (
           <>
             <PanelLeft size={14} />
-            <span>Collapse</span>
+            <span>{chromeText(lang, 'Collapse')}</span>
           </>
         ) : (
-          <Tooltip content="Expand rail" side="right">
+          <Tooltip content={chromeText(lang, 'Expand rail')} side="right">
             <PanelLeftClose size={14} className="mx-auto" />
           </Tooltip>
         )}
@@ -158,6 +162,7 @@ export function CommandRail() {
   const viewport = useShellStore((s) => s.viewport);
   const reduced = useReducedMotion();
   const role = useAuthStore((s) => s.session?.user.role);
+  const lang = useChromeLanguage();
 
   if (viewport === 'mobile') {
     return <MobileBottomNav />;
@@ -194,7 +199,7 @@ export function CommandRail() {
         {primarySections.map((section) => (
           <div key={section.id} className="space-y-0.5">
             {expanded && (
-              <p className="tp-data-label px-2.5 pb-1 pt-1">{section.label}</p>
+              <p className="tp-data-label px-2.5 pb-1 pt-1">{chromeText(lang, section.label)}</p>
             )}
             {section.items.map((item) => (
               <RailLink key={item.href} item={item} expanded={expanded} />
@@ -233,6 +238,7 @@ const MOBILE_PRIMARY: RailItem[] = [
 
 function MobileBottomNav() {
   const pathname = usePathname();
+  const lang = useChromeLanguage();
   return (
     <nav
       aria-label="Primary navigation"
@@ -254,7 +260,7 @@ function MobileBottomNav() {
             )}
           >
             <Icon size={18} />
-            <span>{item.label}</span>
+            <span>{chromeText(lang, item.label)}</span>
           </Link>
         );
       })}

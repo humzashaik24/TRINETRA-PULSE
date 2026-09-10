@@ -2,6 +2,7 @@ import type { NetworkGraph, NetworkSummary } from '@trinetra-pulse/types';
 import { networkClean } from './network-clean';
 import { networkHarbour } from './network-harbour';
 import { networkSkyline } from './network-skyline';
+import { nexusNetwork } from '../nexus-dataset';
 import { summarizeNetwork } from './build';
 
 // ============================================================
@@ -12,6 +13,7 @@ export const mockNetworkGraphs: NetworkGraph[] = [
   networkClean,
   networkHarbour,
   networkSkyline,
+  nexusNetwork,
 ];
 
 export const mockNetworkGraphById = new Map<string, NetworkGraph>(
@@ -26,4 +28,4 @@ export const mockNetworkSummaryById = new Map<string, NetworkSummary>(
   mockNetworkSummaries.map((n) => [n.id, n])
 );
 
-export { networkClean, networkHarbour, networkSkyline };
+export { networkClean, networkHarbour, networkSkyline, nexusNetwork };

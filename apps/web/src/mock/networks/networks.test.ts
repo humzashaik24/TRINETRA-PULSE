@@ -2,8 +2,8 @@ import { mockNetworkGraphs, mockNetworkSummaries } from './index';
 
 describe('mock networks data integrity', () => {
   it('provides the expected network catalogue', () => {
-    expect(mockNetworkGraphs.map((n) => n.id)).toEqual(['NET-001', 'NET-002', 'NET-003']);
-    expect(mockNetworkSummaries.length).toBe(3);
+    expect(mockNetworkGraphs.map((n) => n.id)).toEqual(['NET-001', 'NET-002', 'NET-003', 'NET-004']);
+    expect(mockNetworkSummaries.length).toBe(4);
   });
 
   it('reference only existing node ids in edges and clusters', () => {

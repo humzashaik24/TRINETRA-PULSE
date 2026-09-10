@@ -94,12 +94,12 @@ describe('network graph grounds through the inspector', () => {
 });
 
 describe('cross-module focus identifiers are unique per contract', () => {
-  it('the legacy and intelligence evidence namespaces do not collide', () => {
-    // Guarded indirectly: ev-* vs ev-intel-* must remain distinct so the
-    // evidenceView resolver can disambiguate by namespace (ev-intel-* first).
-    const intel = new Set(mockEvidenceById.keys());
-    for (const id of intel) {
-      expect(id.startsWith('ev-intel-')).toBe(true);
+  it('intelligence evidence ids use distinct, unambiguous namespaces', () => {
+    // Guarded indirectly: legacy investigation evidence (ev-<n>) vs the
+    // intelligence namespaces (ev-intel-*, ev-nexus-*) must remain distinct
+    // so the evidenceView resolver can disambiguate without collision.
+    for (const id of mockEvidenceById.keys()) {
+      expect(id).toMatch(/^ev-(intel|nexus)-/);
     }
   });
 

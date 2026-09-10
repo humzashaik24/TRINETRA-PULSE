@@ -1,6 +1,8 @@
 import type { RecentIntelligence } from '@trinetra-pulse/types';
+import { NEXUS_FINDINGS } from './nexus-dataset';
 
 export const recentIntelligenceFindings: RecentIntelligence[] = [
+  ...NEXUS_FINDINGS,
   {
     id: 'fi-001',
     type: 'relationship',

@@ -1,6 +1,8 @@
 import type { SuspiciousPattern } from '@trinetra-pulse/types';
+import { NEXUS_PATTERNS } from './nexus-dataset';
 
 export const suspiciousPatterns: SuspiciousPattern[] = [
+  ...NEXUS_PATTERNS,
   {
     id: 'sp-001',
     type: 'communication_spike',

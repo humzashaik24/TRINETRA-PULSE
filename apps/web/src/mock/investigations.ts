@@ -545,11 +545,16 @@ const inv006: MockInvestigationRecord = {
   ],
 };
 
+import {
+  nexusInvestigationRecord,
+} from './nexus-dataset';
+
 // ------------------------------------------------------------
 // Registry
 // ------------------------------------------------------------
 
 export const mockInvestigationRecords: MockInvestigationRecord[] = [
+  nexusInvestigationRecord,
   inv001,
   inv002,
   inv003,

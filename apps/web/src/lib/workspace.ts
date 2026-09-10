@@ -55,6 +55,7 @@ const ROUTE_LABELS: Record<string, string> = {
   patterns: 'Patterns',
   'ai-assistant': 'AI Assistant',
   reports: 'Reports',
+  'knowledge-canvas': 'Knowledge Canvas',
   settings: 'Settings',
   profile: 'User',
 };
@@ -70,6 +71,7 @@ const ROUTE_ICONS: Record<string, LucideIcon> = {
   patterns: Sparkles,
   'ai-assistant': BrainCircuit,
   reports: FileText,
+  'knowledge-canvas': Sparkles,
   settings: Settings,
   profile: CircleUserRound,
 };

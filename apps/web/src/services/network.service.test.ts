@@ -16,7 +16,7 @@ import {
 describe('network.service', () => {
   it('lists the mock network catalogue', async () => {
     const networks = await getNetworks();
-    expect(networks.map((n) => n.id)).toEqual(['NET-001', 'NET-002', 'NET-003']);
+    expect(networks.map((n) => n.id)).toEqual(['NET-001', 'NET-002', 'NET-003', 'NET-004']);
     expect(networks[0].nodeCount).toBeGreaterThan(0);
     expect(networks[0].relationshipCount).toBeGreaterThan(0);
   });

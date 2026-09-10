@@ -11,6 +11,7 @@ import {
   CircleUserRound,
   ShieldHalf,
   KeyRound,
+  PanelsTopLeft,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -59,6 +60,7 @@ export const PRIMARY_RAIL_SECTIONS: RailSection[] = [
       { label: 'Evidence', href: '/evidence', icon: FileSearch, primary: true },
       { label: 'Analytics', href: '/analytics', icon: BarChart3 },
       { label: 'Patterns', href: '/patterns', icon: Sparkles },
+      { label: 'Knowledge Canvas', href: '/knowledge-canvas', icon: PanelsTopLeft },
     ],
   },
 ];

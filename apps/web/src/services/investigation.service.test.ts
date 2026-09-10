@@ -59,6 +59,7 @@ describe('investigation.service — read API', () => {
   it('lists the deterministic investigation universe', async () => {
     const invs = await getInvestigations();
     expect(invs.map((i) => i.id)).toEqual([
+      'inv-demo-nexus',
       'inv-001',
       'inv-002',
       'inv-003',
@@ -66,7 +67,7 @@ describe('investigation.service — read API', () => {
       'inv-005',
       'inv-006',
     ]);
-    expect(invs[0].title).toBe('Operation Clean — Firmware Import Probe');
+    expect(invs[0].title).toBe('Operation Trinetra Nexus');
   });
 
   it('fetches a single investigation by id', async () => {
@@ -141,7 +142,7 @@ describe('investigation.service — create / update', () => {
       title: 'New Probe',
       description: 'Draft probe',
     });
-    expect(created.id).toBe('inv-007');
+    expect(created.id).toBe('inv-008');
     expect(created.status).toBe('draft');
     expect(created.priority).toBe('normal');
     expect(created.lead_investigator).toBe('Unassigned');

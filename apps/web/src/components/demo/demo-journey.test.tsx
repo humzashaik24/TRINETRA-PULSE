@@ -15,7 +15,7 @@ import { mockInvestigationById } from '@/mock/investigations';
 // Context Inspector with investigation scope preserved.
 // ============================================================
 
-const DEMO = 'inv-006';
+const DEMO = 'inv-demo-nexus';
 
 function seedDemo() {
   const rec = mockInvestigationById.get(DEMO)!;
@@ -70,7 +70,7 @@ describe('DemoInvestigationHero', () => {
   it('renders the canonical demo investigation entry point', () => {
     render(<DemoInvestigationHero />);
     expect(screen.getByTestId('demo-investigation-hero')).toBeInTheDocument();
-    expect(screen.getByText('Operation Meridian')).toBeInTheDocument();
+    expect(screen.getByText('Operation Trinetra Nexus')).toBeInTheDocument();
     expect(screen.getByTestId('demo-investigation-open')).toBeInTheDocument();
   });
 
@@ -78,7 +78,7 @@ describe('DemoInvestigationHero', () => {
     render(<DemoInvestigationHero />);
     const link = screen.getByTestId('demo-investigation-open').closest('a');
     expect(link).toBeTruthy();
-    expect(link!.getAttribute('href')).toContain('/investigations/inv-006');
+    expect(link!.getAttribute('href')).toContain('/investigations/inv-demo-nexus');
   });
 });
 
