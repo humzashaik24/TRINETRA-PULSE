@@ -5,7 +5,7 @@ import { Zap, DollarSign, MapPin, Clock, Network, Gauge } from 'lucide-react';
 import { ConfidenceIndicator, EmptyState, Badge } from '@trinetra-pulse/ui';
 import { staggerChildVariants } from '@trinetra-pulse/ui';
 import type { SuspiciousPattern, PatternType } from '@trinetra-pulse/types';
-import { suspiciousPatterns } from '@/mock';
+import { presentationPatterns } from '@/mock/patterns';
 import { EntityTypeIcon } from '@trinetra-pulse/ui';
 
 const PATTERN_ICON: Record<PatternType, React.ReactNode> = {
@@ -88,7 +88,7 @@ function PatternCard({ pattern, onSelect }: { pattern: SuspiciousPattern; onSele
 }
 
 export function SuspiciousPatterns({ onSelect }: { onSelect?: (pattern: SuspiciousPattern) => void }) {
-  if (suspiciousPatterns.length === 0) {
+  if (presentationPatterns.length === 0) {
     return (
       <EmptyState
         icon={<Zap className="h-8 w-8" />}
@@ -100,7 +100,7 @@ export function SuspiciousPatterns({ onSelect }: { onSelect?: (pattern: Suspicio
 
   return (
     <div className="space-y-2.5" role="feed" aria-label="Suspicious patterns">
-      {suspiciousPatterns.map((pattern) => (
+      {presentationPatterns.map((pattern) => (
         <PatternCard key={pattern.id} pattern={pattern} onSelect={onSelect} />
       ))}
     </div>

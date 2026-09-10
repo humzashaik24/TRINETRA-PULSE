@@ -126,6 +126,25 @@ function ReactFlowCanvasBody({ engine }: ViewportProps) {
     ),
   });
 
+  // Fit the view whenever a new node set arrives (initial network load,
+  // depth/expansion changes, or a different network). Without this the
+  // initial mount fits an empty canvas; nodes pushed afterwards by the
+  // engine are never framed by React Flow's one-shot fitView.
+  const currentIdsRef = useRef('');
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    const ids = nodes
+      .map((n) => n.id)
+      .sort()
+      .join('|');
+    if (ids === currentIdsRef.current) return;
+    currentIdsRef.current = ids;
+    const raf = requestAnimationFrame(() => {
+      reactFlow.fitView({ padding: 0.2, maxZoom: 1.2, duration: 200 });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [nodes, reactFlow]);
+
   const onNodeDoubleClick: NodeMouseHandler<FlowNode> = useCallback(
     (_, node) => {
       if (typeof window !== 'undefined' && window.__trinetra_graph__?.expandNode) {

@@ -42,7 +42,7 @@ function toRows(results: CentralityResultSet['results'] | InfluenceResult[], kin
   }));
 }
 
-export function MetricExplorer({ bundle, unavailable = false }: { bundle: NetworkAnalytics; unavailable?: boolean }) {
+export function MetricExplorer({ bundle, unavailable = false }: { bundle: NetworkAnalytics | null; unavailable?: boolean }) {
   const selectedMetric = useAnalyticsStore((s) => s.selectedMetric);
   const overlay = useAnalyticsStore((s) => s.overlay);
   const setSelectedMetric = useAnalyticsStore((s) => s.setSelectedMetric);
@@ -51,11 +51,11 @@ export function MetricExplorer({ bundle, unavailable = false }: { bundle: Networ
   const sets: Record<MetricTab, { results: CentralityResultSet['results'] | InfluenceResult[]; definition: string }> =
     useMemo(
       () => ({
-        degree: { results: bundle.degree?.results ?? [], definition: METRIC_META.degree.definition },
-        betweenness: { results: bundle.betweenness?.results ?? [], definition: METRIC_META.betweenness.definition },
-        closeness: { results: bundle.closeness?.results ?? [], definition: METRIC_META.closeness.definition },
-        pagerank: { results: bundle.pagerank?.results ?? [], definition: METRIC_META.pagerank.definition },
-        influence: { results: bundle.influence ?? [], definition: METRIC_META.influence.definition },
+        degree: { results: bundle?.degree?.results ?? [], definition: METRIC_META.degree.definition },
+        betweenness: { results: bundle?.betweenness?.results ?? [], definition: METRIC_META.betweenness.definition },
+        closeness: { results: bundle?.closeness?.results ?? [], definition: METRIC_META.closeness.definition },
+        pagerank: { results: bundle?.pagerank?.results ?? [], definition: METRIC_META.pagerank.definition },
+        influence: { results: bundle?.influence ?? [], definition: METRIC_META.influence.definition },
       }),
       [bundle]
     );
@@ -92,7 +92,7 @@ export function MetricExplorer({ bundle, unavailable = false }: { bundle: Networ
     showOnGraph(row.entityId);
   };
 
-  if (unavailable) {
+  if (unavailable || !bundle) {
     return <p className="py-6 text-center text-xs text-foreground-muted">Metric analysis is unavailable from the API for this network.</p>;
   }
   return (

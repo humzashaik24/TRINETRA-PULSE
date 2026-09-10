@@ -2,7 +2,7 @@ export { dashboardMetrics } from './metrics';
 export { dashboardNetwork } from './network';
 export { recentIntelligenceFindings } from './findings';
 export { importantEntities } from './entities';
-export { suspiciousPatterns } from './patterns';
+export { suspiciousPatterns, presentationPatterns } from './patterns';
 export { investigationActivity } from './activity';
 export { activitySeries } from './activity-series';
 export { dataSources } from './data-sources';

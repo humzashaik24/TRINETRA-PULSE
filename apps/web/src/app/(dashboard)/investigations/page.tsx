@@ -8,6 +8,7 @@ import { useAppStore } from '@/state/app.store';
 import { WorkspaceHeader } from '@/components/shell/workspace-header';
 import { Badge, Button, ErrorState, Input, Select, Skeleton } from '@trinetra-pulse/ui';
 import { getInvestigations } from '@/services/investigation.service';
+import { isPresentationInvestigation } from '@/mock/investigations';
 import { isMockData } from '@/lib/api/config';
 import { listInvestigations } from '@/lib/api/investigations';
 import { mapInvestigationList } from '@/lib/api/adapter';
@@ -188,6 +189,7 @@ export default function InvestigationsPage() {
     if (!items) return [];
     const q = search.trim().toLowerCase();
     return items
+      .filter((inv) => isPresentationInvestigation(inv.id))
       .filter((inv) => {
         if (status !== 'all' && inv.status !== status) return false;
         if (priority !== 'all' && inv.priority !== priority) return false;

@@ -29,10 +29,10 @@ import {
 import { cn } from '@/lib/utils';
 import { mockEntityProfiles } from '@/mock';
 import { mockDatasets } from '@/mock';
-import { suspiciousPatterns } from '@/mock';
+import { suspiciousPatterns, presentationPatterns } from '@/mock';
 import { investigationActivity } from '@/mock';
 import { mockInvestigations } from '@/mock';
-import { mockInvestigationById } from '@/mock/investigations';
+import { mockInvestigationById, isPresentationInvestigation } from '@/mock/investigations';
 import { useInvestigationStore } from '@/state/investigation.store';
 import { journeyHref } from '@/navigation/journey';
 import { RAIL_ITEMS } from '@/components/navigation/rail-config';
@@ -101,7 +101,10 @@ function buildEntityEntries(): PaletteEntry[] {
 }
 
 function buildInvestigationEntries(): PaletteEntry[] {
-  return mockInvestigations.slice(0, 20).map((inv) => ({
+  return mockInvestigations
+    .filter((inv) => isPresentationInvestigation(inv.id))
+    .slice(0, 20)
+    .map((inv) => ({
     id: `investigation:${inv.id}`,
     group: 'Investigations',
     label: inv.title,
@@ -153,7 +156,7 @@ function buildDataSourceEntries(): PaletteEntry[] {
       keywords: ['dataset', 'data', d.category, d.sourceName],
     });
   });
-  suspiciousPatterns.slice(0, 8).forEach((p) => {
+  presentationPatterns.slice(0, 8).forEach((p) => {
     entries.push({
       id: `pattern:${p.id}`,
       group: 'Patterns',

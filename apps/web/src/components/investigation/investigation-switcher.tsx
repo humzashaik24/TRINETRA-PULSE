@@ -6,6 +6,7 @@ import { FolderOpen, ChevronDown } from 'lucide-react';
 import { Dropdown, Button } from '@trinetra-pulse/ui';
 import type { DropdownItem } from '@trinetra-pulse/ui';
 import { getInvestigations } from '@/services/investigation.service';
+import { isPresentationInvestigation } from '@/mock/investigations';
 import type { Investigation } from '@trinetra-pulse/types';
 
 // ============================================================
@@ -29,7 +30,9 @@ export function InvestigationSwitcher({
     getInvestigations().then(setItems).catch(() => setItems([]));
   }, [currentId]);
 
-  const dropdownItems: DropdownItem[] = (items ?? []).map((inv) => ({
+  const dropdownItems: DropdownItem[] = (items ?? [])
+    .filter((inv) => isPresentationInvestigation(inv.id))
+    .map((inv) => ({
     label: inv.title,
     icon: <FolderOpen className="h-3.5 w-3.5" />,
     value: inv.id,

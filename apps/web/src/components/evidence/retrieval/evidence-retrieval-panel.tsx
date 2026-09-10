@@ -8,6 +8,7 @@ import { retrieveEvidenceContext } from '@/ai/evidence-retrieval';
 import { retrieveInvestigationContext } from '@/ai/retrieval';
 import { isMockData } from '@/lib/api/config';
 import { OPERATION_MERIDIAN_ID } from '@/lib/api/evidence';
+import { DEMO_INVESTIGATION_ID } from '@/navigation/journey';
 import { EVIDENCE_TYPE_LABELS, formatPercent } from '@/lib/format';
 import { EVIDENCE_TYPE_VARIANT } from '@/components/evidence/evidence-domain';
 import type { AIContextSource, AIContextScope, AISourceReference } from '@trinetra-pulse/types';
@@ -67,7 +68,7 @@ export function EvidenceRetrievalPanel({
 }: {
   onSelectEvidence?: (id: string) => void;
 }) {
-  const investigationId = useEvidenceStore((s) => s.investigationId) ?? (isMockData() ? 'inv-006' : OPERATION_MERIDIAN_ID);
+  const investigationId = useEvidenceStore((s) => s.investigationId) ?? (isMockData() ? DEMO_INVESTIGATION_ID : OPERATION_MERIDIAN_ID);
   const selectItem = useEvidenceStore((s) => s.selectItem);
   const handleSelect = onSelectEvidence ?? selectItem;
 

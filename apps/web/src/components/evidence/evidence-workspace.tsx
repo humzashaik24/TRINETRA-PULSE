@@ -15,6 +15,7 @@ import { TimelineEvidenceMode } from './timeline/timeline-evidence-mode';
 import { EvidenceRetrievalPanel } from './retrieval/evidence-retrieval-panel';
 import { mockEvidenceById } from '@/mock';
 import { isMockData } from '@/lib/api/config';
+import { DEMO_INVESTIGATION_ID as JOURNEY_DEMO_INVESTIGATION_ID } from '@/navigation/journey';
 import {
   OPERATION_MERIDIAN_ID,
   OPERATION_MERIDIAN_EVIDENCE_001,
@@ -34,11 +35,13 @@ import type { EvidenceType, EvidenceStatus } from '@trinetra-pulse/types';
 
 /** Investigation id the Evidence Workspace demonstrates: canonical demo id
  *  in mock mode, the deterministic Operation Meridian uuid in API mode. */
-const DEMO_INVESTIGATION_ID = isMockData() ? 'inv-006' : OPERATION_MERIDIAN_ID;
+const DEMO_INVESTIGATION_ID = isMockData()
+  ? JOURNEY_DEMO_INVESTIGATION_ID
+  : OPERATION_MERIDIAN_ID;
 
-/** Demo evidence to open from the empty detail state: canonical mock id in
- *  mock mode, the deterministic seeded evidence row in API mode. */
-const DEMO_EVIDENCE_ID = isMockData() ? 'ev-intel-001' : OPERATION_MERIDIAN_EVIDENCE_001;
+/** Demo evidence to open from the empty detail state: canonical Nexus mock id
+ *  in mock mode, the deterministic seeded evidence row in API mode. */
+const DEMO_EVIDENCE_ID = isMockData() ? 'ev-nexus-001' : OPERATION_MERIDIAN_EVIDENCE_001;
 
 export function EvidenceWorkspace() {
   const {

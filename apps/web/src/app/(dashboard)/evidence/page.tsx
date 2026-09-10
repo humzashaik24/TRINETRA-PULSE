@@ -19,7 +19,7 @@ export default function EvidencePage() {
       <WorkspaceHeader
         eyebrow="INTELLIGENCE WORKSPACE"
         title="Evidence Intelligence"
-        description="Grounded evidence repository, provenance, coverage, and AI retrieval for Operation Meridian"
+        description="Grounded evidence repository, provenance, coverage, and AI retrieval for Operation Trinetra Nexus"
         actions={<DemoDataIndicator />}
       />
       <EvidenceWorkspace />

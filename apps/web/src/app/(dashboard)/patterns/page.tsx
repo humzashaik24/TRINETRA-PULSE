@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/app.store';
 import { useShellStore } from '@/state/shell.store';
-import { suspiciousPatterns } from '@/mock/patterns';
+import { presentationPatterns } from '@/mock/patterns';
 import type { SuspiciousPattern, IntelligenceSeverity } from '@trinetra-pulse/types';
 import { WorkspaceHeader } from '@/components/shell/workspace-header';
 import { ChartCard } from '@trinetra-pulse/ui';
@@ -296,8 +296,8 @@ export default function PatternsPage() {
   }, [setContextLabel]);
 
   const filtered = useMemo(() => {
-    if (severityFilter === 'all') return suspiciousPatterns;
-    return suspiciousPatterns.filter((p) => p.severity === severityFilter);
+    if (severityFilter === 'all') return presentationPatterns;
+    return presentationPatterns.filter((p) => p.severity === severityFilter);
   }, [severityFilter]);
 
   const handleSelect = useCallback(
@@ -327,9 +327,9 @@ export default function PatternsPage() {
         }
       />
 
-      <SummaryStrip patterns={suspiciousPatterns} loading={false} />
+      <SummaryStrip patterns={presentationPatterns} loading={false} />
 
-      {suspiciousPatterns.length === 0 ? (
+      {presentationPatterns.length === 0 ? (
         <EmptyState
           icon={<Sparkles className="h-10 w-10" />}
           title="No patterns detected"

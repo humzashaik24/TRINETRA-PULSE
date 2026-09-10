@@ -11,10 +11,11 @@ import { mockInvestigationById } from '@/mock/investigations';
 // PHASE 13 — DEMO INVESTIGATION HERO
 // ============================================================
 // The single, deterministic entry point for the SIH
-// end-to-end demonstration ("Operation Meridian", INV-006).
-// Rendered at the top of the Investigations landing page and in
-// the investigation overview command center so the demo journey
-// starts exactly where the reviewer expects it to.
+// end-to-end demonstration (Operation Trinetra Nexus,
+// INV-DEMO-NEXUS / NET-004). Rendered at the top of the
+// Investigations landing page and in the investigation overview
+// command center so the demo journey starts exactly where the
+// reviewer expects it to.
 // ============================================================
 
 export interface DemoInvestigationHeroProps {
@@ -58,7 +59,7 @@ export function DemoInvestigationHero({ compact = false }: DemoInvestigationHero
             </Badge>
           </div>
 
-          <h2 className="text-lg font-semibold text-foreground">{inv?.title ?? 'Operation Meridian'}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{inv?.title ?? 'Operation Trinetra Nexus'}</h2>
           <p className="mt-0.5 font-mono text-xs text-foreground-muted">
             {DEMO_INVESTIGATION_ID.toUpperCase()}
             {record?.investigation.tags?.includes('demo') ? ' · demonstration case' : ''}

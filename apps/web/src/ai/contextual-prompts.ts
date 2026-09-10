@@ -1,6 +1,7 @@
 import type { AIContextScope } from '@trinetra-pulse/types';
 import type { Investigation } from '@trinetra-pulse/types';
 import { mockInvestigationById } from '@/mock/investigations';
+import { mockEntityProfileById } from '@/mock/entity-profiles';
 
 // ============================================================
 // PHASE 13 — CONTEXTUAL AI PROMPTS
@@ -63,6 +64,12 @@ export function buildContextualPrompts({
     prompts.push(
       'Which entities act as bridges between clusters in this network?'
     );
+    prompts.push(
+      'What suspicious patterns were detected in this network?'
+    );
+    prompts.push(
+      'Which entities share the most community connections?'
+    );
   }
 
   // Investigation-scoped prompts referencing real linked objects.
@@ -74,6 +81,7 @@ export function buildContextualPrompts({
       record.entities[0]?.name ??
       record.investigation.lead_investigator;
     const topFinding = record.findings[0]?.title;
+    const secondFinding = record.findings[1]?.title;
     if (invTitle) {
       prompts.push(
         `Explain the chain of evidence behind ${topFinding ?? 'the main finding'}`
@@ -81,6 +89,11 @@ export function buildContextualPrompts({
       prompts.push(
         `Walk me through how ${topEntity} connects to ${invTitle}`
       );
+      if (secondFinding) {
+        prompts.push(
+          `What evidence is linked to the finding "${secondFinding}"?`
+        );
+      }
     }
   }
 
@@ -90,12 +103,19 @@ export function buildContextualPrompts({
   return dedupe(prompts);
 }
 
-/** Resolve a human-friendly name for the focused entity. */
+/** Resolve a human-friendly name for the focused entity: prefer the
+ *  linked-name set when it is a single known entity, then the deterministic
+ *  mock profile universe, and only then the generic reference. The generic
+ *  fallback guarantees the assistant never fabricates a name. */
 function namedEntity(
-  _scope: Pick<AIContextScope, 'entityId'>,
+  scope: Pick<AIContextScope, 'entityId'>,
   entityNames: string[]
 ): string {
   if (entityNames.length === 1) return entityNames[0];
+  if (scope.entityId) {
+    const profile = mockEntityProfileById.get(scope.entityId);
+    if (profile) return profile.displayName;
+  }
   return 'the selected entity';
 }
 

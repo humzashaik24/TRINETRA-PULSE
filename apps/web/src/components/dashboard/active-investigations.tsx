@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FolderSearch, ArrowRight, ListChecks } from 'lucide-react';
 import { badgeVariants } from '@trinetra-pulse/ui';
 import { mockInvestigations } from '@/mock';
+import { isPresentationInvestigation } from '@/mock/investigations';
 import { mockReviewByInvestigation } from '@/mock/investigation-operations';
 import type { Investigation } from '@trinetra-pulse/types';
 
@@ -39,7 +40,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function ActiveInvestigations() {
-  const open = mockInvestigations.filter((i) => i.status !== 'closed' && i.status !== 'archived');
+  const open = mockInvestigations.filter(
+    (i) => i.status !== 'closed' && i.status !== 'archived' && isPresentationInvestigation(i.id)
+  );
   const reviewCount = (id: string) =>
     (mockReviewByInvestigation[id] ?? []).filter((r) => !r.resolved).length;
 

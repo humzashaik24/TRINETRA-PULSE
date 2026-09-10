@@ -570,3 +570,19 @@ export const mockInvestigationById = new Map<string, MockInvestigationRecord>(
 export const mockInvestigations: Investigation[] = mockInvestigationRecords.map(
   (r) => r.investigation
 );
+
+// ------------------------------------------------------------
+// Presentation surface
+// ------------------------------------------------------------
+// The canonical demo investigation is Operation Trinetra Nexus
+// (inv-demo-nexus). Operation Meridian (inv-006) was the earlier
+// demo anchor; it stays in the registry as a deterministic test
+// fixture but is withheld from user-facing navigation so exactly
+// one demo investigation is presented.
+// ------------------------------------------------------------
+
+export const HIDDEN_INVESTIGATION_IDS = new Set<string>(['inv-006']);
+
+export function isPresentationInvestigation(id: string): boolean {
+  return !HIDDEN_INVESTIGATION_IDS.has(id);
+}

@@ -73,6 +73,7 @@ export default function AnalyticsPage() {
   }, [networkId, graphNodes.length, graphLoadingState, loadNetwork]);
 
   const isComputing = status === 'computing' || status === 'queued';
+  const loading = !bundle;
   const unavailable = useMemo(
     () => new Set(bundle?.metadata?.unavailableSections ?? []),
     [bundle]
@@ -127,7 +128,7 @@ export default function AnalyticsPage() {
     );
   }
 
-  if (isComputing && !bundle) {
+  if (loading) {
     return (
       <div className="p-6 lg:p-8 space-y-6">
         <WorkspaceHeader
@@ -140,7 +141,9 @@ export default function AnalyticsPage() {
             <div className="absolute inset-0 rounded-full border-2 border-surface-active" />
             <div className="absolute inset-0 rounded-full border-2 border-brand border-t-transparent animate-spin" />
           </div>
-          <p className="text-sm text-foreground-muted">Computing network analytics…</p>
+          <p className="text-sm text-foreground-muted">
+            {isComputing ? 'Computing network analytics…' : 'Loading network analytics…'}
+          </p>
         </div>
       </div>
     );
@@ -284,7 +287,7 @@ export default function AnalyticsPage() {
           }
         >
           <MetricExplorer
-            bundle={bundle!}
+            bundle={bundle}
             unavailable={
               unavailable.has('influence') &&
               unavailable.has('degree') &&

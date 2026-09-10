@@ -1,8 +1,14 @@
 import type { SuspiciousPattern } from '@trinetra-pulse/types';
 import { NEXUS_PATTERNS } from './nexus-dataset';
 
+/** Patterns surfaced in the user-facing presentation surfaces (Patterns
+ *  workspace, dashboard widget, command palette): the Nexus demo set only.
+ *  Legacy sp-*-ids stay in `suspiciousPatterns` solely for the inspector
+ *  service's deterministic context resolution. */
+export const presentationPatterns: SuspiciousPattern[] = [...NEXUS_PATTERNS];
+
 export const suspiciousPatterns: SuspiciousPattern[] = [
-  ...NEXUS_PATTERNS,
+  ...presentationPatterns,
   {
     id: 'sp-001',
     type: 'communication_spike',

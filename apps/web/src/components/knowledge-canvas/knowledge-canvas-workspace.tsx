@@ -79,7 +79,7 @@ export function KnowledgeCanvasWorkspace({ networkId }: KnowledgeCanvasWorkspace
               {investigationId.toUpperCase()}
             </span>
             <span className="text-caption text-foreground-muted">
-              {investigation?.investigation.title ?? 'Operation Meridian'}
+              {investigation?.investigation.title ?? 'Operation Trinetra Nexus'}
             </span>
           </div>
         </div>

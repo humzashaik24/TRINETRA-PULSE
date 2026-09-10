@@ -8,6 +8,7 @@ import type {
 import * as entityService from '@/services/entity.service';
 import { isMockData } from '@/lib/api/config';
 import { loadEntityDetail, loadEntityList } from '@/lib/api/entities';
+import { DEMO_INVESTIGATION_ID as JOURNEY_DEMO_INVESTIGATION_ID } from '@/navigation/journey';
 
 // ============================================================
 // ENTITY STORE (Phase 6 / 17.7)
@@ -30,7 +31,7 @@ import { loadEntityDetail, loadEntityList } from '@/lib/api/entities';
 /** Investigation id the Entity workspace demonstrates: canonical demo id in
  *  mock mode, the deterministic Operation Meridian uuid in API mode. */
 const DEMO_INVESTIGATION_ID = isMockData()
-  ? 'inv-006'
+  ? JOURNEY_DEMO_INVESTIGATION_ID
   : '6c887c98-939a-50ce-ac27-f58376941de2';
 
 export interface EntityState {

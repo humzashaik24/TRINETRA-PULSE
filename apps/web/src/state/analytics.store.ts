@@ -424,7 +424,14 @@ export const useAnalyticsStore = create<AnalyticsState>()(
 
       loadAnalytics: async (networkId, filter) => {
         const nextFilter = filter ?? get().filters;
-        set({ networkId, filters: { ...nextFilter }, status: 'queued', error: null });
+        const stale = get().networkId !== networkId;
+        set({
+          networkId,
+          filters: { ...nextFilter },
+          status: 'queued',
+          error: null,
+          ...(stale ? { bundle: null, overlay: 'none' } : {}),
+        });
         set({ status: 'computing' });
 
         if (isMockData()) {

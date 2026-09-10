@@ -21,7 +21,13 @@ import {
 
 import { Badge, ChartCard } from '@trinetra-pulse/ui';
 import { useAppStore } from '@/state/app.store';
-import { useLanguageToggle, chromeText } from '@/lib/i18n';
+import {
+  APP_LANGUAGES,
+  LANGUAGE_NATIVE_NAMES,
+  useLanguageToggle,
+  chromeText,
+  type AppLanguage,
+} from '@/lib/i18n';
 import { useTheme } from '@/components/theme-provider';
 import { useAuthStore } from '@/state/auth.store';
 import { isMockData } from '@/lib/api/config';
@@ -101,14 +107,18 @@ export default function SettingsPage() {
           <div className="space-y-1">
             <Row label={chromeText(language, 'Language')}>
               <Globe className="h-3.5 w-3.5 text-foreground-muted" />
-              <SegmentedControl
+              <select
                 value={language}
-                onChange={(v) => setLanguage(v as 'en' | 'hi')}
-                options={[
-                  { value: 'en', label: 'EN' },
-                  { value: 'hi', label: 'हिंदी' },
-                ]}
-              />
+                onChange={(e) => setLanguage(e.target.value as AppLanguage)}
+                aria-label="Language"
+                className="h-7 rounded-md border border-border bg-surface-elevated px-2 text-xs font-medium text-foreground outline-none focus:border-brand"
+              >
+                {APP_LANGUAGES.map((lang) => (
+                  <option key={lang} value={lang}>
+                    {LANGUAGE_NATIVE_NAMES[lang]}
+                  </option>
+                ))}
+              </select>
             </Row>
             <Row label={chromeText(language, 'Theme')}>
               {theme === 'dark' ? (

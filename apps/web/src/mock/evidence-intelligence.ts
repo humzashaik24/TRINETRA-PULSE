@@ -27,9 +27,12 @@ import { NEXUS_EVIDENCE_ITEMS } from './nexus-dataset';
 // ============================================================
 // PHASE 12 — MOCK EVIDENCE INTELLIGENCE
 // ============================================================
-// Deterministic evidence universe for INV-006 / Operation Meridian.
-// Each evidence item references valid canonical entity, relationship,
-// finding and event IDs from the existing mock modules.
+// Deterministic evidence universe for the canonical demo scope.
+// The legacy Operation Meridian fixture remains keyed under
+// inv-006; Nexus evidence items (inv-demo-nexus) are appended
+// below so the Evidence workspace resolves whichever scope is
+// active. Each evidence item references valid canonical entity,
+// relationship, finding and event IDs from the mock modules.
 //
 // The evidence universe covers all types (DOCUMENT, FIR, REPORT,
 // COMMUNICATION, TRANSACTION, VEHICLE, LOCATION, IMAGE, RECORD)
