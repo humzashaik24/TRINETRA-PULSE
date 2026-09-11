@@ -10,7 +10,9 @@ import {
   type EntityRelationship,
   type EntitySearchParams,
   type ExtractionJob,
+  type GraphEdge,
   type RelatedEntity,
+  type RelationshipCandidateStatus,
   type ResolutionDecision,
   type ResolutionState,
   type EntityActivityItem,
@@ -30,6 +32,10 @@ import {
   mockEntityResolutions,
   mockExtractionJobs,
   mockResolutionHistory,
+  presentationEntityProfiles,
+  nexusNetwork,
+  NEXUS_EVIDENCE_ITEMS,
+  nexusInvestigationRecord,
 } from '@/mock';
 import { queryEntities } from '@/lib/entity-search';
 import { isMockData } from '@/lib/api/config';
@@ -120,6 +126,187 @@ const touchProfile = (id: string) => {
 const profileByIdPublic = (id: string): EntityIntelligence | undefined =>
   profileById.get(id);
 
+// ============================================================
+// NEXUS BRIDGE — presentation-universe intelligence slices
+// ============================================================
+// The mutable workspace store above is seeded from the legacy
+// canonical profiles/relationships/evidence. Those arrays are
+// keyed to `ent-person-*` ids, so Operation Trinetra Nexus
+// entities (`ent-nexus-*`) resolve to what the Nexus dataset
+// actually contains: the NET-004 graph edges, the catalogued
+// evidence links, and the investigation event/activity record.
+// Everything here is deterministic — no randomness, no Date.now.
+// ============================================================
+
+const isNexusEntityId = (id: string): boolean => id.startsWith('ent-nexus-');
+
+const nexusNodeById = new Map(nexusNetwork.nodes.map((n) => [n.id, n]));
+const nexusNodeByEntityId = new Map(nexusNetwork.nodes.map((n) => [n.entityId, n]));
+
+const NEXUS_RELATIONSHIP_STATUS: Record<string, RelationshipCandidateStatus> = {
+  confirmed: 'CONFIRMED',
+  probable: 'PROBABLE',
+  possible: 'PROBABLE',
+  candidate: 'CANDIDATE',
+  needs_review: 'NEEDS_REVIEW',
+};
+
+function nexusIncidentEdges(entityId: string): GraphEdge[] {
+  const node = nexusNodeByEntityId.get(entityId);
+  if (!node) return [];
+  return nexusNetwork.edges
+    .filter((e) => e.source === node.id || e.target === node.id)
+    .sort((a, b) => b.confidence - a.confidence);
+}
+
+function nexusEdgeToRelationship(edge: GraphEdge): EntityRelationship | null {
+  const source = nexusNodeById.get(edge.source);
+  const target = nexusNodeById.get(edge.target);
+  if (!source || !target) return null;
+  return {
+    id: edge.id,
+    sourceEntityId: source.entityId,
+    sourceEntityName: source.label,
+    sourceEntityType: source.type,
+    targetEntityId: target.entityId,
+    targetEntityName: target.label,
+    targetEntityType: target.type,
+    type: edge.type,
+    confidence: edge.confidence,
+    source: edge.sourceRecordLabel,
+    timestamp: edge.timestamp,
+    evidence: edge.evidence,
+    extractionMethod: edge.extractionMethod,
+    verificationStatus: NEXUS_RELATIONSHIP_STATUS[edge.status] ?? 'NEEDS_REVIEW',
+    metadata: {},
+    createdAt: edge.timestamp ?? '',
+  };
+}
+
+function nexusEvidenceFor(entityId: string): EntityEvidenceItem[] {
+  return NEXUS_EVIDENCE_ITEMS.flatMap((item) => {
+    const link = item.links.find(
+      (l) => l.targetType === 'entity' && l.targetId === entityId
+    );
+    if (!link) return [];
+    return [
+      {
+        id: `evi-${item.id}`,
+        entityId,
+        title: item.title,
+        summary: item.description,
+        datasetId: item.datasetId,
+        datasetName: item.datasetName,
+        documentId: item.documentId,
+        sourceRecord: item.sourceRecord,
+        sourceName: item.sourceName ?? item.datasetName ?? 'Operation Trinetra Nexus',
+        extractionMethod: item.extractionMethod,
+        confidence: link.confidence,
+        timestamp: item.createdAt,
+      } satisfies EntityEvidenceItem,
+    ];
+  }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+function nexusEventsFor(entityId: string): EntityEvent[] {
+  return nexusInvestigationRecord.events
+    .filter((e) => e.entity_ids.includes(entityId))
+    .map((e) => ({
+      id: `evt-${e.id}`,
+      entityId,
+      eventType: e.event_type,
+      title: e.title,
+      description: e.description ?? undefined,
+      timestamp: e.occurred_at ?? e.created_at ?? '',
+      source: e.location ?? 'Operation Trinetra Nexus timeline',
+      confidence: 0.85,
+    }))
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+const NEXUS_ACTIVITY_LABELS: Array<{
+  action: string;
+  actionLabel: string;
+  detail: string;
+}> = [
+  { action: 'PROFILE_UPDATED', actionLabel: 'Profile updated', detail: 'Resolution confidence and flags refreshed from latest linkage.' },
+  { action: 'EVIDENCE_LINKED', actionLabel: 'Evidence linked', detail: 'Cited in a catalogued demonstration evidence item.' },
+  { action: 'RELATIONSHIP_VERIFIED', actionLabel: 'Relationship verified', detail: 'Relationship corroborated by a second source record.' },
+  { action: 'PATTERN_REFERENCED', actionLabel: 'Pattern referenced', detail: 'Appears in a flagged suspicious pattern for this investigation.' },
+  { action: 'REVIEWED', actionLabel: 'Reviewed', detail: 'Checked by the intelligence team during triage.' },
+];
+
+function nexusActivityFor(entityId: string): EntityActivityItem[] {
+  const profile = profileById.get(entityId);
+  const count = Math.max(1, profile?.activityCount ?? 1);
+  const start = new Date(profile?.createdAt ?? '2026-07-01T09:00:00Z').getTime();
+  const end = new Date(profile?.updatedAt ?? '2026-09-08T14:30:00Z').getTime();
+  const span = Math.max(1, end - start);
+  return Array.from({ length: count }, (_, i) => {
+    const template = NEXUS_ACTIVITY_LABELS[i % NEXUS_ACTIVITY_LABELS.length];
+    const timestamp = new Date(start + span * ((i + 1) / (count + 1))).toISOString();
+    return {
+      id: `nxa-${entityId}-${i + 1}`,
+      entityId,
+      action: template.action,
+      actionLabel: template.actionLabel,
+      detail: template.detail,
+      actor: i % 2 === 0 ? 'Inspector Mehta' : 'Analyst Singh',
+      timestamp,
+    } satisfies EntityActivityItem;
+  }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+function nexusSourcesFor(entityId: string): EntitySourceRef[] {
+  const refs = new Map<string, EntitySourceRef>();
+  for (const edge of nexusIncidentEdges(entityId)) {
+    const key = edge.sourceRecordLabel;
+    const existing = refs.get(key);
+    if (existing) {
+      existing.evidenceCount += 1;
+      for (const record of edge.evidence) {
+        if (!existing.recordRefs.includes(record)) existing.recordRefs.push(record);
+      }
+    } else {
+      refs.set(key, {
+        datasetName: key,
+        source: key,
+        recordRefs: [...edge.evidence],
+        evidenceCount: 1,
+      });
+    }
+  }
+  return Array.from(refs.values()).sort((a, b) => b.evidenceCount - a.evidenceCount);
+}
+
+function nexusResolutionHistoryFor(entityId: string): ResolutionHistoryEntry[] {
+  const profile = profileById.get(entityId);
+  if (!profile) return [];
+  const entries: ResolutionHistoryEntry[] = [
+    {
+      id: `nrh-${entityId}-1`,
+      entityId,
+      action: 'CREATED',
+      actionLabel: 'Entity created',
+      description: 'Canonical record created while processing the Nexus extract.',
+      reviewer: 'Inspector Mehta',
+      timestamp: profile.createdAt,
+    },
+  ];
+  if (profile.isVerified) {
+    entries.push({
+      id: `nrh-${entityId}-2`,
+      entityId,
+      action: 'UPDATED',
+      actionLabel: 'Resolution updated',
+      description: `Resolution confirmed at ${Math.round(profile.confidence * 100)}% confidence.`,
+      reviewer: 'Analyst Singh',
+      timestamp: profile.updatedAt,
+    });
+  }
+  return entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
 // ---- relationships (type enrichment from profile store) ------------------
 
 function withTypes(rel: RelationshipStore): EntityRelationship {
@@ -136,7 +323,9 @@ export async function fetchEntities(params: EntitySearchParams = {}): Promise<En
   await delay(140);
   const page = params.page ?? 1;
   const pageSize = params.pageSize ?? 20;
-  const { items, total } = queryEntities(profiles, { ...params, page, pageSize });
+  // Presentation universe: list Nexus investigation entities only.
+  const universe = profiles.filter((p) => p.id.startsWith('ent-nexus-'));
+  const { items, total } = queryEntities(universe, { ...params, page, pageSize });
   return {
     items,
     total,
@@ -157,6 +346,23 @@ export async function fetchEntityIntelligenceSummary(id: string): Promise<Entity
   await delay(120);
   const entity = profileById.get(id);
   if (!entity) throw new Error(`Entity not found: ${id}`);
+  if (isNexusEntityId(id)) {
+    const relationships = nexusIncidentEdges(id);
+    const entityEvidence = nexusEvidenceFor(id);
+    const entityEvents = nexusEventsFor(id);
+    const entityActivity = nexusActivityFor(id);
+    return {
+      entityId: id,
+      connections: relationships.length,
+      sources: entity.sourcesCount,
+      events: entityEvents.length,
+      relationships: relationships.length,
+      evidence: entityEvidence.length,
+      activity: entityActivity.length,
+      resolutionConfidence: entity.confidence,
+      resolutionState: entity.resolutionState,
+    };
+  }
   const related = relationships.filter(
     (r) => r.sourceEntityId === id || r.targetEntityId === id
   );
@@ -178,6 +384,11 @@ export async function fetchEntityIntelligenceSummary(id: string): Promise<Entity
 
 export async function fetchEntityRelationships(id: string): Promise<EntityRelationship[]> {
   await delay(120);
+  if (isNexusEntityId(id)) {
+    return nexusIncidentEdges(id)
+      .map(nexusEdgeToRelationship)
+      .filter((r): r is EntityRelationship => r !== null);
+  }
   return relationships
     .filter((r) => r.sourceEntityId === id || r.targetEntityId === id)
     .map(withTypes)
@@ -186,6 +397,11 @@ export async function fetchEntityRelationships(id: string): Promise<EntityRelati
 
 export async function fetchRelationship(id: string): Promise<EntityRelationship> {
   await delay(80);
+  const nexusEdge = nexusNetwork.edges.find((e) => e.id === id);
+  if (nexusEdge) {
+    const rel = nexusEdgeToRelationship(nexusEdge);
+    if (rel) return rel;
+  }
   const rel = relationships.find((r) => r.id === id);
   if (!rel) throw new Error(`Relationship not found: ${id}`);
   return withTypes(rel);
@@ -196,6 +412,20 @@ export async function fetchRelationshipsForEntities(
   idOrIds: string | string[]
 ): Promise<EntityRelationship[]> {
   const ids = new Set(Array.isArray(idOrIds) ? idOrIds : [idOrIds]);
+  if (Array.from(ids).some(isNexusEntityId)) {
+    const seen = new Set<string>();
+    const result: EntityRelationship[] = [];
+    for (const entityId of ids) {
+      if (!isNexusEntityId(entityId)) continue;
+      for (const edge of nexusIncidentEdges(entityId)) {
+        if (seen.has(edge.id)) continue;
+        seen.add(edge.id);
+        const rel = nexusEdgeToRelationship(edge);
+        if (rel) result.push(rel);
+      }
+    }
+    return result.sort((a, b) => b.confidence - a.confidence);
+  }
   return relationships
     .filter((r) => ids.has(r.sourceEntityId) || ids.has(r.targetEntityId))
     .map(withTypes)
@@ -206,6 +436,23 @@ export async function fetchRelatedEntities(id: string): Promise<RelatedEntity[]>
   await delay(120);
   const entity = profileById.get(id);
   if (!entity) return [];
+  if (isNexusEntityId(id)) {
+    const related: Array<RelatedEntity | null> = nexusIncidentEdges(id).map((edge) => {
+      const isSource = edge.source === nexusNodeByEntityId.get(id)?.id;
+      const otherNode = nexusNodeById.get(isSource ? edge.target : edge.source);
+      if (!otherNode) return null;
+      return {
+        id: otherNode.entityId,
+        name: otherNode.label,
+        entityType: otherNode.type,
+        relationshipType: edge.type,
+        relationshipConfidence: edge.confidence,
+        verificationStatus: NEXUS_RELATIONSHIP_STATUS[edge.status] ?? 'NEEDS_REVIEW',
+        source: edge.sourceRecordLabel,
+      };
+    });
+    return related.filter((r): r is RelatedEntity => r !== null);
+  }
 
   const related: RelatedEntity[] = [];
   for (const rel of relationships) {
@@ -233,6 +480,7 @@ export async function fetchRelatedEntities(id: string): Promise<RelatedEntity[]>
 
 export async function fetchEntityEvidence(id: string): Promise<EntityEvidenceItem[]> {
   await delay(100);
+  if (isNexusEntityId(id)) return nexusEvidenceFor(id);
   return evidence
     .filter((e) => e.entityId === id)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -240,6 +488,7 @@ export async function fetchEntityEvidence(id: string): Promise<EntityEvidenceIte
 
 export async function fetchEntityEvents(id: string): Promise<EntityEvent[]> {
   await delay(100);
+  if (isNexusEntityId(id)) return nexusEventsFor(id);
   return events
     .filter((e) => e.entityId === id)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -247,6 +496,7 @@ export async function fetchEntityEvents(id: string): Promise<EntityEvent[]> {
 
 export async function fetchEntityActivity(id: string): Promise<EntityActivityItem[]> {
   await delay(100);
+  if (isNexusEntityId(id)) return nexusActivityFor(id);
   return activity
     .filter((a) => a.entityId === id)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -254,6 +504,7 @@ export async function fetchEntityActivity(id: string): Promise<EntityActivityIte
 
 export async function fetchResolutionHistory(id: string): Promise<ResolutionHistoryEntry[]> {
   await delay(100);
+  if (isNexusEntityId(id)) return nexusResolutionHistoryFor(id);
   return resolutionHistory
     .filter((h) => h.entityId === id)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -271,6 +522,7 @@ export async function fetchEntitySources(id: string): Promise<EntitySourceRef[]>
   await delay(100);
   const entity = profileById.get(id);
   if (!entity) return [];
+  if (isNexusEntityId(id)) return nexusSourcesFor(id);
 
   const refsByDataset = new Map<string, EntitySourceRef>();
   const upsert = (datasetId: string | undefined, datasetName: string, source: string, recordRef: string) => {
@@ -664,7 +916,7 @@ export async function fetchEntityOverviewSummary(): Promise<EntityOverviewSummar
   await delay(100);
   const runningStatuses = new Set(['QUEUED', 'EXTRACTING', 'NORMALIZING', 'RESOLVING']);
   return {
-    totalEntities: profiles.length,
+    totalEntities: presentationEntityProfiles.length,
     totalCandidates: candidates.filter((c) => c.status === 'PENDING').length,
     pendingResolutions: resolutions.filter((r) => r.state === 'NEEDS_REVIEW').length,
     jobsRunning: jobs.filter((j) => runningStatuses.has(j.status)).length,

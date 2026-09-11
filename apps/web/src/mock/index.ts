@@ -13,6 +13,7 @@ export { mockPreviews, mockMappings } from './previews';
 export {
   mockEntityProfiles,
   mockEntityProfileById,
+  presentationEntityProfiles,
 } from './entity-profiles';
 export { mockEntityCandidates, mockCandidateById } from './entity-candidates';
 export { mockEntityResolutions, mockResolutionById } from './entity-resolutions';

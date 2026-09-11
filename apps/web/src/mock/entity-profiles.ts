@@ -687,6 +687,12 @@ export const mockEntityProfiles: EntityIntelligence[] = [
   ...NEXUS_ENTITIES,
 ];
 
+// Presentation universe: only Operation Trinetra Nexus entities are
+// shown in listing/count surfaces. Legacy canonical profiles remain in
+// the mutable workspace store for extraction/resolution operations.
+export const presentationEntityProfiles: EntityIntelligence[] =
+  mockEntityProfiles.filter((p) => p.id.startsWith('ent-nexus-'));
+
 export const mockEntityProfileById: Map<string, EntityIntelligence> = new Map(
   mockEntityProfiles.map((p) => [p.id, p])
 );
