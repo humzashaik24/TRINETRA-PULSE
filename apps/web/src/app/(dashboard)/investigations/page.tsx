@@ -392,7 +392,7 @@ export default function InvestigationsPage() {
             </div>
           </div>
           <p className="mt-2 text-xs text-foreground-muted">
-            {filtered.length} of {items.length} investigation{items.length === 1 ? '' : 's'}
+            {filtered.length} investigation{filtered.length === 1 ? '' : 's'}
           </p>
         </motion.div>
       )}

@@ -1,6 +1,10 @@
 import type { RecentIntelligence } from '@trinetra-pulse/types';
 import { NEXUS_FINDINGS } from './nexus-dataset';
 
+// Presentation-scoped feed: only the Operation Trinetra Nexus findings
+// surface in the dashboard. Legacy demo findings stay below the line.
+export const presentationRecentIntelligenceFindings: RecentIntelligence[] = [...NEXUS_FINDINGS];
+
 export const recentIntelligenceFindings: RecentIntelligence[] = [
   ...NEXUS_FINDINGS,
   {

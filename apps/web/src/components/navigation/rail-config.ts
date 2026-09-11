@@ -53,7 +53,7 @@ export const PRIMARY_RAIL_SECTIONS: RailSection[] = [
     label: 'Intelligence',
     items: [
       { label: 'Overview', href: '/overview', icon: LayoutDashboard, primary: true },
-      { label: 'Investigations', href: '/investigations', icon: FolderSearch, badge: 24 },
+      { label: 'Investigations', href: '/investigations', icon: FolderSearch },
       { label: 'Data', href: '/data-intelligence', icon: Database, primary: true },
       { label: 'Entities', href: '/entities', icon: Users, primary: true },
       { label: 'Networks', href: '/networks', icon: Network, primary: true },

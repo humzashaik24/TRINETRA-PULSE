@@ -29,6 +29,8 @@ import {
 } from '@/components/navigation/rail-config';
 import { useAuthStore } from '@/state/auth.store';
 import { chromeText, useChromeLanguage } from '@/lib/i18n';
+import { mockInvestigations } from '@/mock';
+import { isPresentationInvestigation } from '@/mock/investigations';
 
 // ============================================================
 // PHASE 3.5 — COMMAND RAIL
@@ -170,7 +172,13 @@ export function CommandRail() {
 
   const primarySections = PRIMARY_RAIL_SECTIONS.map((section) => ({
     ...section,
-    items: filterRailItemsByRole(section.items, role),
+    items: filterRailItemsByRole(section.items, role).map((item) => {
+      if (item.href !== '/investigations') return item;
+      const open = mockInvestigations.filter(
+        (i) => i.status !== 'closed' && i.status !== 'archived' && isPresentationInvestigation(i.id)
+      ).length;
+      return open > 0 ? { ...item, badge: open } : item;
+    }),
   }));
   const utilitySections = UTILITY_RAIL_SECTIONS.map((section) => ({
     ...section,

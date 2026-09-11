@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import InvestigationsPage from '@/app/(dashboard)/investigations/page';
 import { getInvestigations } from '@/services/investigation.service';
 import type { Investigation } from '@trinetra-pulse/types';
@@ -30,48 +30,31 @@ const base: Investigation = {
   last_activity_at: '2026-08-28T08:00:00Z',
 };
 
-const investigations: Investigation[] = [
-  {
-    ...base,
-    id: 'inv-001',
-    title: 'Operation Clean — Firmware Import Probe',
-    status: 'active',
-    priority: 'high',
-    lead_investigator: 'Inspector Mehta',
-    assigned: ['Inspector Mehta', 'Analyst Singh'],
-    tags: ['import', 'network'],
-    entity_count: 6,
-    evidence_count: 5,
-    relationship_count: 5,
-    updated_at: '2026-08-26T10:10:00Z',
-  },
-  {
-    ...base,
-    id: 'inv-003',
-    title: 'Import Fraud Review',
-    status: 'under_review',
-    priority: 'critical',
-    assigned: ['Inspector Mehta'],
-    tags: ['import', 'fraud'],
-    entity_count: 5,
-    evidence_count: 4,
-    relationship_count: 3,
-    updated_at: '2026-08-25T18:00:00Z',
-  },
-  {
-    ...base,
-    id: 'inv-004',
-    title: 'Telecom Data Review',
-    status: 'draft',
-    priority: 'low',
-    assigned: ['Analyst Singh'],
-    tags: ['telecom'],
-    entity_count: 2,
-    evidence_count: 1,
-    relationship_count: 0,
-    updated_at: '2026-08-28T08:00:00Z',
-  },
-];
+const nexus: Investigation = {
+  ...base,
+  id: 'inv-demo-nexus',
+  title: 'Operation Trinetra Nexus',
+  status: 'active',
+  priority: 'high',
+  lead_investigator: 'Inspector Mehta',
+  assigned: ['Inspector Mehta', 'Analyst Singh'],
+  tags: ['fraud', 'nexus', 'multi-city', 'demo'],
+  entity_count: 35,
+  evidence_count: 7,
+  relationship_count: 60,
+  updated_at: '2026-09-08T14:30:00Z',
+};
+
+const legacy: Investigation = {
+  ...base,
+  id: 'inv-001',
+  title: 'Operation Clean — Firmware Import Probe',
+  status: 'active',
+  priority: 'high',
+  assigned: ['Inspector Mehta'],
+  tags: ['import', 'network'],
+  updated_at: '2026-08-26T10:10:00Z',
+};
 
 afterEach(() => {
   cleanup();
@@ -85,59 +68,28 @@ describe('InvestigationsPage', () => {
     expect(await screen.findByText(/could not load investigations/i)).toBeInTheDocument();
   });
 
-  it('renders the investigation table rows', async () => {
-    mockGetInvestigations.mockResolvedValue(investigations);
+  it('renders only the Operation Trinetra Nexus investigation', async () => {
+    mockGetInvestigations.mockResolvedValue([nexus, legacy]);
     render(<InvestigationsPage />);
 
-    await screen.findByText('Operation Clean — Firmware Import Probe');
-    expect(await screen.findAllByTestId('investigation-link')).toHaveLength(3);
-    // "Under Review" appears both as a filter option and as a row badge.
-    expect(screen.getAllByText('Under Review').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Critical').length).toBeGreaterThan(0);
+    await screen.findByText('Operation Trinetra Nexus');
+    expect(await screen.findAllByTestId('investigation-link')).toHaveLength(1);
+    expect(screen.queryByText(/Operation Clean/)).not.toBeInTheDocument();
+    expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
   });
 
-  it('links each row to its workspace', async () => {
-    mockGetInvestigations.mockResolvedValue(investigations);
+  it('links the row to its workspace', async () => {
+    mockGetInvestigations.mockResolvedValue([nexus]);
     render(<InvestigationsPage />);
 
-    const link = (await screen.findByText('Import Fraud Review')).closest('a');
-    expect(link?.getAttribute('href')).toBe('/investigations/inv-003');
+    await screen.findByTestId('investigation-link');
+    const table = screen.getByTestId('investigations-table');
+    const link = within(table).getByRole('link', { name: /Operation Trinetra Nexus/ });
+    expect(link.getAttribute('href')).toBe('/investigations/inv-demo-nexus');
   });
 
   it('filters rows by search query', async () => {
-    mockGetInvestigations.mockResolvedValue(investigations);
-    render(<InvestigationsPage />);
-    await screen.findAllByTestId('investigation-link');
-
-    fireEvent.change(screen.getByTestId('investigations-search'), {
-      target: { value: 'telecom' },
-    });
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId('investigation-link')).toHaveLength(1);
-      expect(screen.getByText('Telecom Data Review')).toBeInTheDocument();
-    });
-    expect(screen.queryByText('Import Fraud Review')).not.toBeInTheDocument();
-  });
-
-  it('filters rows by status', async () => {
-    mockGetInvestigations.mockResolvedValue(investigations);
-    render(<InvestigationsPage />);
-    await screen.findAllByTestId('investigation-link');
-
-    fireEvent.change(screen.getByTestId('investigations-status-filter'), {
-      target: { value: 'under_review' },
-    });
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId('investigation-link')).toHaveLength(1);
-    });
-    expect(screen.getByText('Import Fraud Review')).toBeInTheDocument();
-    expect(screen.queryByText('Telecom Data Review')).not.toBeInTheDocument();
-  });
-
-  it('shows an empty message when nothing matches', async () => {
-    mockGetInvestigations.mockResolvedValue(investigations);
+    mockGetInvestigations.mockResolvedValue([nexus]);
     render(<InvestigationsPage />);
     await screen.findAllByTestId('investigation-link');
 
@@ -148,5 +100,26 @@ describe('InvestigationsPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/no investigations match/i)).toBeInTheDocument();
     });
+  });
+
+  it('shows an empty message when nothing matches', async () => {
+    mockGetInvestigations.mockResolvedValue([nexus]);
+    render(<InvestigationsPage />);
+    await screen.findAllByTestId('investigation-link');
+
+    fireEvent.change(screen.getByTestId('investigations-search'), {
+      target: { value: 'zzz-nothing' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/no investigations match/i)).toBeInTheDocument();
+    });
+  });
+
+  it('labels the single presentation investigation', async () => {
+    mockGetInvestigations.mockResolvedValue([nexus]);
+    render(<InvestigationsPage />);
+    await screen.findByText('Operation Trinetra Nexus');
+    expect(await screen.findByText('1 investigation')).toBeInTheDocument();
   });
 });

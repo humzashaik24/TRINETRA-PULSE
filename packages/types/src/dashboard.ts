@@ -21,7 +21,9 @@ export interface DashboardMetrics {
   events: DashboardMetric;
   activeInvestigations: DashboardMetric;
   suspiciousPatterns: DashboardMetric;
+  findings: DashboardMetric;
   evidenceItems: DashboardMetric;
+  clusters: DashboardMetric;
 }
 
 // ============================================================

@@ -5,6 +5,7 @@ import {
   mockInvestigationById,
 } from '@/mock/investigations';
 import { listEvidence } from '@/services/evidence.service';
+import * as mockNetworks from '@/mock/networks';
 
 // ============================================================
 // PRESENTATION LOCK — REGRESSION GUARDS
@@ -44,8 +45,24 @@ describe('single-demo-investigation lock', () => {
     expect(isPresentationInvestigation('inv-006')).toBe(false);
   });
 
-  it('keeps the Operation Trinetra Nexus investigation visible', () => {
+  it('hides every legacy registered investigation from presentation surfaces', () => {
+    for (const id of ['inv-001', 'inv-003', 'inv-004', 'inv-005', 'inv-006']) {
+      expect(HIDDEN_INVESTIGATION_IDS.has(id)).toBe(true);
+      expect(isPresentationInvestigation(id)).toBe(false);
+    }
+  });
+
+  it('exposes exactly the Operation Trinetra Nexus investigation', () => {
     expect(isPresentationInvestigation('inv-demo-nexus')).toBe(true);
+  });
+
+  it('surfaces a single presentation investigation from the registry', () => {
+    const presentation = mockInvestigationById.size > 0
+      ? [...mockInvestigationById.values()].filter((r) =>
+          isPresentationInvestigation(r.investigation.id)
+        )
+      : [];
+    expect(presentation.map((r) => r.investigation.id)).toEqual(['inv-demo-nexus']);
   });
 
   it('treats unknown ids as visible rather than hiding them', () => {
@@ -71,5 +88,22 @@ describe('Nexus evidence anchor', () => {
       expect(item.investigationId).toBe('inv-demo-nexus');
       expect(item.id).toMatch(/^ev-nexus-\d+$/);
     }
+  });
+});
+
+describe('single-demo-network lock', () => {
+  it('exposes exactly the Operation Trinetra Nexus network to presentation surfaces', () => {
+    expect(mockNetworks.presentationNetworkSummaries.map((n) => n.id)).toEqual(['NET-004']);
+  });
+
+  it('keeps the full network catalogue available internally', () => {
+    expect(mockNetworks.mockNetworkGraphs.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('hides every legacy network id from presentation summaries', () => {
+    const ids = mockNetworks.presentationNetworkSummaries.map((n) => n.id);
+    expect(ids).not.toContain('NET-001');
+    expect(ids).not.toContain('NET-002');
+    expect(ids).not.toContain('NET-003');
   });
 });

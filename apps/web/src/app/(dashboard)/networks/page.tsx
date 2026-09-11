@@ -1,39 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Network, ArrowRight, Users, GitBranch, Boxes } from 'lucide-react';
 import { useAppStore } from '@/state/app.store';
 import { WorkspaceHeader } from '@/components/shell/workspace-header';
-import { ErrorState, LoadingState, Badge } from '@trinetra-pulse/ui';
-import { getNetworks } from '@/services/network.service';
-import type { NetworkSummary } from '@trinetra-pulse/types';
+import { Badge } from '@trinetra-pulse/ui';
+import { presentationNetworkSummaries } from '@/mock/networks';
 
 // ============================================================
 // NETWORKS — LISTING
 // ============================================================
-// Index of available investigation networks. Each card links to
-// the interactive graph workspace for that network. Counts are
-// structural and presented neutrally.
+// Index of the networks available in this presentation: the single
+// Operation Trinetra Nexus demo network (NET-004). Each card links
+// to the interactive graph workspace. Counts are structural and
+// presented neutrally. Legacy networks live only in the catalogue.
 // ============================================================
 
 export default function NetworksPage() {
   const setContextLabel = useAppStore((s) => s.setContextLabel);
-  const [networks, setNetworks] = useState<NetworkSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const networks = presentationNetworkSummaries;
 
   useEffect(() => {
     setContextLabel('Networks');
     return () => setContextLabel(null);
   }, [setContextLabel]);
-
-  useEffect(() => {
-    getNetworks()
-      .then(setNetworks)
-      .catch(() => setError('Failed to load networks'))
-      .finally(() => {});
-  }, []);
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -43,21 +35,7 @@ export default function NetworksPage() {
         description="Visualize and analyze entity relationship networks"
       />
 
-      {error ? (
-        <ErrorState
-          title="Could not load networks"
-          message={error}
-          retry={() => {
-            setError(null);
-            setNetworks(null);
-            getNetworks()
-              .then(setNetworks)
-              .catch(() => setError('Failed to load networks'));
-          }}
-        />
-      ) : !networks ? (
-        <LoadingState message="Loading networks…" />
-      ) : networks.length === 0 ? (
+      {networks.length === 0 ? (
         <p className="text-sm text-foreground-muted">No networks available yet.</p>
       ) : (
         <motion.div

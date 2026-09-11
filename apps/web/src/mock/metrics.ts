@@ -1,64 +1,90 @@
 import type { DashboardMetrics } from '@trinetra-pulse/types';
+import { nexusNetwork, nexusInvestigationRecord } from './nexus-dataset';
+import { NEXUS_PATTERNS } from './nexus-dataset';
+import { NEXUS_EVIDENCE_ITEMS } from './nexus-dataset';
+import { mockInvestigationRecords } from './investigations';
+import { isPresentationInvestigation } from './investigations';
+
+// ============================================================
+// OVERVIEW METRICS — OPERATION TRINETRA NEXUS
+// ============================================================
+// Derived live from the single demo universe (inv-demo-nexus /
+// NET-004), not a hardcoded catalogue-wide snapshot. Every card
+// resolves from the Nexus graph, evidence set, patterns, findings
+// and investigation record so the numbers can never drift from the
+// graph the jury actually explores. Presented neutrally as
+// demonstration data.
+// ============================================================
+
+const nexus = nexusInvestigationRecord;
 
 export const dashboardMetrics: DashboardMetrics = {
   entities: {
     id: 'entities',
     label: 'Entities',
-    value: 12482,
-    formattedValue: '12,482',
-    change: 8.4,
-    trend: 'up',
+    value: nexusNetwork.nodes.length,
+    formattedValue: String(nexusNetwork.nodes.length),
     icon: 'users',
-    description: 'Total tracked entities across all investigations',
+    description: 'Entities in Operation Trinetra Nexus (demonstration data)',
   },
   relationships: {
     id: 'relationships',
     label: 'Relationships',
-    value: 34891,
-    formattedValue: '34,891',
-    change: 12.1,
-    trend: 'up',
+    value: nexusNetwork.edges.length,
+    formattedValue: String(nexusNetwork.edges.length),
     icon: 'network',
-    description: 'Connected relationships in the intelligence graph',
+    description: 'Relationships in the Operation Trinetra Nexus graph (demonstration data)',
   },
   events: {
     id: 'events',
     label: 'Events',
-    value: 8956,
-    formattedValue: '8,956',
-    change: 3.2,
-    trend: 'up',
+    value: nexus.events.length,
+    formattedValue: String(nexus.events.length),
     icon: 'calendar',
-    description: 'Recorded events across all cases',
+    description: 'Events recorded against Operation Trinetra Nexus',
   },
   activeInvestigations: {
     id: 'active-investigations',
     label: 'Active Investigations',
-    value: 24,
-    formattedValue: '24',
-    change: -2,
-    trend: 'down',
+    value: mockInvestigationRecords.filter((r) => isPresentationInvestigation(r.investigation.id))
+      .length,
+    formattedValue: String(
+      mockInvestigationRecords.filter((r) => isPresentationInvestigation(r.investigation.id))
+        .length
+    ),
     icon: 'folder-open',
-    description: 'Currently active investigation cases',
+    description: 'Active investigation in the presentation workspace (Operation Trinetra Nexus)',
   },
   suspiciousPatterns: {
     id: 'suspicious-patterns',
     label: 'Suspicious Patterns',
-    value: 47,
-    formattedValue: '47',
-    change: 15.3,
-    trend: 'up',
+    value: NEXUS_PATTERNS.length,
+    formattedValue: String(NEXUS_PATTERNS.length),
     icon: 'alert-triangle',
-    description: 'Patterns flagged by the intelligence engine',
+    description: 'Patterns flagged by the intelligence engine for Operation Trinetra Nexus',
+  },
+  findings: {
+    id: 'findings',
+    label: 'Findings',
+    value: nexus.findings.length,
+    formattedValue: String(nexus.findings.length),
+    icon: 'layers',
+    description: 'Analytical findings produced during Operation Trinetra Nexus',
   },
   evidenceItems: {
     id: 'evidence-items',
     label: 'Evidence Items',
-    value: 1834,
-    formattedValue: '1,834',
-    change: 6.7,
-    trend: 'up',
+    value: NEXUS_EVIDENCE_ITEMS.length,
+    formattedValue: String(NEXUS_EVIDENCE_ITEMS.length),
     icon: 'file-text',
-    description: 'Evidence items catalogued across investigations',
+    description: 'Evidence items catalogued and integrity-chained for Operation Trinetra Nexus',
+  },
+  clusters: {
+    id: 'clusters',
+    label: 'Clusters',
+    value: nexusNetwork.clusters.length,
+    formattedValue: String(nexusNetwork.clusters.length),
+    icon: 'boxes',
+    description: 'Communities detected across the Operation Trinetra Nexus graph',
   },
 };

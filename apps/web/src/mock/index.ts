@@ -1,6 +1,6 @@
 export { dashboardMetrics } from './metrics';
 export { dashboardNetwork } from './network';
-export { recentIntelligenceFindings } from './findings';
+export { presentationRecentIntelligenceFindings, recentIntelligenceFindings } from './findings';
 export { importantEntities } from './entities';
 export { suspiciousPatterns, presentationPatterns } from './patterns';
 export { investigationActivity } from './activity';

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ExternalLink, Maximize2 } from 'lucide-react';
 import { IconButton, Skeleton, EmptyState, ErrorState, useReducedMotion } from '@trinetra-pulse/ui';
 import { dashboardNetwork } from '@/mock';
+import { DEMO_NETWORK_ID } from '@/navigation/journey';
 import type { DashboardNetworkNode } from '@trinetra-pulse/types';
 
 const NODE_COLORS: Record<string, string> = {
@@ -142,7 +143,7 @@ export function NetworkOverview({ onInspectNode }: NetworkOverviewProps) {
             {nodes.length} entities &middot; {edges.length} connections &middot; {clusters.length} clusters
           </p>
         </div>
-        <Link href="/networks/NET-001" aria-label="Open full network workspace">
+        <Link href={`/networks/${DEMO_NETWORK_ID}`} aria-label="Open full network workspace">
           <IconButton
             variant="ghost"
             size="sm"

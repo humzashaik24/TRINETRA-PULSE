@@ -1,16 +1,29 @@
 import type { ActivitySeries } from '@trinetra-pulse/types';
 
+// ============================================================
+// MOCK — ACTIVITY SERIES (Nexus-derived)
+// ============================================================
+// Deterministic 7-day timeline anchored to the Operation Trinetra
+// Nexus investigation updatedAt (2026-09-08).  Events and
+// relationships are placed on realistic days that correspond to
+// Nexus evidence timestamps; totals equal the actual dataset.
+// ============================================================
+
+const RELATIONSHIP_DAILY = [8, 7, 12, 9, 10, 6, 8];
+const EVENT_DAILY = [1, 0, 0, 1, 0, 0, 0];
+const COMMUNICATION_DAILY = [1, 2, 3, 2, 1, 1, 2];
+const PATTERNS_DAILY = [1, 0, 0, 1, 1, 0, 1];
+const DAY_LABELS = ['Sep 2', 'Sep 3', 'Sep 4', 'Sep 5', 'Sep 6', 'Sep 7', 'Sep 8'];
+
 export const activitySeries: ActivitySeries = {
-  data: [
-    { label: 'Mon', events: 42, relationships: 18, communications: 65, patterns: 3 },
-    { label: 'Tue', events: 58, relationships: 24, communications: 78, patterns: 5 },
-    { label: 'Wed', events: 35, relationships: 12, communications: 52, patterns: 2 },
-    { label: 'Thu', events: 67, relationships: 31, communications: 89, patterns: 7 },
-    { label: 'Fri', events: 48, relationships: 22, communications: 71, patterns: 4 },
-    { label: 'Sat', events: 23, relationships: 8, communications: 34, patterns: 1 },
-    { label: 'Sun', events: 15, relationships: 5, communications: 22, patterns: 1 },
-  ],
-  totalEvents: 288,
-  totalRelationships: 120,
-  period: 'Last 7 days',
+  data: DAY_LABELS.map((label, i) => ({
+    label,
+    events: EVENT_DAILY[i],
+    relationships: RELATIONSHIP_DAILY[i],
+    communications: COMMUNICATION_DAILY[i],
+    patterns: PATTERNS_DAILY[i],
+  })),
+  totalEvents: 2,
+  totalRelationships: 60,
+  period: 'Sep 2–8, 2026',
 };

@@ -2,11 +2,14 @@
 
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/state/app.store';
 import { useShellStore } from '@/state/shell.store';
 import { useInvestigationStore } from '@/state/investigation.store';
 import { InvestigationShell } from '@/components/shell/investigation-shell';
 import { LoadingState, ErrorState, Badge } from '@trinetra-pulse/ui';
+import { isPresentationInvestigation } from '@/mock/investigations';
+import { isMockData } from '@/lib/api/config';
 import { InvestigationOverview } from '@/components/investigation/investigation-overview';
 import { InvestigationNetworkTab } from '@/components/investigation/investigation-network-tab';
 import { InvestigationEntitiesTab } from '@/components/investigation/investigation-entities-tab';
@@ -55,6 +58,7 @@ const TAB_COMPONENTS: Record<string, (props: TabProps) => React.ReactElement> = 
 
 export default function InvestigationDetailPage({ params }: PageProps) {
   const id = params.id;
+  const router = useRouter();
   const setContextLabel = useAppStore((s) => s.setContextLabel);
   const clearContext = useShellStore((s) => s.clearContext);
 
@@ -65,6 +69,12 @@ export default function InvestigationDetailPage({ params }: PageProps) {
   const error = useInvestigationStore((s) => s.error);
   const dirty = useInvestigationStore((s) => s.dirty);
 
+  const locked = isMockData() && !isPresentationInvestigation(id);
+
+  useEffect(() => {
+    if (locked) router.replace('/investigations');
+  }, [locked, router]);
+
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window === 'undefined') return 'overview';
     const tab = new URLSearchParams(window.location.search).get('tab');
@@ -72,6 +82,7 @@ export default function InvestigationDetailPage({ params }: PageProps) {
   });
 
   useEffect(() => {
+    if (locked) return;
     setContextLabel('Investigation');
     // Selections made inside the previous investigation (inspector,
     // graph focus, etc.) must not leak into the newly opened one.
@@ -81,7 +92,7 @@ export default function InvestigationDetailPage({ params }: PageProps) {
       setContextLabel(null);
       clear();
     };
-  }, [id, setContextLabel, clearContext, loadInvestigation, clear]);
+  }, [id, locked, setContextLabel, clearContext, loadInvestigation, clear]);
 
   useEffect(() => {
     if (!dirty) return;

@@ -1,79 +1,62 @@
-import type { InvestigationActivity } from '@trinetra-pulse/types';
+import type { InvestigationActivity, ActivityAction } from '@trinetra-pulse/types';
+import { nexusInvestigationRecord } from './nexus-dataset';
 
-export const investigationActivity: InvestigationActivity[] = [
-  {
-    id: 'act-001',
-    action: 'updated',
-    actionLabel: 'Investigation Updated',
-    title: 'Case #INV-024 updated',
-    subtitle: 'Priority elevated to critical',
-    reference: { type: 'case', id: 'inv-024', label: 'INV-024' },
-    timestamp: '2026-08-26T10:10:00Z',
-    timeAgo: '5 minutes ago',
-    user: 'Inspector Mehta',
-  },
-  {
-    id: 'act-002',
-    action: 'entity_reviewed',
-    actionLabel: 'Entity Reviewed',
-    title: 'Rahul Kumar reviewed',
-    subtitle: 'Risk profile updated based on new connections',
-    reference: { type: 'entity', id: 'e1', label: 'Rahul Kumar' },
-    timestamp: '2026-08-26T09:55:00Z',
-    timeAgo: '20 minutes ago',
-    user: 'Analyst Singh',
-  },
-  {
-    id: 'act-003',
-    action: 'evidence_added',
-    actionLabel: 'Evidence Added',
-    title: 'Document #EV-1028 added',
-    subtitle: 'Financial records from raids on Safe House B',
-    reference: { type: 'evidence', id: 'ev-1028', label: 'EV-1028' },
-    timestamp: '2026-08-26T09:30:00Z',
-    timeAgo: '45 minutes ago',
-    user: 'Inspector Mehta',
-  },
-  {
-    id: 'act-004',
-    action: 'network_expanded',
-    actionLabel: 'Network Expanded',
-    title: 'Network #NET-018 expanded',
-    subtitle: '7 new relationships added from telecom data import',
-    reference: { type: 'network', id: 'net-018', label: 'NET-018' },
-    timestamp: '2026-08-26T08:45:00Z',
-    timeAgo: '1 hour ago',
-  },
-  {
-    id: 'act-005',
-    action: 'pattern_detected',
-    actionLabel: 'Pattern Detected',
-    title: 'Communication spike pattern',
-    subtitle: 'Automated detection flagged evening activity cluster',
-    reference: { type: 'pattern', id: 'sp-001', label: 'SP-001' },
-    timestamp: '2026-08-26T08:15:00Z',
-    timeAgo: '2 hours ago',
-  },
-  {
-    id: 'act-006',
-    action: 'created',
-    actionLabel: 'Case Created',
-    title: 'Case #INV-025 created',
-    subtitle: 'New investigation into import fraud network',
-    reference: { type: 'case', id: 'inv-025', label: 'INV-025' },
-    timestamp: '2026-08-26T07:30:00Z',
-    timeAgo: '3 hours ago',
-    user: 'Inspector Mehta',
-  },
-  {
-    id: 'act-007',
-    action: 'closed',
-    actionLabel: 'Case Closed',
-    title: 'Case #INV-019 closed',
-    subtitle: 'Investigation concluded — charges filed',
-    reference: { type: 'case', id: 'inv-019', label: 'INV-019' },
-    timestamp: '2026-08-26T06:00:00Z',
-    timeAgo: '4 hours ago',
-    user: 'Inspector Mehta',
-  },
-];
+// ============================================================
+// MOCK — INVESTIGATION ACTIVITY FEED (Nexus-derived)
+// ============================================================
+// Mapped deterministically from the Operation Trinetra Nexus
+// investigation activity log. Time-ago labels are derived from
+// the fixed investigation updatedAt (2026-09-08), never random.
+// ============================================================
+
+type ActivityLogItem = (typeof nexusInvestigationRecord.activity)[number];
+
+const ACTION_MAP: Record<string, { action: ActivityAction; actionLabel: string }> = {
+  created: { action: 'created', actionLabel: 'Case Created' },
+  entity_linked: { action: 'entity_reviewed', actionLabel: 'Entity Reviewed' },
+  network_linked: { action: 'network_expanded', actionLabel: 'Network Expanded' },
+  evidence_linked: { action: 'evidence_added', actionLabel: 'Evidence Added' },
+  finding_created: { action: 'pattern_detected', actionLabel: 'Pattern Detected' },
+};
+
+function referenceFor(entry: ActivityLogItem): InvestigationActivity['reference'] {
+  switch (entry.type) {
+    case 'entity_linked':
+      return { type: 'entity', id: 'ent-nexus-person-001', label: 'Arjun Kapoor' };
+    case 'network_linked':
+      return { type: 'network', id: 'NET-004', label: 'NET-004' };
+    case 'evidence_linked':
+      return { type: 'evidence', id: 'inev-nexus-02', label: 'CDR extract — Harness Cell' };
+    case 'finding_created':
+      return { type: 'pattern', id: 'inf-nexus-1', label: 'Hub entity identified' };
+    default:
+      return { type: 'case', id: 'inv-demo-nexus', label: 'INV-DEMO-NEXUS' };
+  }
+}
+
+const LANDMARK = new Date(nexusInvestigationRecord.investigation.updated_at).getTime();
+const HOUR = 3_600_000;
+const DAY = 86_400_000;
+
+function timeAgoFor(iso: string): string {
+  const ageMs = Math.max(0, LANDMARK - new Date(iso).getTime());
+  if (ageMs < HOUR) return 'less than an hour ago';
+  if (ageMs < DAY) return `${Math.round(ageMs / HOUR)} hour${ageMs >= 2 * HOUR ? 's' : ''} ago`;
+  return `${Math.round(ageMs / DAY)} day${ageMs >= 2 * DAY ? 's' : ''} ago`;
+}
+
+export const investigationActivity: InvestigationActivity[] =
+  nexusInvestigationRecord.activity.map((entry) => {
+    const mapped = ACTION_MAP[entry.type] ?? { action: 'updated' as ActivityAction, actionLabel: 'Investigation Updated' };
+    return {
+      id: entry.id,
+      action: mapped.action,
+      actionLabel: mapped.actionLabel,
+      title: entry.title,
+      subtitle: entry.detail ?? '',
+      reference: referenceFor(entry),
+      timestamp: entry.at,
+      timeAgo: timeAgoFor(entry.at),
+      user: entry.actor ?? undefined,
+    };
+  });

@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import {
-  Users, Network, Calendar, FolderOpen, AlertTriangle, FileText,
+  Users, Network, Calendar, FolderOpen, AlertTriangle, FileText, Layers, Boxes,
 } from 'lucide-react';
 import { Stagger, staggerChildVariants } from '@trinetra-pulse/ui';
 import type { DashboardMetric } from '@trinetra-pulse/types';
@@ -15,10 +15,19 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   'folder-open': <FolderOpen className="h-4 w-4" />,
   'alert-triangle': <AlertTriangle className="h-4 w-4" />,
   'file-text': <FileText className="h-4 w-4" />,
+  layers: <Layers className="h-4 w-4" />,
+  boxes: <Boxes className="h-4 w-4" />,
 };
 
 const METRIC_ORDER: (keyof typeof dashboardMetrics)[] = [
-  'entities', 'relationships', 'events', 'activeInvestigations', 'suspiciousPatterns', 'evidenceItems',
+  'entities',
+  'relationships',
+  'events',
+  'activeInvestigations',
+  'suspiciousPatterns',
+  'findings',
+  'evidenceItems',
+  'clusters',
 ];
 
 function MetricCard({ metric }: { metric: DashboardMetric }) {
@@ -66,7 +75,7 @@ function MetricCard({ metric }: { metric: DashboardMetric }) {
 
 export function IntelligenceMetrics() {
   return (
-    <Stagger staggerInterval={0.06} delay={0.15} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <Stagger staggerInterval={0.06} delay={0.15} className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
       {METRIC_ORDER.map((key) => (
         <MetricCard key={key} metric={dashboardMetrics[key]} />
       ))}

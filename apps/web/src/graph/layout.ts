@@ -175,7 +175,12 @@ export function computeForceLayout(
     fx: null as number | null,
     fy: null as number | null,
   }));
-  const simEdges = edges as unknown as Array<{ source: SimNode | string; target: SimNode | string }>;
+  // d3-force forceLink mutates edge.source/target in place (node id -> node
+  // object reference). Clone the edges so the canonical store graph is never
+  // corrupted — otherwise selectors, adjacency and React Flow break.
+  const simEdges: Array<{ source: SimNode | string; target: SimNode | string }> = edges.map(
+    (e) => ({ source: e.source as SimNode | string, target: e.target as SimNode | string })
+  );
 
   const simulation = forceSimulation<SimNode>(simNodes)
     .force(

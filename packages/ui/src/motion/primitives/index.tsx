@@ -347,7 +347,7 @@ export function PageTransition({
           ? { duration: 0 }
           : { duration: duration.slow, ease: easing.emphasized }
       }
-      className="min-h-full"
+      className="min-h-full h-full"
       {...props}
     >
       {children}
