@@ -5,8 +5,8 @@ import {
   Users, Network, Calendar, FolderOpen, AlertTriangle, FileText, Layers, Boxes,
 } from 'lucide-react';
 import { Stagger, staggerChildVariants } from '@trinetra-pulse/ui';
-import type { DashboardMetric } from '@trinetra-pulse/types';
-import { dashboardMetrics } from '@/mock';
+import type { DashboardMetric, DashboardMetrics } from '@trinetra-pulse/types';
+import { useDashboardView } from '@/state/dashboard.store';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   users: <Users className="h-4 w-4" />,
@@ -19,7 +19,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   boxes: <Boxes className="h-4 w-4" />,
 };
 
-const METRIC_ORDER: (keyof typeof dashboardMetrics)[] = [
+const METRIC_ORDER: (keyof DashboardMetrics)[] = [
   'entities',
   'relationships',
   'events',
@@ -74,10 +74,12 @@ function MetricCard({ metric }: { metric: DashboardMetric }) {
 }
 
 export function IntelligenceMetrics() {
+  const view = useDashboardView();
+  if (!view) return null;
   return (
     <Stagger staggerInterval={0.06} delay={0.15} className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
       {METRIC_ORDER.map((key) => (
-        <MetricCard key={key} metric={dashboardMetrics[key]} />
+        <MetricCard key={key} metric={view.metrics[key]} />
       ))}
     </Stagger>
   );

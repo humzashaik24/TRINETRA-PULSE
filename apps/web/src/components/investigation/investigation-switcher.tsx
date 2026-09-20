@@ -7,6 +7,7 @@ import { Dropdown, Button } from '@trinetra-pulse/ui';
 import type { DropdownItem } from '@trinetra-pulse/ui';
 import { getInvestigations } from '@/services/investigation.service';
 import { isPresentationInvestigation } from '@/mock/investigations';
+import { isMockData } from '@/lib/api/config';
 import type { Investigation } from '@trinetra-pulse/types';
 
 // ============================================================
@@ -31,7 +32,9 @@ export function InvestigationSwitcher({
   }, [currentId]);
 
   const dropdownItems: DropdownItem[] = (items ?? [])
-    .filter((inv) => isPresentationInvestigation(inv.id))
+    // The presentation-cast filter only applies to the demo universe; in API
+    // mode every real, mutable case is switchable.
+    .filter((inv) => !isMockData() || isPresentationInvestigation(inv.id))
     .map((inv) => ({
     label: inv.title,
     icon: <FolderOpen className="h-3.5 w-3.5" />,

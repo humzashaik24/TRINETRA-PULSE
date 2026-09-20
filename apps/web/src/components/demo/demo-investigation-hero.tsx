@@ -6,6 +6,8 @@ import { ArrowRight, FolderSearch, Network, Users, FileSearch, GitBranch, Sparkl
 import { Badge, Button } from '@trinetra-pulse/ui';
 import { journeyHref, DEMO_INVESTIGATION_ID, DEMO_NETWORK_ID } from '@/navigation/journey';
 import { mockInvestigationById } from '@/mock/investigations';
+import { isMockData } from '@/lib/api/config';
+import { useDashboardView } from '@/state/dashboard.store';
 
 // ============================================================
 // PHASE 13 — DEMO INVESTIGATION HERO
@@ -29,15 +31,37 @@ const STATUS_VARIANT: Record<string, string> = {
 };
 
 export function DemoInvestigationHero({ compact = false }: DemoInvestigationHeroProps) {
-  const record = mockInvestigationById.get(DEMO_INVESTIGATION_ID);
-  const inv = record?.investigation;
+  const view = useDashboardView();
+  const isPresentation = isMockData();
+  const record = isPresentation ? mockInvestigationById.get(DEMO_INVESTIGATION_ID) : undefined;
+  const inv = isPresentation ? record?.investigation : undefined;
 
-  const entityCount = record?.entities.length ?? 0;
-  const evidenceCount = record?.evidence.length ?? 0;
-  const relationshipCount = record?.relationships.length ?? 0;
-  const findingCount = record?.findings.length ?? 0;
+  const entityCount = isPresentation
+    ? record?.entities.length ?? 0
+    : view?.metrics.entities.value ?? 0;
+  const evidenceCount = isPresentation
+    ? record?.evidence.length ?? 0
+    : view?.metrics.evidenceItems.value ?? 0;
+  const relationshipCount = isPresentation
+    ? record?.relationships.length ?? 0
+    : view?.metrics.relationships.value ?? 0;
+  const findingCount = isPresentation
+    ? record?.findings.length ?? 0
+    : view?.metrics.findings.value ?? 0;
 
-  const href = journeyHref(`/investigations/${DEMO_INVESTIGATION_ID}`);
+  const heroTitle = inv?.title ?? view?.meta.investigationTitle ?? 'Operation Trinetra Nexus';
+  const heroStatus = inv?.status ?? view?.meta.investigationStatus ?? 'active';
+  const heroDescription =
+    inv?.description ??
+    view?.meta.description ??
+    'A guided end-to-end walk-through: investigate an active import-operation case, follow its entities, evidence, network and findings — and see the Context Inspector and AI Assistant stay grounded in the same investigation.';
+
+  // Deep-link targets: mock mode uses the canonical demo ids; API mode uses
+  // the real backend ids from the dashboard view (kept in-sync with the
+  // investigation loaded by the hosting page).
+  const heroId = view?.meta.investigationId ?? DEMO_INVESTIGATION_ID;
+  const networkId = view?.meta.networkId ?? DEMO_NETWORK_ID;
+  const href = journeyHref(`/investigations/${heroId}`);
 
   return (
     <section
@@ -54,21 +78,20 @@ export function DemoInvestigationHero({ compact = false }: DemoInvestigationHero
               <Sparkles className="mr-1 h-3 w-3" />
               SIH Demo Investigation
             </Badge>
-            <Badge size="sm" variant={inv ? (STATUS_VARIANT[inv.status] as 'success' | 'warning' | 'default') ?? 'default' : 'default'}>
-              {inv?.status ?? 'active'}
+            <Badge size="sm" variant={(STATUS_VARIANT[heroStatus] as 'success' | 'warning' | 'default') ?? 'default'}>
+              {heroStatus}
             </Badge>
           </div>
 
-          <h2 className="text-lg font-semibold text-foreground">{inv?.title ?? 'Operation Trinetra Nexus'}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{heroTitle}</h2>
           <p className="mt-0.5 font-mono text-xs text-foreground-muted">
-            {DEMO_INVESTIGATION_ID.toUpperCase()}
+            {heroId.toUpperCase()}
             {record?.investigation.tags?.includes('demo') ? ' · demonstration case' : ''}
           </p>
 
           {!compact && (
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-foreground-secondary">
-              {inv?.description ??
-                'A guided end-to-end walk-through: investigate an active import-operation case, follow its entities, evidence, network and findings — and see the Context Inspector and AI Assistant stay grounded in the same investigation.'}
+              {heroDescription}
             </p>
           )}
 
@@ -102,7 +125,7 @@ export function DemoInvestigationHero({ compact = false }: DemoInvestigationHero
             </Button>
           </Link>
           <Link
-            href={journeyHref(`/networks/${DEMO_NETWORK_ID}`)}
+            href={journeyHref(`/networks/${networkId}`)}
             className="text-xs text-foreground-muted underline-offset-2 hover:text-brand hover:underline"
             data-testid="demo-investigation-network"
           >

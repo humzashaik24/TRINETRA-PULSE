@@ -85,7 +85,8 @@ export const GraphNode = memo(function GraphNodeComponent({ data, selected }: Gr
   const { color, icon: Icon, shape } = visualFor(node);
 
   const sizeScale = node.analyticsSizeScale ?? 1;
-  const displaySize = node.size * sizeScale;
+  const hubScale = node.hubSizeScale ?? 1;
+  const displaySize = Math.max(node.size * sizeScale * hubScale, 18);
   const nodeColor = node.analyticsTint ?? color;
   const isDimmed = node.dimmed || (node.analyticsDim ?? false);
 
@@ -94,14 +95,14 @@ export const GraphNode = memo(function GraphNodeComponent({ data, selected }: Gr
   // (high confidence) nodes always label themselves sooner.
   const showLabel =
     !node.dimmed &&
-    (zoom >= 0.75 || (zoom >= 0.45 && node.confidence >= 0.8) || selected);
+    (zoom >= 0.5 || (zoom >= 0.3 && node.confidence >= 0.7) || selected);
 
   // Contract shape (diamond glyphs must be counter-rotated by parent).
   const shapeClass = shape === 'diamond' ? `${SHAPE_CLASS.diamond} -rotate-45` : SHAPE_CLASS[shape];
 
   const ring =
     selected
-      ? 'ring-2 ring-offset-2 ring-[hsl(210,100%,70%)]'
+      ? 'ring-2 ring-offset-2 ring-[hsl(210,100%,70%)] shadow-md'
       : node.analyticsAccent
         ? 'ring-1 ring-offset-1 ring-[hsl(12,85%,55%)]'
         : node.focused

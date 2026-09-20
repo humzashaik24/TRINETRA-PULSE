@@ -12,6 +12,8 @@ import {
   ShieldHalf,
   KeyRound,
   PanelsTopLeft,
+  FileText,
+  Scale,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -61,6 +63,8 @@ export const PRIMARY_RAIL_SECTIONS: RailSection[] = [
       { label: 'Analytics', href: '/analytics', icon: BarChart3 },
       { label: 'Patterns', href: '/patterns', icon: Sparkles },
       { label: 'Knowledge Canvas', href: '/knowledge-canvas', icon: PanelsTopLeft },
+      { label: 'Reports', href: '/reports', icon: FileText, primary: true },
+      { label: 'Legal Research', href: '/legal-research', icon: Scale, primary: true },
     ],
   },
 ];

@@ -12,7 +12,12 @@ import {
 } from './selectors';
 import { findShortestPath, type PathGraph } from './path';
 import { nodeColorFor, transformEdge, transformNode } from './transform';
-import { hierarchicalLayout, radialLayout } from './layout';
+import {
+  clusteredLayout,
+  detectCommunities,
+  hierarchicalLayout,
+  radialLayout,
+} from './layout';
 
 const SEED: NetworkSeed = {
   id: 'T',
@@ -206,5 +211,172 @@ describe('graph/layout', () => {
     const positions = radialLayout(graph.nodes, graph.edges, 800, 600, a.id);
     expect(positions.get(a.id)).toBeDefined();
     expect(positions.size).toBe(graph.nodes.length);
+  });
+});
+
+// ------------------------------------------------------------
+// Phase C.5 — deterministic cluster-aware layout
+// ------------------------------------------------------------
+
+function makeNode(entityId: string, type: GraphNode['type'] = 'person'): GraphNode {
+  return {
+    id: entityId,
+    entityId,
+    type,
+    label: entityId,
+    displayLabel: entityId,
+    status: 'confirmed',
+    confidence: 0.9,
+    position: { x: 0, y: 0 },
+    size: 12,
+    style: { size: 12, shape: 'circle' },
+    connections: 0,
+    sources: ['S1'],
+    metadata: {},
+  };
+}
+
+function makeEdge(source: string, target: string): GraphEdge {
+  return {
+    id: `${source}->${target}`,
+    relationshipId: `${source}->${target}`,
+    source,
+    target,
+    type: 'KNOWS',
+    label: 'knows',
+    confidence: 0.9,
+    status: 'confirmed',
+    direction: 'undirected',
+    weight: 1,
+    sourceRecordLabel: 'S1',
+    evidence: [],
+    extractionMethod: 'MANUAL',
+    metadata: {},
+  };
+}
+
+/**
+ * Two communities (A around hub a1, B around hub b1) joined by a
+ * dedicated bridge node `m` (a3–m–b2). The bridge is deliberately a
+ * different, lower-degree entity than each community hub.
+ */
+function twoClusterFixture() {
+  const nodes = [
+    makeNode('a1'),
+    makeNode('a2'),
+    makeNode('a3'),
+    makeNode('a4'),
+    makeNode('b1'),
+    makeNode('b2'),
+    makeNode('b3'),
+    makeNode('b4'),
+    makeNode('m'),
+  ];
+  const clusterA = [
+    ['a1', 'a2'],
+    ['a1', 'a3'],
+    ['a1', 'a4'],
+    ['a2', 'a3'],
+  ];
+  const clusterB = [
+    ['b1', 'b2'],
+    ['b1', 'b3'],
+    ['b1', 'b4'],
+    ['b2', 'b3'],
+    ['b2', 'b4'],
+    ['b3', 'b4'],
+  ];
+  const bridge = [
+    ['a3', 'm'],
+    ['m', 'b2'],
+  ];
+  const edges = [...clusterA, ...clusterB, ...bridge].map(([s, t]) =>
+    makeEdge(s, t)
+  );
+  return { nodes, edges };
+}
+
+function centroid(positions: ReturnType<typeof clusteredLayout>, ids: string[]) {
+  const sum = ids.reduce(
+    (acc, id) => {
+      const p = positions.get(id)!;
+      return { x: acc.x + p.x, y: acc.y + p.y };
+    },
+    { x: 0, y: 0 }
+  );
+  return { x: sum.x / ids.length, y: sum.y / ids.length };
+}
+
+describe('graph/layout — clustered (Phase C.5)', () => {
+  const { nodes, edges } = twoClusterFixture();
+
+  it('produces deterministic positions across runs', () => {
+    const a = clusteredLayout(nodes, edges, 900, 700);
+    const b = clusteredLayout(nodes, edges, 900, 700);
+    expect(JSON.stringify(Array.from(a.entries()))).toBe(
+      JSON.stringify(Array.from(b.entries()))
+    );
+  });
+
+  it('does not mutate the graph data contract', () => {
+    const nodesBefore = JSON.stringify(nodes);
+    const edgesBefore = JSON.stringify(edges);
+    clusteredLayout(nodes, edges, 900, 700);
+    expect(JSON.stringify(nodes)).toBe(nodesBefore);
+    expect(JSON.stringify(edges)).toBe(edgesBefore);
+    expect(nodes.every((n) => n.position.x === 0 && n.position.y === 0)).toBe(true);
+  });
+
+  it('detects the two communities from topology alone', () => {
+    const { clusterOf, clusters } = detectCommunities(nodes, edges);
+    expect(clusters.length).toBe(2);
+    expect(clusterOf.get('a2')).toBe(clusterOf.get('a3'));
+    expect(clusterOf.get('b2')).toBe(clusterOf.get('b3'));
+    expect(clusterOf.get('a2')).not.toBe(clusterOf.get('b2'));
+  });
+
+  it('separates clusters visually', () => {
+    const positions = clusteredLayout(nodes, edges, 900, 700);
+    const ca = centroid(positions, ['a2', 'a3', 'a4']);
+    const cb = centroid(positions, ['b2', 'b3', 'b4']);
+    const separation = Math.hypot(ca.x - cb.x, ca.y - cb.y);
+    expect(separation).toBeGreaterThan(150);
+    // every member is nearest to its own cluster centroid
+    for (const [id, c] of [
+      ['a2', ca],
+      ['a3', ca],
+      ['b2', cb],
+      ['b3', cb],
+    ] as const) {
+      const p = positions.get(id)!;
+      const own = Math.hypot(p.x - c.x, p.y - c.y);
+      const other = Math.hypot(p.x - (c === ca ? cb.x : ca.x), p.y - (c === ca ? cb.y : ca.y));
+      expect(own).toBeLessThan(other);
+    }
+  });
+
+  it('keeps the cluster hub centred for immediate visibility', () => {
+    const positions = clusteredLayout(nodes, edges, 900, 700);
+    // a1 has degree 4 (3 intra-cluster + bridge), the highest in its cluster.
+    const ca = centroid(positions, ['a1', 'a2', 'a3', 'a4']);
+    const distances = ['a1', 'a2', 'a3', 'a4'].map((id) => {
+      const p = positions.get(id)!;
+      return { id, d: Math.hypot(p.x - ca.x, p.y - ca.y) };
+    });
+    const nearest = distances.reduce((a, b) => (a.d <= b.d ? a : b));
+    expect(nearest.id).toBe('a1');
+  });
+
+  it('positions the bridge entity between the clusters it connects', () => {
+    const positions = clusteredLayout(nodes, edges, 900, 700);
+    const ca = centroid(positions, ['a1', 'a2', 'a3', 'a4']);
+    const cb = centroid(positions, ['b1', 'b2', 'b3', 'b4']);
+    const midpoint = { x: (ca.x + cb.x) / 2, y: (ca.y + cb.y) / 2 };
+    const bridge = positions.get('m')!;
+    const toMidpoint = Math.hypot(bridge.x - midpoint.x, bridge.y - midpoint.y);
+    const toOwn = Math.hypot(bridge.x - ca.x, bridge.y - ca.y);
+    const toOther = Math.hypot(bridge.x - cb.x, bridge.y - cb.y);
+    expect(toMidpoint).toBeLessThan(toOwn);
+    expect(toMidpoint).toBeLessThan(toOther);
   });
 });

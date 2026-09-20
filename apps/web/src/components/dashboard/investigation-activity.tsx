@@ -7,7 +7,7 @@ import {
 import { EmptyState } from '@trinetra-pulse/ui';
 import { staggerChildVariants } from '@trinetra-pulse/ui';
 import type { InvestigationActivity, ActivityAction } from '@trinetra-pulse/types';
-import { investigationActivity } from '@/mock';
+import { useDashboardView } from '@/state/dashboard.store';
 
 const ACTION_ICON: Record<ActivityAction, React.ReactNode> = {
   created: <Plus className="h-3 w-3" />,
@@ -77,7 +77,10 @@ function ActivityItem({ activity, isLast }: { activity: InvestigationActivity; i
 }
 
 export function InvestigationActivityFeed() {
-  if (investigationActivity.length === 0) {
+  const view = useDashboardView();
+  const activity = view?.activity ?? [];
+
+  if (activity.length === 0) {
     return (
       <EmptyState
         icon={<Clock className="h-8 w-8" />}
@@ -89,11 +92,11 @@ export function InvestigationActivityFeed() {
 
   return (
     <div className="space-y-0" role="list" aria-label="Investigation activity timeline">
-      {investigationActivity.map((activity, index) => (
+      {activity.map((activityItem, index) => (
         <ActivityItem
-          key={activity.id}
-          activity={activity}
-          isLast={index === investigationActivity.length - 1}
+          key={activityItem.id}
+          activity={activityItem}
+          isLast={index === activity.length - 1}
         />
       ))}
     </div>

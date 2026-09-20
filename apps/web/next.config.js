@@ -8,6 +8,14 @@ const nextConfig = {
   // Transformers.js (Phase 25 local Whisper) ships node-only bindings that
   // must never be bundled for the browser. See the official Next.js tutorial:
   // https://huggingface.co/docs/transformers.js/tutorials/next
+  async rewrites() {
+    return [
+      {
+        source: '/api/v2/:path*',
+        destination: 'http://127.0.0.1:8000/api/v2/:path*',
+      },
+    ];
+  },
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,

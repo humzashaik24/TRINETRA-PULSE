@@ -21,7 +21,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.app import create_real_app
-from app.db.seed import _uuid, seed_database
+from app.db.seed import _uuid, seed_operation_meridian
 from app.models import (
     AuthAuditAction,
     AuthAuditEvent,
@@ -93,7 +93,7 @@ async def db_factory():
         await conn.run_sync(Base.metadata.create_all)
     f = async_sessionmaker(engine, expire_on_commit=False)
     async with f() as session:
-        await seed_database(session)
+        await seed_operation_meridian(session)
         await session.commit()
     yield f
     await engine.dispose()
@@ -103,7 +103,7 @@ async def db_factory():
 async def _seed(client):
     ac, factory = client
     async with factory() as session:
-        await seed_database(session)
+        await seed_operation_meridian(session)
         await session.commit()
 
 
@@ -401,7 +401,7 @@ async def test_seed_is_idempotent_for_chains(client):
 
     # Re-running the seed must not duplicate chain rows.
     async with factory() as session:
-        await seed_database(session)
+        await seed_operation_meridian(session)
         await session.commit()
     after = await ac.get(f"/evidence/{_uuid('ev-001')}/chain")
     assert len(after.json()) == len(before.json())

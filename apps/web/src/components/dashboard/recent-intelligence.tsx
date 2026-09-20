@@ -7,7 +7,7 @@ import {
 import { ConfidenceIndicator, EmptyState } from '@trinetra-pulse/ui';
 import { staggerChildVariants } from '@trinetra-pulse/ui';
 import type { RecentIntelligence, IntelligenceType } from '@trinetra-pulse/types';
-import { presentationRecentIntelligenceFindings } from '@/mock';
+import { useDashboardView } from '@/state/dashboard.store';
 import { EntityTypeIcon } from '@trinetra-pulse/ui';
 
 const TYPE_ICON_MAP: Record<IntelligenceType, React.ReactNode> = {
@@ -96,7 +96,10 @@ function FindingCard({ finding, onSelect }: { finding: RecentIntelligence; onSel
 }
 
 export function RecentIntelligence({ onSelect }: { onSelect?: (finding: RecentIntelligence) => void }) {
-  if (presentationRecentIntelligenceFindings.length === 0) {
+  const view = useDashboardView();
+  const findings = view?.recentFindings ?? [];
+
+  if (findings.length === 0) {
     return (
       <EmptyState
         icon={<Radar className="h-8 w-8" />}
@@ -108,7 +111,7 @@ export function RecentIntelligence({ onSelect }: { onSelect?: (finding: RecentIn
 
   return (
     <div className="space-y-2" role="feed" aria-label="Recent intelligence findings">
-      {presentationRecentIntelligenceFindings.map((finding) => (
+      {findings.map((finding) => (
         <FindingCard key={finding.id} finding={finding} onSelect={onSelect} />
       ))}
     </div>

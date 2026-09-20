@@ -1,6 +1,7 @@
 import { mockEntityProfileById } from '@/mock/entity-profiles';
 import { mockDatasetById } from '@/mock/datasets';
 import { mockInvestigationById } from '@/mock/investigations';
+import { isMockData } from '@/lib/api/config';
 import type { LucideIcon } from 'lucide-react';
 import type { InspectorContext } from '@/state/shell.store';
 import {
@@ -79,21 +80,26 @@ const ROUTE_ICONS: Record<string, LucideIcon> = {
 /** Resolve a URL path segment to a human label, looking up domain
  *  objects (entities / datasets) where the segment is an id. */
 function resolveSegmentLabel(segment: string, index: number, pathname: string): string | null {
-  // Entity detail: /entities/<id>
-  if (pathname.startsWith('/entities/') && index === 1) {
-    return mockEntityProfileById.get(segment)?.displayName ?? null;
-  }
-  // Investigation detail: /investigations/<id>
-  if (pathname.startsWith('/investigations/') && index === 1) {
-    return mockInvestigationById.get(segment)?.investigation.title ?? null;
-  }
-  // Dataset detail: /data-intelligence/<id> landing (reserved)
-  if (mockDatasetById.has(segment)) {
-    return mockDatasetById.get(segment)?.name ?? null;
+  // Demo-universe lookups are gated: in API mode entity/investigation names
+  // are resolved by the pages themselves, and unknown ids fall through to the
+  // technical label without inventing a title.
+  if (isMockData()) {
+    // Entity detail: /entities/<id>
+    if (pathname.startsWith('/entities/') && index === 1) {
+      return mockEntityProfileById.get(segment)?.displayName ?? null;
+    }
+    // Investigation detail: /investigations/<id>
+    if (pathname.startsWith('/investigations/') && index === 1) {
+      return mockInvestigationById.get(segment)?.investigation.title ?? null;
+    }
+    // Dataset detail: /data-intelligence/<id> landing (reserved)
+    if (mockDatasetById.has(segment)) {
+      return mockDatasetById.get(segment)?.name ?? null;
+    }
   }
   const staticLabel = ROUTE_LABELS[segment];
   if (staticLabel) return staticLabel;
-  // Unknown ids (e.g. ent-001, INV-204) — keep technical label.
+  // Unknown ids (e.g. ent-001, UUIDs) — keep technical label.
   return humanize(segment);
 }
 
@@ -132,7 +138,8 @@ export function workspaceMetaFor(pathname: string): WorkspaceMeta {
       };
     case 'investigations': {
       const invId = segments[1];
-      const record = invId ? mockInvestigationById.get(invId) : undefined;
+      const record =
+        isMockData() && invId ? mockInvestigationById.get(invId) : undefined;
       return record
         ? { title: record.investigation.title, description: record.investigation.description ?? 'Investigation workspace' }
         : {
@@ -147,7 +154,7 @@ export function workspaceMetaFor(pathname: string): WorkspaceMeta {
       };
     case 'entities': {
       const id = segments[1];
-      const entity = id ? mockEntityProfileById.get(id) : undefined;
+      const entity = isMockData() && id ? mockEntityProfileById.get(id) : undefined;
       return entity
         ? { title: entity.displayName, description: entity.description ?? 'Entity intelligence profile' }
         : { title: 'Entities', description: 'Canonical records across the intelligence graph' };
@@ -211,14 +218,17 @@ export function resolveDashboardNodeContext(node: {
   type?: string;
   connections?: number;
 }): InspectorContext {
-  for (const profile of mockEntityProfileById.values()) {
-    if (profile.displayName === node.label) {
-      return {
-        type: 'entity',
-        id: profile.id,
-        name: profile.displayName,
-        entityType: profile.entityType,
-      };
+  // Profile lookup only exists in the demo universe (mock mode).
+  if (isMockData()) {
+    for (const profile of mockEntityProfileById.values()) {
+      if (profile.displayName === node.label) {
+        return {
+          type: 'entity',
+          id: profile.id,
+          name: profile.displayName,
+          entityType: profile.entityType,
+        };
+      }
     }
   }
   return {

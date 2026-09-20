@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   Network, Users, GitBranch, BarChart3, Star,
 } from 'lucide-react';
-import { dashboardNetwork } from '@/mock';
+import { useDashboardView } from '@/state/dashboard.store';
 import { staggerChildVariants } from '@trinetra-pulse/ui';
 
 interface StatRowProps {
@@ -29,12 +29,16 @@ function StatRow({ icon, label, value }: StatRowProps) {
 }
 
 export function NetworkStatistics() {
+  const view = useDashboardView();
+  const network = view?.network;
+  if (!network) return null;
+
   const stats = [
-    { icon: <BarChart3 className="h-3.5 w-3.5" />, label: 'Network Density', value: dashboardNetwork.density.toFixed(2) },
-    { icon: <Users className="h-3.5 w-3.5" />, label: 'Communities', value: dashboardNetwork.communityCount },
-    { icon: <Network className="h-3.5 w-3.5" />, label: 'Connected Components', value: dashboardNetwork.connectedComponents },
-    { icon: <GitBranch className="h-3.5 w-3.5" />, label: 'Average Degree', value: dashboardNetwork.averageDegree.toFixed(1) },
-    { icon: <Star className="h-3.5 w-3.5" />, label: 'High-Centrality Entities', value: dashboardNetwork.highCentralityCount },
+    { icon: <BarChart3 className="h-3.5 w-3.5" />, label: 'Network Density', value: network.density.toFixed(2) },
+    { icon: <Users className="h-3.5 w-3.5" />, label: 'Communities', value: network.communityCount },
+    { icon: <Network className="h-3.5 w-3.5" />, label: 'Connected Components', value: network.connectedComponents },
+    { icon: <GitBranch className="h-3.5 w-3.5" />, label: 'Average Degree', value: network.averageDegree.toFixed(1) },
+    { icon: <Star className="h-3.5 w-3.5" />, label: 'High-Centrality Entities', value: network.highCentralityCount },
   ];
 
   return (

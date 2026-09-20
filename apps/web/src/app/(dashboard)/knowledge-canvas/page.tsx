@@ -1,22 +1,22 @@
 'use client';
 
 import { Suspense } from 'react';
-import { KnowledgeCanvasWorkspace } from '@/components/knowledge-canvas/knowledge-canvas-workspace';
+import { KnowledgeCanvasGateway } from '@/components/knowledge-canvas/gateway';
 
 // ============================================================
-// KNOWLEDGE CANVAS — ROUTE
+// KNOWLEDGE CANVAS — GATEWAY ROUTE
 // ============================================================
-// Thin page shell; the workspace owns all state + capabilities.
-// Journey contract: /knowledge-canvas?i=<investigation>&section=<tab>
-// The workspace reads ?i=/?section= via useSearchParams, so it is
-// wrapped in a Suspense boundary to keep the page statically
-// prerenderable (Next.js CSR bailout guard).
+// Lightweight launcher with a single primary action. The full Canvas
+// workspace lives at /knowledge-canvas/canvas and is lazy-loaded there,
+// so /knowledge-canvas never pulls in React Flow, the network engine,
+// Whisper or mermaid. Journey contract keeps ?i=<investigation> so the
+// active investigation survives navigation.
 // ============================================================
 
 export default function KnowledgeCanvasPage() {
   return (
     <Suspense fallback={<div className="p-6 lg:p-8" aria-busy="true" />}>
-      <KnowledgeCanvasWorkspace />
+      <KnowledgeCanvasGateway />
     </Suspense>
   );
 }

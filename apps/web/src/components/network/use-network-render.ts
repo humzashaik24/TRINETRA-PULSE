@@ -33,6 +33,15 @@ export interface NetworkRender {
   depth: DepthMode;
 }
 
+/**
+ * Degree-driven hub scaling — pure presentation. Hubs (high connection
+ * counts) render larger so an investigator can spot the important actors
+ * immediately; nothing below the base size, no data mutation.
+ */
+export function hubSizeScaleFor(connections: number): number {
+  return Number(Math.min(2.4, 1 + Math.log2(1 + Math.max(0, connections)) * 0.28).toFixed(3));
+}
+
 export function useNetworkRender(width: number, height: number): NetworkRender {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
@@ -116,6 +125,7 @@ export function useNetworkRender(width: number, height: number): NetworkRender {
         analyticsTint: ov?.tint,
         analyticsAccent: ov?.accent,
         analyticsDim: ov?.dim,
+        hubSizeScale: hubSizeScaleFor(n.connections),
       };
     });
   }, [visibleNodes, positions, focused, hasSelection, pathNodeIds, edges, overlayMap, highlighted]);

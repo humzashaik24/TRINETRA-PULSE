@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.db.seed import seed_database
+from app.db.seed import seed_operation_meridian
 from app.models import (
     Base,
     Dataset,
@@ -40,7 +40,7 @@ async def db_factory():
         await conn.run_sync(Base.metadata.create_all)
     f = async_sessionmaker(engine, expire_on_commit=False)
     async with f() as session:
-        await seed_database(session)
+        await seed_operation_meridian(session)
         await session.commit()
     yield f
     await engine.dispose()

@@ -5,7 +5,7 @@ import { Users, ArrowUpRight } from 'lucide-react';
 import { EmptyState } from '@trinetra-pulse/ui';
 import { staggerChildVariants } from '@trinetra-pulse/ui';
 import type { ImportantEntity, ImportanceCategory } from '@trinetra-pulse/types';
-import { importantEntities } from '@/mock';
+import { useDashboardView } from '@/state/dashboard.store';
 import { EntityTypeIcon } from '@trinetra-pulse/ui';
 import { RiskIndicator } from '@trinetra-pulse/ui';
 
@@ -72,7 +72,10 @@ function EntityRow({ entity }: { entity: ImportantEntity }) {
 }
 
 export function ImportantEntities() {
-  if (importantEntities.length === 0) {
+  const view = useDashboardView();
+  const entities = view?.importantEntities ?? [];
+
+  if (entities.length === 0) {
     return (
       <EmptyState
         icon={<Users className="h-8 w-8" />}
@@ -84,7 +87,7 @@ export function ImportantEntities() {
 
   return (
     <div className="divide-y divide-border/50" role="table" aria-label="Important entities">
-      {importantEntities.map((entity) => (
+      {entities.map((entity) => (
         <EntityRow key={entity.id} entity={entity} />
       ))}
     </div>

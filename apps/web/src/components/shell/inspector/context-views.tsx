@@ -14,6 +14,7 @@ import {
 import { Badge, EntityTypeIcon } from '@trinetra-pulse/ui';
 import { cn } from '@/lib/utils';
 import { formatCount, formatPercent, formatDateTime, ENTITY_TYPE_LABELS } from '@/lib/format';
+import type { EntityType } from '@trinetra-pulse/types';
 import type {
   InspectorEntityView,
   InspectorRelationshipView,
@@ -43,6 +44,16 @@ export interface ViewActions {
   onInspectEntity?: (entity: { id: string; name: string; type: string }) => void;
   /** Open a linked finding context (evidence → finding journey). */
   onInspectFinding?: (finding: { id: string; title: string }) => void;
+  /** Open a linked evidence context (pattern → evidence journey). */
+  onInspectEvidence?: (evidence: { id: string; title: string }) => void;
+  /** Open a linked relationship context (pattern → relationship journey). */
+  onInspectRelationship?: (relationship: {
+    id: string;
+    investigationId?: string;
+    sourceEntityName?: string;
+    targetEntityName?: string;
+    relationshipType?: string;
+  }) => void;
   /** Open this entity inside its network, focused (entity → network journey). */
   onOpenNetwork?: (entity: { id: string; investigationId?: string }) => void;
 }
@@ -783,13 +794,29 @@ export function ComponentContextView({ view, actions }: { view: InspectorCompone
 // ------------------------------------------------------------
 
 export function PatternContextView({ view, actions }: { view: InspectorPatternView; actions: ViewActions }) {
+  const severity = view.severity.toLowerCase();
+  const severityVariant =
+    severity === 'high' || severity === 'critical'
+      ? 'danger'
+      : severity === 'medium'
+        ? 'warning'
+        : severity === 'low'
+          ? 'info'
+          : 'secondary';
+  const hasEntityContext = view.entities.length > 0 && Object.keys(view.entityNames).length > 0;
+  const hasEvidenceContext = view.evidence.length > 0;
+  const hasRelationshipContext = view.relationships.length > 0;
+
   return (
     <div className="px-4 py-3">
       <div className="flex items-center gap-2">
-        <Badge size="sm" variant={view.severity === 'high' ? 'danger' : view.severity === 'medium' ? 'warning' : 'info'}>
+        <Badge size="sm" variant={severityVariant}>
           <Sparkles className="mr-1 h-3 w-3" />
-          Structural pattern
+          Detected pattern
         </Badge>
+        {view.detectedAt && (
+          <span className="text-[10px] text-foreground-muted">{formatDateTime(view.detectedAt)}</span>
+        )}
       </div>
 
       <Section title="Pattern">
@@ -798,7 +825,7 @@ export function PatternContextView({ view, actions }: { view: InspectorPatternVi
       </Section>
 
       <Section title="Signal">
-        <InfoRow label="Significance" value={view.severity} />
+        <InfoRow label="Significance" value={view.severity.toUpperCase()} />
         <InfoRow label="Confidence" value={formatPercent(view.confidence)} />
       </Section>
 
@@ -806,16 +833,91 @@ export function PatternContextView({ view, actions }: { view: InspectorPatternVi
         <p className="mt-3 text-xs leading-relaxed text-foreground-muted">{view.description}</p>
       )}
 
-      {view.entities.length > 0 && (
+      {hasEntityContext && (
         <Section title="Entities involved">
           <div className="flex flex-wrap gap-1.5">
-            {view.entities.map((e) => (
-              <span key={e} className="rounded bg-surface border border-border px-1.5 py-0.5 text-[11px] text-foreground">
-                {e}
-              </span>
+            {view.entities.map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() =>
+                  actions.onInspectEntity?.({
+                    id,
+                    name: view.entityNames[id] ?? id,
+                    type: view.entityTypes[id] ?? 'person',
+                  })
+                }
+                className="inline-flex items-center gap-1 rounded bg-surface border border-border px-1.5 py-0.5 text-[11px] text-foreground hover:border-brand/50 tp-transition"
+              >
+                <EntityTypeIcon type={(view.entityTypes[id] ?? 'person') as EntityType} size="xs" />
+                <span className="text-xs text-foreground text-right min-w-0 truncate">
+                  {view.entityNames[id] ?? id}
+                </span>
+              </button>
             ))}
           </div>
         </Section>
+      )}
+
+      {hasEvidenceContext && (
+        <Section title="Supporting evidence">
+          <div className="flex flex-wrap gap-1.5">
+            {view.evidence.map((evidence) => (
+              <button
+                key={evidence.id}
+                type="button"
+                onClick={() => actions.onInspectEvidence?.({ id: evidence.id, title: evidence.title })}
+                className="rounded bg-surface border border-border px-1.5 py-0.5 text-[11px] text-foreground-secondary hover:border-brand/50 tp-transition"
+              >
+                {evidence.title}
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {hasRelationshipContext && (
+        <Section title="Supporting relationships">
+          <div className="flex flex-wrap gap-1.5">
+            {view.relationships.map((relationship) => (
+              <button
+                key={relationship.id}
+                type="button"
+                onClick={() =>
+                  actions.onInspectRelationship?.({
+                    id: relationship.id,
+                    investigationId: view.investigationId,
+                    sourceEntityName: relationship.sourceName,
+                    targetEntityName: relationship.targetName,
+                    relationshipType: relationship.type,
+                  })
+                }
+                className="rounded bg-surface border border-border px-1.5 py-0.5 text-[11px] text-foreground-secondary hover:border-brand/50 tp-transition"
+              >
+                {relationship.type ? `${relationship.type} · ` : 'Relationship · '}
+                {[relationship.sourceName, relationship.targetName].filter(Boolean).join(' → ') || relationship.id.slice(0, 8)}
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* Honest context note: the pattern exists but its supporting context
+          could not be resolved for this investigation. */}
+      {view.resolved &&
+        view.entities.length > 0 &&
+        !hasEntityContext &&
+        !hasEvidenceContext &&
+        !hasRelationshipContext && (
+          <p className="mt-3 text-xs text-foreground-muted italic">
+            Supporting entity, evidence and relationship context is not available for this pattern.
+          </p>
+        )}
+
+      {!view.resolved && (
+        <p className="mt-3 text-xs text-foreground-muted italic">
+          Pattern context is not available for the current investigation.
+        </p>
       )}
 
       <div className="mt-5 pt-3 border-t border-border">

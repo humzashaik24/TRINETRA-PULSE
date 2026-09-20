@@ -3,17 +3,18 @@
 import Link from 'next/link';
 import { FolderSearch, ArrowRight, ListChecks } from 'lucide-react';
 import { badgeVariants } from '@trinetra-pulse/ui';
-import { mockInvestigations } from '@/mock';
-import { isPresentationInvestigation } from '@/mock/investigations';
-import { mockReviewByInvestigation } from '@/mock/investigation-operations';
+import { useDashboardView } from '@/state/dashboard.store';
 import type { Investigation } from '@trinetra-pulse/types';
 
 // ============================================================
 // DASHBOARD — ACTIVE INVESTIGATIONS
 // ============================================================
 // Links to each open investigation and shows the outstanding review
-// queue count (derived from the deterministic operations mock).
-// Statuses are lifecycle; priority is workflow, never criminality.
+// queue count. The open cases and their review counts come from the
+// dashboard view: mock mode preserves the deterministic operations
+// fixture counts; API mode honestly reports 0 (the relational model
+// has no review queue). Statuses are lifecycle; priority is workflow,
+// never criminality.
 // ============================================================
 
 function statusVariant(status: Investigation['status']) {
@@ -40,11 +41,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function ActiveInvestigations() {
-  const open = mockInvestigations.filter(
-    (i) => i.status !== 'closed' && i.status !== 'archived' && isPresentationInvestigation(i.id)
-  );
-  const reviewCount = (id: string) =>
-    (mockReviewByInvestigation[id] ?? []).filter((r) => !r.resolved).length;
+  const view = useDashboardView();
+  const open = view?.activeInvestigations ?? [];
 
   if (open.length === 0) {
     return <p className="text-sm text-foreground-muted">No active investigations.</p>;
@@ -53,7 +51,7 @@ export function ActiveInvestigations() {
   return (
     <ul className="divide-y divide-border" data-testid="active-investigations">
       {open.map((inv) => {
-        const count = reviewCount(inv.id);
+        const count = inv.reviewCount;
         return (
           <li key={inv.id} className="py-3">
             <div className="flex items-center justify-between gap-3">

@@ -18,6 +18,7 @@ import type {
 import { mockEvidenceItems, mockInvestigationById } from '@/mock';
 import { isMockData, API_BASE_URL } from '@/lib/api/config';
 import { apiFetch } from '@/lib/api/client';
+import { resolveInvestigationId } from '@/lib/api/resolve-investigation';
 import { mapEvidenceItem, type RealEvidence } from '@/lib/api/evidence';
 import {
   getInvestigation,
@@ -223,12 +224,17 @@ export async function loadInvestigationReport(
 ): Promise<InvestigationReport> {
   const { investigationId, networkId, now } = input;
 
+  // Semantic deep-link ids (e.g. ``inv-demo-nexus``) resolve to the canonical
+  // backend UUID before any investigation-scoped request is made; actual UUIDs
+  // pass straight through and mock mode is untouched.
+  const apiInvestigationId = await resolveInvestigationId(investigationId);
+
   const [evidence, findings, networkSummary, investigationTitle] =
     await Promise.all([
-      loadEvidenceForReport(investigationId),
-      loadFindingsForReport(investigationId),
+      loadEvidenceForReport(apiInvestigationId),
+      loadFindingsForReport(apiInvestigationId),
       loadSummary(networkId),
-      loadInvestigationTitle(investigationId),
+      loadInvestigationTitle(apiInvestigationId),
     ]);
 
   const integrity = evidence.integrity;

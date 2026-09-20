@@ -361,24 +361,40 @@ export interface MappedWorkspace {
 export async function loadInvestigationWorkspace(
   id: string,
 ): Promise<MappedWorkspace> {
+  const logResourceError = (resource: string, err: unknown) => {
+    console.error(`[loadInvestigationWorkspace] Resource failed: ${resource}`, {
+      resource,
+      investigationId: id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  };
+
+  const handleCritical = <T>(resource: string, promise: Promise<T>): Promise<T> =>
+    promise.catch((err) => {
+      logResourceError(resource, err);
+      throw new Error(`Critical investigation resource "${resource}" failed to load for investigation ${id}: ${err instanceof Error ? err.message : String(err)}`);
+    });
+
+  const handleOptional = <T>(resource: string, promise: Promise<T>, fallback: T): Promise<T> =>
+    promise.catch((err) => {
+      logResourceError(resource, err);
+      return fallback;
+    });
+
   const [inv, summary, entities, relationships, evidence, findings, notes, timeline, graph, analytics, events] =
     await Promise.all([
-      getInvestigation(id).catch(() => null),
-      getInvestigationSummary(id).catch(() => null),
-      listEntitiesForInvestigation(id).catch(() => [] as RealEntity[]),
-      listRelationshipsForInvestigation(id).catch(() => [] as RealRelationship[]),
-      listEvidenceForInvestigation(id).catch(() => [] as RealEvidence[]),
-      listFindingsForInvestigation(id).catch(() => [] as RealFinding[]),
-      listNotesForInvestigation(id).catch(() => [] as RealNote[]),
-      getTimeline(id).catch(() => null),
-      getNetworkGraph(id).catch(() => null),
-      getNetworkAnalytics(id).catch(() => null),
-      listEventsForInvestigation(id).catch(() => []),
+      handleCritical('investigation', getInvestigation(id)),
+      handleOptional('summary', getInvestigationSummary(id), null),
+      handleCritical('entities', listEntitiesForInvestigation(id)),
+      handleCritical('relationships', listRelationshipsForInvestigation(id)),
+      handleCritical('evidence', listEvidenceForInvestigation(id)),
+      handleCritical('findings', listFindingsForInvestigation(id)),
+      handleOptional('notes', listNotesForInvestigation(id), [] as RealNote[]),
+      handleOptional('timeline', getTimeline(id), null),
+      handleOptional('graph', getNetworkGraph(id), null),
+      handleOptional('analytics', getNetworkAnalytics(id), null),
+      handleOptional('events', listEventsForInvestigation(id), [] as RealEvent[]),
     ]);
-
-  if (!inv) {
-    throw new Error('Could not load investigation');
-  }
 
   const mappedEntities = entities.map(mapEntity);
   const entityMap = new Map(mappedEntities.map((e) => [e.entity_id, e]));

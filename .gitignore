@@ -48,3 +48,9 @@ coverage/
 # Local database data (run native PostgreSQL via DATABASE_URL; see
 # docs/DATABASE_ARCHITECTURE.md). Docker is no longer used.
 postgres/data/
+
+# Local API SQLite storage (dev convenience; never committed)
+apps/api/*.db
+apps/api/*.db-journal
+apps/api/*.db-wal
+apps/api/*.db-shm

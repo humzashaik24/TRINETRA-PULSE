@@ -4,7 +4,11 @@ import { useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/state/app.store';
 import { useShellStore } from '@/state/shell.store';
-import { Stagger, staggerChildVariants } from '@trinetra-pulse/ui';
+import { useInvestigationStore } from '@/state/investigation.store';
+import { useDashboardStore, useDashboardView } from '@/state/dashboard.store';
+import { isMockData } from '@/lib/api/config';
+import { DEMO_INVESTIGATION_ID } from '@/navigation/journey';
+import { Stagger, staggerChildVariants, ErrorState } from '@trinetra-pulse/ui';
 import {
   DashboardHeader,
   IntelligenceMetrics,
@@ -30,15 +34,36 @@ import type { DashboardNetworkNode, RecentIntelligence as RecentFinding, Suspici
 export default function OverviewPage() {
   const setContextLabel = useAppStore((s) => s.setContextLabel);
   const selectContext = useShellStore((s) => s.selectContext);
+  const investigationId = useInvestigationStore((s) => s.investigationId);
+  const loadDashboard = useDashboardStore((s) => s.load);
+  const dashboardError = useDashboardStore((s) => s.error);
+  const view = useDashboardView();
+
+  const targetId = investigationId ?? DEMO_INVESTIGATION_ID;
 
   useEffect(() => {
     setContextLabel(null);
+    void loadDashboard(targetId);
+  }, [setContextLabel, loadDashboard, targetId]);
+
+  useEffect(() => {
     return () => setContextLabel(null);
   }, [setContextLabel]);
 
   const inspectNode = useCallback(
     (node: DashboardNetworkNode) => {
-      selectContext(resolveDashboardNodeContext(node));
+      // In API mode the network node maps directly to a real entity;
+      // the mock profile lookup is reserved for the demo data source.
+      selectContext(
+        isMockData()
+          ? resolveDashboardNodeContext(node)
+          : {
+              type: 'entity',
+              id: node.id,
+              name: node.label,
+              entityType: node.type,
+            }
+      );
     },
     [selectContext]
   );
@@ -60,6 +85,14 @@ export default function OverviewPage() {
   return (
     <div className="p-6 lg:p-8 space-y-6">
       <DashboardHeader />
+
+      {dashboardError && !view && (
+        <ErrorState
+          title="Could not load dashboard"
+          message={dashboardError}
+          retry={() => void loadDashboard(targetId)}
+        />
+      )}
 
       <Stagger staggerInterval={0.05} triggerOnMount>
         <motion.div variants={staggerChildVariants} className="space-y-6">

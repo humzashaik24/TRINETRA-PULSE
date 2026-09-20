@@ -15,6 +15,10 @@ import {
   DataQualityView,
   IngestionHistory,
 } from '@/components/data-intelligence';
+import { isMockData } from '@/lib/api/config';
+import { resolveInvestigationId } from '@/lib/api/resolve-investigation';
+import { listDatasets } from '@/lib/api/investigations';
+import { DEMO_INVESTIGATION_ID } from '@/navigation/journey';
 
 const DEFAULT_INVESTIGATION_ID = '6c887c98-939a-50ce-ac27-f58376941de2';
 
@@ -23,11 +27,50 @@ export default function DataIntelligencePage() {
   const [activeView, setActiveView] = useState<'overview' | 'upload' | 'datasets' | 'ingestion'>('overview');
   const [previewDataset, setPreviewDataset] = useState<{ id: string; name: string } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Real backend investigation id (resolved from the canonical demo id) so
+  // dataset listing + uploads hit the seeded Nexus investigation.
+  const [investigationId, setInvestigationId] = useState(DEFAULT_INVESTIGATION_ID);
+  // First dataset of the active investigation — used for the quality/mapping
+  // panels in API mode so those cards reference a real dataset.
+  const [primaryDataset, setPrimaryDataset] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     setContextLabel('Data Intelligence');
     return () => setContextLabel(null);
   }, [setContextLabel]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (isMockData()) {
+      setInvestigationId(DEFAULT_INVESTIGATION_ID);
+      return;
+    }
+    resolveInvestigationId(DEMO_INVESTIGATION_ID)
+      .then((id) => {
+        if (!mounted) return;
+        setInvestigationId(id);
+        return listDatasets(id)
+          .then((datasets) => {
+            if (!mounted) return;
+            const first = datasets[0];
+            setPrimaryDataset(first ? { id: first.id, name: first.name } : null);
+          })
+          .catch(() => {
+            if (mounted) setPrimaryDataset(null);
+          });
+      })
+      .catch(() => {
+        if (mounted) {
+          setInvestigationId(DEMO_INVESTIGATION_ID);
+          setPrimaryDataset(null);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const qualityDataset = primaryDataset ?? { id: 'ds-001', name: 'FIR Records - Pune District' };
 
   const handleUploadComplete = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -78,7 +121,7 @@ export default function DataIntelligencePage() {
           >
             <ChartCard title="Upload Data" subtitle="Drag and drop files or browse to select">
               <UploadZone
-                investigationId={DEFAULT_INVESTIGATION_ID}
+                investigationId={investigationId}
                 onUploadComplete={handleUploadComplete}
               />
             </ChartCard>
@@ -113,7 +156,7 @@ export default function DataIntelligencePage() {
           }
         >
           <DatasetTable
-            investigationId={DEFAULT_INVESTIGATION_ID}
+            investigationId={investigationId}
             refreshKey={refreshKey}
             onView={(id) => {
               setPreviewDataset({ id, name: 'Dataset Detail' });
@@ -152,7 +195,7 @@ export default function DataIntelligencePage() {
           transition={{ duration: 0.3, delay: 0.35 }}
         >
           <ChartCard title="Data Quality" subtitle="Quality analysis for the most recent dataset">
-            <DataQualityView datasetId="ds-001" datasetName="FIR Records - Pune District" />
+            <DataQualityView datasetId={qualityDataset.id} datasetName={qualityDataset.name} />
           </ChartCard>
         </motion.div>
         <motion.div
@@ -161,7 +204,7 @@ export default function DataIntelligencePage() {
           transition={{ duration: 0.3, delay: 0.4 }}
         >
           <ChartCard title="Data Mapping" subtitle="Column-to-entity field mappings">
-            <DataMappingView datasetId="ds-001" datasetName="FIR Records - Pune District" />
+            <DataMappingView datasetId={qualityDataset.id} datasetName={qualityDataset.name} />
           </ChartCard>
         </motion.div>
       </div>

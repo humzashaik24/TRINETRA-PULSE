@@ -42,6 +42,7 @@ import {
   type CreateFindingInput,
 } from '@/services/investigation.service';
 import { isMockData } from '@/lib/api/config';
+import { resolveInvestigationId } from '@/lib/api/resolve-investigation';
 import {
   loadInvestigationWorkspace,
   persistInvestigationUpdate,
@@ -192,7 +193,9 @@ export const useInvestigationStore = create<InvestigationState>()(
               analyticsSnapshots,
             };
           } else {
-            data = await loadInvestigationWorkspace(id);
+            // Semantic links (e.g. the canonical demo id) resolve against the
+            // real investigation list before the UUID-keyed API is hit.
+            data = await loadInvestigationWorkspace(await resolveInvestigationId(id));
           }
 
           // Guard against a stale resolution: if the investigator switched to

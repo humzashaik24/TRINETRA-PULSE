@@ -17,6 +17,12 @@ class VerificationState(enum.StrEnum):
 class EntityResolution(BaseModel):
     __tablename__ = "entity_resolutions"
 
+    investigation_id = Column(
+        Uuid,
+        ForeignKey("investigations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     entity_id_1 = Column(Uuid, ForeignKey("entities.id"), nullable=False, index=True)
     entity_id_2 = Column(Uuid, ForeignKey("entities.id"), nullable=False, index=True)
     confidence = Column(String(20), nullable=False)

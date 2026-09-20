@@ -30,7 +30,7 @@ import {
 // timeline, search, path exploration and viewport interaction mode.
 // ============================================================
 
-export type GraphLayoutMode = 'force' | 'hierarchical' | 'radial';
+export type GraphLayoutMode = 'clustered' | 'force' | 'hierarchical' | 'radial';
 export type GraphInteractionMode = 'select' | 'pan' | 'expand';
 export type GraphLoadingState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -130,7 +130,7 @@ export const useGraphStore = create<GraphState>()(
       highlightedNodeIds: [],
       expandedNodeIds: [],
       depth: { kind: 'hop', centerId: '', depth: 1 },
-      layout: 'force',
+      layout: 'clustered',
       interactionMode: 'select',
 
       filters: defaultFilters,

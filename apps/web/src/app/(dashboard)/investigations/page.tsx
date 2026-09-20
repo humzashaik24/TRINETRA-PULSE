@@ -13,6 +13,9 @@ import { isMockData } from '@/lib/api/config';
 import { listInvestigations } from '@/lib/api/investigations';
 import { mapInvestigationList } from '@/lib/api/adapter';
 import { DemoInvestigationHero } from '@/components/demo/demo-investigation-hero';
+import { useDashboardStore } from '@/state/dashboard.store';
+import { useInvestigationStore } from '@/state/investigation.store';
+import { DEMO_INVESTIGATION_ID } from '@/navigation/journey';
 import { useCanMutate } from '@/hooks/use-auth';
 import {
   type Investigation,
@@ -166,6 +169,14 @@ export default function InvestigationsPage() {
     setContextLabel('Investigations');
     return () => setContextLabel(null);
   }, [setContextLabel]);
+
+  // Keep the demo hero grounded in the real investigation (title, counts and
+  // deep links) while the list itself streams from the same backend.
+  const loadDashboard = useDashboardStore((s) => s.load);
+  const openInvestigationId = useInvestigationStore((s) => s.investigationId);
+  useEffect(() => {
+    void loadDashboard(openInvestigationId ?? DEMO_INVESTIGATION_ID);
+  }, [loadDashboard, openInvestigationId]);
 
   const load = () => {
     setError(null);

@@ -7,6 +7,7 @@ import { Badge, EmptyState, Button } from '@trinetra-pulse/ui';
 import { Stagger, staggerChildVariants } from '@trinetra-pulse/ui';
 import type { DataQualitySummary, DataValidationIssue, QualityLevel } from '@trinetra-pulse/types';
 import { mockQualitySummaries } from '@/mock';
+import { isMockData } from '@/lib/api/config';
 
 const QUALITY_CONFIG: Record<QualityLevel, { label: string; variant: 'success' | 'warning' | 'danger' | 'info'; color: string }> = {
   excellent: { label: 'Excellent', variant: 'success', color: 'text-success' },
@@ -58,7 +59,9 @@ interface DataQualityViewProps {
 
 export function DataQualityView({ datasetId, datasetName }: DataQualityViewProps) {
   const [showIssues, setShowIssues] = useState(true);
-  const quality = mockQualitySummaries[datasetId];
+  // Quality analytics exist only in the demo dataset layer; in API mode the
+  // panel honestly reports the analysis is not available yet.
+  const quality = isMockData() ? mockQualitySummaries[datasetId] : undefined;
 
   if (!quality) {
     return (

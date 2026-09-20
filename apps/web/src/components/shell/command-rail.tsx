@@ -31,6 +31,7 @@ import { useAuthStore } from '@/state/auth.store';
 import { chromeText, useChromeLanguage } from '@/lib/i18n';
 import { mockInvestigations } from '@/mock';
 import { isPresentationInvestigation } from '@/mock/investigations';
+import { isMockData } from '@/lib/api/config';
 
 // ============================================================
 // PHASE 3.5 — COMMAND RAIL
@@ -174,9 +175,13 @@ export function CommandRail() {
     ...section,
     items: filterRailItemsByRole(section.items, role).map((item) => {
       if (item.href !== '/investigations') return item;
-      const open = mockInvestigations.filter(
-        (i) => i.status !== 'closed' && i.status !== 'archived' && isPresentationInvestigation(i.id)
-      ).length;
+      // Mock mode shows the deterministic open-case count. In API mode the
+      // count is omitted rather than invented from the demo fixture.
+      const open = isMockData()
+        ? mockInvestigations.filter(
+            (i) => i.status !== 'closed' && i.status !== 'archived' && isPresentationInvestigation(i.id)
+          ).length
+        : 0;
       return open > 0 ? { ...item, badge: open } : item;
     }),
   }));

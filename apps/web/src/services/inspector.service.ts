@@ -21,6 +21,7 @@ import { mockEntityProfileById } from '@/mock/entity-profiles';
 import { mockEvidenceById } from '@/mock/evidence-intelligence';
 import { dashboardNetwork } from '@/mock/network';
 import { useAnalyticsStore } from '@/state/analytics.store';
+import { usePatternsStore } from '@/state/patterns.store';
 import {
   type CaseContext,
   type CentralityContext,
@@ -225,6 +226,20 @@ export interface InspectorPatternView {
   description: string;
   entities: string[];
   period: { from: string; to: string };
+  /** Phase C — entity context resolved from the investigation's persisted rows. */
+  entityNames: Record<string, string>;
+  entityTypes: Record<string, string>;
+  /** Evidence context referenced by the backend pattern result. */
+  evidence: { id: string; title: string }[];
+  /** Relationship context referenced by the backend pattern result. */
+  relationships: { id: string; sourceName?: string; targetName?: string; type?: string }[];
+  /** Investigation scope so the inspector can route back correctly. */
+  investigationId?: string;
+  /** Real detection timestamp when available. */
+  detectedAt?: string;
+  /** True when the view was resolved from an actual pattern record; false when
+   *  only a sparse context payload was available. */
+  resolved: boolean;
 }
 
 // ------------------------------------------------------------
@@ -936,21 +951,63 @@ function componentView(ctx: ComponentContext): InspectorComponentView {
 }
 
 function patternView(ctx: PatternContext): InspectorPatternView {
-  const bundle = useAnalyticsStore.getState().bundle;
-  const pattern = bundle?.patterns.find((p) => p.id === ctx.id);
-  if (pattern && ctx.patternType) {
+  // 1) Patterns workspace artifact (Phase C) — authoritative backend
+  //    detection engine output, enriched with investigation-scoped context.
+  const artifact = usePatternsStore.getState().data?.find((p) => p.id === ctx.id);
+  if (artifact) {
+    const entityNames: Record<string, string> = {};
+    const entityTypes: Record<string, string> = {};
+    for (const ref of artifact.entityRefs) {
+      entityNames[ref.id] = ref.name;
+      entityTypes[ref.id] = ref.type;
+    }
+    const window = artifact.metadata.window as { from?: string; to?: string } | undefined;
     return {
       kind: 'pattern',
-      id: ctx.id,
-      title: pattern.title,
-      patternType: pattern.type,
-      severity: pattern.severity,
-      confidence: pattern.confidence,
-      description: pattern.description,
-      entities: pattern.affectedEntities,
-      period: pattern.period,
+      id: artifact.id,
+      title: artifact.title,
+      patternType: artifact.pattern_type,
+      severity: artifact.severity,
+      confidence: artifact.confidence,
+      description: artifact.description,
+      entities: artifact.entity_ids,
+      entityNames,
+      entityTypes,
+      period: { from: window?.from ?? '', to: window?.to ?? '' },
+      evidence: artifact.evidenceRefs,
+      relationships: artifact.relationshipRefs,
+      detectedAt: artifact.detected_at,
+      investigationId: artifact.investigation_id,
+      resolved: true,
     };
   }
+
+  // 2) Analytics bundle structural patterns (Phase 19) — preserved so the
+  //    analytics panel inspector keeps resolving without a regression.
+  const bundle = useAnalyticsStore.getState().bundle;
+  const structural = bundle?.patterns.find((p) => p.id === ctx.id);
+  if (structural && ctx.patternType) {
+    return {
+      kind: 'pattern',
+      id: structural.id,
+      title: structural.title,
+      patternType: structural.type,
+      severity: structural.severity,
+      confidence: structural.confidence,
+      description: structural.description,
+      entities: structural.affectedEntities,
+      entityNames: {},
+      entityTypes: {},
+      evidence: (structural.evidenceReferences ?? []).map((id) => ({ id, title: id })),
+      relationships: (structural.affectedRelationships ?? []).map((id) => ({ id })),
+      period: structural.period,
+      detectedAt: structural.detectedAt,
+      investigationId: ctx.investigationId,
+      resolved: true,
+    };
+  }
+
+  // 3) Sparse fallback — no pattern record for this context.
   return {
     kind: 'pattern',
     id: ctx.id,
@@ -958,9 +1015,15 @@ function patternView(ctx: PatternContext): InspectorPatternView {
     patternType: ctx.patternType ?? 'unknown',
     severity: 'info',
     confidence: 0,
-    description: 'Structural pattern detected in the observed network.',
+    description: 'Pattern context is not available for the current investigation.',
     entities: ctx.entities ?? [],
+    entityNames: {},
+    entityTypes: {},
+    evidence: [],
+    relationships: [],
     period: { from: '', to: '' },
+    investigationId: ctx.investigationId,
+    resolved: false,
   };
 }
 

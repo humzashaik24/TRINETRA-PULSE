@@ -6,8 +6,9 @@
 // production-style builds (mock mode only).
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogIn, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, LogIn, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
 import { Button, Input, Label } from '@trinetra-pulse/ui';
 import { isMockData } from '@/lib/api/config';
@@ -58,6 +59,15 @@ function LoginForm() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm space-y-8">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-caption text-foreground-muted transition-colors hover:text-foreground-secondary"
+          data-testid="login-back-to-start"
+        >
+          <ArrowLeft size={13} aria-hidden="true" />
+          Back to Trinetra Pulse
+        </Link>
+
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand text-white">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

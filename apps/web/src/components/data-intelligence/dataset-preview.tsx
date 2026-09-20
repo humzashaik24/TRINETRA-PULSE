@@ -7,6 +7,7 @@ import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@trinetra-puls
 import { Stagger, staggerChildVariants } from '@trinetra-pulse/ui';
 import type { DataPreview, DataColumn } from '@trinetra-pulse/types';
 import { mockPreviews } from '@/mock';
+import { isMockData } from '@/lib/api/config';
 
 function ColumnInfo({ column }: { column: DataColumn }) {
   const typeColors: Record<string, string> = {
@@ -46,7 +47,10 @@ interface DatasetPreviewProps {
 
 export function DatasetPreview({ datasetId, datasetName, onClose }: DatasetPreviewProps) {
   const [activeTab, setActiveTab] = useState('columns');
-  const preview = mockPreviews[datasetId];
+  // Preview/quality/mapping analytics exist only in the demo dataset layer;
+  // in API mode the panel honestly reports that the backend has no preview
+  // contract yet — no fabricated rows.
+  const preview = isMockData() ? mockPreviews[datasetId] : undefined;
 
   if (!preview) {
     return (

@@ -5,8 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ExternalLink, Maximize2 } from 'lucide-react';
 import { IconButton, Skeleton, EmptyState, ErrorState, useReducedMotion } from '@trinetra-pulse/ui';
-import { dashboardNetwork } from '@/mock';
-import { DEMO_NETWORK_ID } from '@/navigation/journey';
+import { useDashboardView } from '@/state/dashboard.store';
 import type { DashboardNetworkNode } from '@trinetra-pulse/types';
 
 const NODE_COLORS: Record<string, string> = {
@@ -77,7 +76,18 @@ export function NetworkOverview({ onInspectNode }: NetworkOverviewProps) {
   const [error] = useState<string | null>(null);
   const reduced = useReducedMotion();
 
-  const { nodes, edges, clusters, density, communityCount, averageDegree } = dashboardNetwork;
+  const view = useDashboardView();
+  const network = view?.network;
+  const networkId = view?.meta.networkId ?? '';
+
+  const { nodes, edges, clusters, density, communityCount, averageDegree } = {
+    nodes: network?.nodes ?? [],
+    edges: network?.edges ?? [],
+    clusters: network?.clusters ?? [],
+    density: network?.density ?? 0,
+    communityCount: network?.communityCount ?? 0,
+    averageDegree: network?.averageDegree ?? 0,
+  };
 
   const connectedNodeIds = useMemo(() => {
     const set = new Set<string>();
@@ -132,6 +142,7 @@ export function NetworkOverview({ onInspectNode }: NetworkOverviewProps) {
 
   if (isLoading) return <NetworkPreviewSkeleton />;
   if (error) return <NetworkPreviewError />;
+  if (!network) return <NetworkPreviewSkeleton />;
   if (nodes.length === 0) return <NetworkPreviewEmpty />;
 
   return (
@@ -143,7 +154,7 @@ export function NetworkOverview({ onInspectNode }: NetworkOverviewProps) {
             {nodes.length} entities &middot; {edges.length} connections &middot; {clusters.length} clusters
           </p>
         </div>
-        <Link href={`/networks/${DEMO_NETWORK_ID}`} aria-label="Open full network workspace">
+        <Link href={`/networks/${networkId}`} aria-label="Open full network workspace">
           <IconButton
             variant="ghost"
             size="sm"

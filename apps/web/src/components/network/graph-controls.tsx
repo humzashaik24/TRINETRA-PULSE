@@ -22,7 +22,7 @@ import {
 // fullscreen toggle and minimap toggle.
 // ============================================================
 
-const LAYOUT_CYCLE: GraphLayoutMode[] = ['force', 'hierarchical', 'radial'];
+const LAYOUT_CYCLE: GraphLayoutMode[] = ['clustered', 'force', 'hierarchical', 'radial'];
 
 export function GraphControls() {
   const zoomIn = useGraphStore((s) => s.zoomIn);

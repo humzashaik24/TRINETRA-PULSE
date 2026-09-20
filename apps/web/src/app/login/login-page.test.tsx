@@ -31,6 +31,12 @@ describe('LoginPage (mock mode)', () => {
     expect(screen.getByText(/investigator@trinetra.dev/)).toBeInTheDocument();
   });
 
+  it('links back to the public starting page', () => {
+    render(<LoginPage />);
+    expect(screen.getByTestId('login-back-to-start')).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /back to trinetra pulse/i })).toBeInTheDocument();
+  });
+
   it('submits and establishes a session with the chosen demo account', async () => {
     render(<LoginPage />);
 

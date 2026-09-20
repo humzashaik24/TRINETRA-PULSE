@@ -26,6 +26,13 @@ jest.mock('@/lib/api/adapter', () => ({
   persistNoteCreate: jest.fn(),
 }));
 
+// The store resolves semantic ids before hitting the UUID-keyed adapter; keep
+// the resolver deterministic (pass-through) so these tests only exercise the
+// adapter routing + stale-guard behaviour.
+jest.mock('@/lib/api/resolve-investigation', () => ({
+  resolveInvestigationId: (id: string) => Promise.resolve(id),
+}));
+
 import {
   loadInvestigationWorkspace,
   persistInvestigationUpdate,

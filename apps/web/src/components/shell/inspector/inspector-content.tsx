@@ -32,6 +32,32 @@ import type { InspectorContext, InspectorContextType } from '@/state/shell.store
 // PHASE 3.5 — INSPECTOR CONTENT
 // ============================================================
 
+/** Stable label for a context kind, used in the unavailable message. */
+const KIND_LABEL: Record<InspectorContextType, string> = {
+  entity: 'Entity',
+  relationship: 'Relationship',
+  dataset: 'Dataset',
+  finding: 'Finding',
+  evidence: 'Evidence',
+  network: 'Network',
+  case: 'Investigation case',
+  centrality: 'Centrality',
+  community: 'Connected group',
+  component: 'Component',
+  pattern: 'Pattern',
+  investigation: 'Investigation',
+  note: 'Note',
+  event: 'Event',
+  analytics_snapshot: 'Analytics snapshot',
+};
+
+function contextUnavailableMessage(ctx: InspectorContext, reason: string): string {
+  const kind = KIND_LABEL[ctx.type] ?? 'Object';
+  const scopeId = (ctx as { investigationId?: string }).investigationId;
+  const scope = scopeId ? ` in this investigation (${scopeId.toUpperCase()})` : '';
+  return `Could not resolve ${kind} context${scope}. ${reason || 'The object is not available in the current scope.'} Re-selecting the object or refreshing the investigation may help.`;
+}
+
 export interface InspectorContentProps extends ViewActions {
   context: InspectorContext;
   contextKey: string;
@@ -51,7 +77,7 @@ function InspectorContentSkeleton() {
   );
 }
 
-export function InspectorContent({ context, contextKey, onOpen, onInspectEntity, onInspectFinding, onOpenNetwork }: InspectorContentProps) {
+export function InspectorContent({ context, contextKey, onOpen, onInspectEntity, onInspectFinding, onInspectEvidence, onInspectRelationship, onOpenNetwork }: InspectorContentProps) {
   const [resolution, setResolution] = useState<InspectorResolution>(() => ({
     status: 'loading',
     view: null,
@@ -74,7 +100,7 @@ export function InspectorContent({ context, contextKey, onOpen, onInspectEntity,
 
   const renderView = () => {
     if (!view) return null;
-    const actions: ViewActions = { onOpen, onInspectEntity, onInspectFinding, onOpenNetwork };
+    const actions: ViewActions = { onOpen, onInspectEntity, onInspectFinding, onInspectEvidence, onInspectRelationship, onOpenNetwork };
     switch (view.kind) {
       case 'entity':
         return <EntityContextView view={view} actions={actions} />;
@@ -187,8 +213,8 @@ export function InspectorContent({ context, contextKey, onOpen, onInspectEntity,
               transition={{ duration: 0.12 }}
             >
               <ErrorState
-                title="Could not resolve context"
-                message={resolution.message}
+                title="Context unavailable"
+                message={contextUnavailableMessage(context, resolution.message)}
               />
             </motion.div>
           )}

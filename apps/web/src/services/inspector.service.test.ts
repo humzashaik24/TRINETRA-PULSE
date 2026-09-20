@@ -10,6 +10,7 @@ import {
   fetchRelationship,
 } from '@/services/entity.service';
 import { useAnalyticsStore } from '@/state/analytics.store';
+import { usePatternsStore } from '@/state/patterns.store';
 
 // ============================================================
 // PHASE 3.5 — INSPECTOR DATA RESOLUTION
@@ -175,6 +176,67 @@ describe('resolveInspectorContext — Phase 8 analytics views', () => {
       expect(view.kind).toBe('pattern');
       expect(view.severity).toBe('high');
       expect(view.confidence).toBe(0.9);
+    }
+  });
+
+  it('resolves a Phase C pattern context from the patterns store with enriched context', async () => {
+    usePatternsStore.setState({
+      investigationId: 'inv-demo-nexus',
+      data: [
+        {
+          id: 'pat-real',
+          investigation_id: 'inv-demo-nexus',
+          pattern_type: 'NETWORK_HUB',
+          severity: 'HIGH',
+          confidence: 0.99,
+          title: 'High-connectivity network hub',
+          description: 'Observed hub.',
+          entity_ids: ['ent-a'],
+          relationship_ids: ['rel-b'],
+          evidence_ids: ['ev-c'],
+          event_ids: [],
+          metadata: { degree: 14, window: { from: '2026-08-01T00:00:00Z', to: '2026-08-31T00:00:00Z' } },
+          detected_at: '2026-09-05T00:00:00Z',
+          typeLabel: 'NETWORK_HUB',
+          metrics: { Degree: '14' },
+          timeAgo: '12 days ago',
+          entityRefs: [{ id: 'ent-a', name: 'Arjun Kapoor', type: 'person' }],
+          evidenceRefs: [{ id: 'ev-c', title: 'CDR set' }],
+          relationshipRefs: [
+            { id: 'rel-b', sourceName: 'Arjun Kapoor', targetName: 'Mumbai Trading Corp', type: 'owns' },
+          ],
+        },
+      ],
+      loading: false,
+      error: null,
+    } as any);
+
+    const res = await resolveInspectorContext({ type: 'pattern', id: 'pat-real', patternType: 'NETWORK_HUB' });
+    expect(res.status).toBe('ready');
+    if (res.status === 'ready') {
+      const view = res.view as InspectorPatternView;
+      expect(view.kind).toBe('pattern');
+      expect(view.resolved).toBe(true);
+      expect(view.patternType).toBe('NETWORK_HUB');
+      expect(view.entityNames).toEqual({ 'ent-a': 'Arjun Kapoor' });
+      expect(view.evidence).toEqual([{ id: 'ev-c', title: 'CDR set' }]);
+      expect(view.relationships).toEqual([
+        { id: 'rel-b', sourceName: 'Arjun Kapoor', targetName: 'Mumbai Trading Corp', type: 'owns' },
+      ]);
+      expect(view.period).toEqual({ from: '2026-08-01T00:00:00Z', to: '2026-08-31T00:00:00Z' });
+      expect(view.investigationId).toBe('inv-demo-nexus');
+    }
+  });
+
+  it('falls back to a sparse unresolved pattern view when no record is present', async () => {
+    usePatternsStore.setState({ investigationId: 'inv-x', data: null, loading: false, error: null } as any);
+    const res = await resolveInspectorContext({ type: 'pattern', id: 'not-loaded', title: 'Ghost' });
+    expect(res.status).toBe('ready');
+    if (res.status === 'ready') {
+      const view = res.view as InspectorPatternView;
+      expect(view.resolved).toBe(false);
+      expect(view.title).toBe('Ghost');
+      expect(view.description).toMatch(/not available/i);
     }
   });
 });

@@ -107,6 +107,34 @@ export function ContextInspector({ variant = 'panel', onClose, className }: Cont
     });
   };
 
+  const inspectEvidence = (e: { id: string; title: string }) => {
+    const contextInvestigationId = 'investigationId' in context ? context.investigationId : undefined;
+    selectContext({
+      type: 'evidence',
+      id: e.id,
+      title: e.title,
+      investigationId:
+        contextInvestigationId ?? useInvestigationStore.getState().investigationId ?? undefined,
+    });
+  };
+
+  const inspectRelationship = (r: {
+    id: string;
+    investigationId?: string;
+    sourceEntityName?: string;
+    targetEntityName?: string;
+    relationshipType?: string;
+  }) => {
+    selectContext({
+      type: 'relationship',
+      id: r.id,
+      investigationId: r.investigationId,
+      sourceEntityName: r.sourceEntityName,
+      targetEntityName: r.targetEntityName,
+      relationshipType: r.relationshipType,
+    });
+  };
+
   const openEntityInNetwork = (e: { id: string; investigationId?: string }) => {
     const investigationId =
       e.investigationId ??
@@ -178,7 +206,7 @@ export function ContextInspector({ variant = 'panel', onClose, className }: Cont
           onClose={handleClose}
         />
       </div>
-      <InspectorContent context={context} contextKey={contextKey} onOpen={primaryOpen} onInspectEntity={inspectEntity} onInspectFinding={inspectFinding} onOpenNetwork={openEntityInNetwork} />
+      <InspectorContent context={context} contextKey={contextKey} onOpen={primaryOpen} onInspectEntity={inspectEntity} onInspectFinding={inspectFinding} onInspectEvidence={inspectEvidence} onInspectRelationship={inspectRelationship} onOpenNetwork={openEntityInNetwork} />
     </div>
   );
 }

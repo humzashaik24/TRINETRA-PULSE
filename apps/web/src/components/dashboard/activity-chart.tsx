@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { staggerChildVariants } from '@trinetra-pulse/ui';
-import { activitySeries } from '@/mock';
+import { useDashboardView } from '@/state/dashboard.store';
 
 const CHART_COLORS = {
   events: 'hsl(217, 91%, 60%)',
@@ -24,7 +24,11 @@ export function ActivityChart() {
     new Set(['events', 'relationships', 'communications', 'patterns'])
   );
 
-  const { data } = activitySeries;
+  const view = useDashboardView();
+  const series = view?.activitySeries;
+  const { data } = series ?? { data: [] };
+  if (!series || data.length === 0) return null;
+
   const maxValue = Math.max(
     ...data.flatMap((d) => [
       activeSeries.has('events') ? d.events : 0,

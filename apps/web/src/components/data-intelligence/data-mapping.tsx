@@ -7,6 +7,7 @@ import { Button, Badge, EmptyState, Switch } from '@trinetra-pulse/ui';
 import { Stagger, staggerChildVariants } from '@trinetra-pulse/ui';
 import type { DataMapping, ColumnMapping } from '@trinetra-pulse/types';
 import { mockMappings } from '@/mock';
+import { isMockData } from '@/lib/api/config';
 
 const TARGET_TYPE_COLORS: Record<string, string> = {
   person: 'bg-entity-person/10 text-entity-person',
@@ -90,7 +91,9 @@ interface DataMappingViewProps {
 }
 
 export function DataMappingView({ datasetId, datasetName }: DataMappingViewProps) {
-  const mapping = mockMappings[datasetId];
+  // Column mappings exist only in the demo dataset layer; in API mode the
+  // panel honestly reports no mappings are configured yet.
+  const mapping = isMockData() ? mockMappings[datasetId] : undefined;
 
   if (!mapping) {
     return (

@@ -8,7 +8,7 @@ from app.models.base import BaseModel
 
 
 class RelationshipType(enum.StrEnum):
-    KNOWN_ASSOCIATE = "known_associiate"
+    KNOWN_ASSOCIATE = "known_associate"
     FAMILY = "family"
     COMMUNICATES = "communicates"
     TRANSACTION = "transaction"
@@ -19,6 +19,17 @@ class RelationshipType(enum.StrEnum):
     TRAVELS_WITH = "travels_with"
     ASSOCIATED_WITH = "associated_with"
     OTHER = "other"
+    # Phase A — canonical Nexus relationship labels (Operation Trinetra Nexus).
+    # The frontend issue *labels* USES/KNOWS/... verbatim; the backend keeps the
+    # lowercase storage convention while preserving the canonical label in
+    # relationship.metadata_["label"].
+    USES = "uses"
+    KNOWS = "knows"
+    WORKS_FOR = "works_for"
+    OWNS_ACCOUNT = "owns_account"
+    SENT_TRANSACTION = "sent_transaction"
+    INVOLVED_IN = "involved_in"
+    SUPPORTED_BY = "supported_by"
 
 
 class VerificationStatus(enum.StrEnum):

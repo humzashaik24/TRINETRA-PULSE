@@ -156,6 +156,12 @@ export interface PatternContext {
   title?: string;
   patternType?: string;
   entities?: string[];
+  /** Investigation scope so the inspector can route back correctly. */
+  investigationId?: string;
+  /** Evidence ids referenced by the backend pattern result. */
+  evidenceIds?: string[];
+  /** Relationship ids referenced by the backend pattern result. */
+  relationshipIds?: string[];
 }
 
 // ------------------------------------------------------------

@@ -27,6 +27,7 @@ export interface RenderNode {
   focused?: boolean;
   // Phase 8 analytics overlay visuals (optional; merged by the renderer).
   analyticsSizeScale?: number;
+  hubSizeScale?: number;
   analyticsTint?: string;
   analyticsAccent?: boolean;
   analyticsDim?: boolean;

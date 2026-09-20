@@ -13,6 +13,7 @@ const shared = {
     '^react$': '<rootDir>/../../node_modules/react/index.js',
     '^react-dom$': '<rootDir>/../../node_modules/react-dom/index.js',
     '^react/jsx-runtime$': '<rootDir>/../../node_modules/react/jsx-runtime.js',
+    '\\.css$': '<rootDir>/src/test/mocks/style-mock.js',
   },
   transform: {
     '^.+\\.tsx?$': [

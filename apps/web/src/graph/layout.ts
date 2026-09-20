@@ -207,7 +207,7 @@ export function computeForceLayout(
 }
 
 export function layoutNodes(
-  mode: 'force' | 'hierarchical' | 'radial',
+  mode: 'clustered' | 'force' | 'hierarchical' | 'radial',
   nodes: GraphNode[],
   edges: GraphEdge[],
   width: number,
@@ -216,5 +216,263 @@ export function layoutNodes(
 ): NodePositionMap {
   if (mode === 'hierarchical') return hierarchicalLayout(nodes, edges, width, height);
   if (mode === 'radial') return radialLayout(nodes, edges, width, height, centerId);
+  if (mode === 'clustered') return clusteredLayout(nodes, edges, width, height, centerId);
   return computeForceLayout(nodes, edges, width, height);
+}
+
+// ------------------------------------------------------------
+// Phase C.5 — deterministic cluster-aware layout
+// ------------------------------------------------------------
+// Detects communities from topology alone, then positions each
+// community as a distinct visual group with its hub centred, and
+// places bridge entities between the clusters they connect. Fully
+// deterministic (no randomness), so a canonical graph renders in
+// the same shape on every machine and every run.
+// ------------------------------------------------------------
+
+export interface DetectedCommunity {
+  id: string;
+  label: string;
+  nodeIds: string[];
+}
+
+export interface CommunityDetection {
+  clusterOf: Map<string, string>;
+  clusters: DetectedCommunity[];
+}
+
+function undirectedAdjacency(edges: GraphEdge[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!map.has(e.source)) map.set(e.source, []);
+    if (!map.has(e.target)) map.set(e.target, []);
+    map.get(e.source)!.push(e.target);
+    map.get(e.target)!.push(e.source);
+  }
+  return map;
+}
+
+/**
+ * Deterministic label-propagation community detection.
+ * Iterates in sorted-node order so the outcome is stable; neighbour
+ * votes are weighted by the neighbour's degree, with label ties broken
+ * lexicographically. Nothing is mutated.
+ */
+export function detectCommunities(
+  nodes: GraphNode[],
+  edges: GraphEdge[]
+): CommunityDetection {
+  const adjacency = undirectedAdjacency(edges);
+  const degrees = new Map<string, number>();
+  for (const [id, list] of adjacency) degrees.set(id, list.length);
+  for (const n of nodes) {
+    if (!degrees.has(n.id)) degrees.set(n.id, 0);
+    adjacency.set(n.id, [...(adjacency.get(n.id) ?? [])].sort());
+  }
+
+  const label = new Map<string, string>();
+  for (const n of nodes) label.set(n.id, n.id);
+  const ids = nodes.map((n) => n.id).sort();
+
+  const bubble = (): boolean => {
+    let changed = false;
+    for (const id of ids) {
+      const neighbours = adjacency.get(id) ?? [];
+      const counts = new Map<string, number>();
+      for (const other of neighbours) {
+        const l = label.get(other);
+        if (!l) continue;
+        counts.set(l, (counts.get(l) ?? 0) + (degrees.get(other) ?? 1));
+      }
+      let best = label.get(id)!;
+      let bestCount = counts.get(best) ?? 0;
+      for (const [candidate, count] of counts) {
+        if (count > bestCount || (count === bestCount && candidate < best)) {
+          best = candidate;
+          bestCount = count;
+        }
+      }
+      if (best !== label.get(id)) {
+        label.set(id, best);
+        changed = true;
+      }
+    }
+    return changed;
+  };
+
+  let iterations = 0;
+  while (bubble() && iterations < 24) iterations += 1;
+
+  const groups = new Map<string, string[]>();
+  for (const n of nodes) {
+    const l = label.get(n.id)!;
+    groups.set(l, [...(groups.get(l) ?? []), n.id]);
+  }
+
+  const clusters: DetectedCommunity[] = Array.from(groups.entries())
+    .map(([id, nodeIds]) => ({
+      id,
+      label: nodes.find((n) => n.id === id)?.label ?? id,
+      nodeIds: nodeIds.sort(),
+    }))
+    .sort((a, b) => b.nodeIds.length - a.nodeIds.length || a.id.localeCompare(b.id));
+
+  return { clusterOf: label, clusters };
+}
+
+/** Ring placement around local origin. Deterministic, no randomness. */
+function localRingPositions(
+  memberIds: string[],
+  center: { x: number; y: number },
+): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+  const perRing = 6;
+  memberIds.forEach((id, j) => {
+    const ring = Math.floor(j / perRing);
+    const slot = j % perRing;
+    const radius = (ring + 1) * 150;
+    const phase = (ring % 2) * (Math.PI / perRing);
+    const angle = (slot / perRing) * Math.PI * 2 + phase;
+    positions.set(id, {
+      x: Math.round(center.x + radius * Math.cos(angle)),
+      y: Math.round(center.y + radius * Math.sin(angle)),
+    });
+  });
+  return positions;
+}
+
+/**
+ * Deterministic cluster-aware layout. Communities are detected from the
+ * graph topology; each cluster's hub (highest degree, ties by id) sits at
+ * the cluster centre and its members fan out on rings; bridge entities
+ * (incident to nodes of two or more clusters) are placed between the
+ * clusters they connect. Does NOT mutate the graph data contract.
+ */
+export function clusteredLayout(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  width: number,
+  height: number,
+  _centerId?: string | null
+): NodePositionMap {
+  const result: NodePositionMap = new Map();
+  if (nodes.length === 0) return result;
+
+  const { clusterOf, clusters } = detectCommunities(nodes, edges);
+  const adjacency = undirectedAdjacency(edges);
+  const degrees = new Map<string, number>();
+  for (const [id, list] of adjacency) degrees.set(id, list.length);
+  for (const n of nodes) {
+    if (!degrees.has(n.id)) degrees.set(n.id, 0);
+  }
+
+  const cx = width / 2;
+  const cy = height / 2;
+  const k = clusters.length;
+  const span = Math.max(220, Math.min(width, height) * 0.34);
+  const clusterCenter = new Map<string, { x: number; y: number }>();
+  clusters.forEach((cluster, index) => {
+    const angle = k === 1 ? -Math.PI / 2 : (index / k) * Math.PI * 2;
+    clusterCenter.set(cluster.id, {
+      x: Math.round(cx + span * Math.cos(angle)),
+      y: Math.round(cy + span * Math.sin(angle)),
+    });
+  });
+
+  // Bridge entities: nodes whose edges are dominated by cross-cluster links
+  // (e.g. a dedicated connector between two communities). An in-cluster
+  // member that merely touches the connector keeps its place inside the
+  // cluster; a member with at least half of its links crossing the boundary
+  // is the visual bridge. This is derived purely from topology.
+  const crossCount = new Map<string, number>();
+  for (const n of nodes) crossCount.set(n.id, 0);
+  for (const e of edges) {
+    const cs = clusterOf.get(e.source);
+    const ct = clusterOf.get(e.target);
+    if (cs && ct && cs !== ct) {
+      crossCount.set(e.source, (crossCount.get(e.source) ?? 0) + 1);
+      crossCount.set(e.target, (crossCount.get(e.target) ?? 0) + 1);
+    }
+  }
+  const bridgeSet = new Set<string>();
+  const bridges: string[] = [];
+  for (const node of nodes) {
+    const cross = crossCount.get(node.id) ?? 0;
+    const total = (adjacency.get(node.id) ?? []).length;
+    const ratio = total > 0 ? cross / total : 0;
+    if (cross >= 1 && ratio >= 0.5) {
+      bridgeSet.add(node.id);
+      bridges.push(node.id);
+    }
+  }
+  bridges.sort();
+
+  // Intra-cluster degree: only count edges whose endpoints share the same
+  // community. This ranks the true in-cluster hub (ties broken by id) and
+  // stops cross-cluster bridge edges from disguising a peripheral node as
+  // the cluster centre.
+  const intraDegree = new Map<string, number>();
+  for (const n of nodes) intraDegree.set(n.id, 0);
+  for (const e of edges) {
+    const cs = clusterOf.get(e.source);
+    const ct = clusterOf.get(e.target);
+    if (cs && ct && cs === ct) {
+      intraDegree.set(e.source, (intraDegree.get(e.source) ?? 0) + 1);
+      intraDegree.set(e.target, (intraDegree.get(e.target) ?? 0) + 1);
+    }
+  }
+
+  // Place members inside their cluster.
+  for (const cluster of clusters) {
+    const center = clusterCenter.get(cluster.id) ?? { x: cx, y: cy };
+    const members = [...cluster.nodeIds]
+      .filter((id) => !bridgeSet.has(id))
+      .sort((a, b) => {
+        const degDiff = (intraDegree.get(b) ?? 0) - (intraDegree.get(a) ?? 0);
+        return degDiff || a.localeCompare(b);
+      });
+    if (members.length > 0) result.set(members[0], center);
+    for (const [id, position] of localRingPositions(members.slice(1), center)) {
+      result.set(id, position);
+    }
+  }
+
+  // Place bridges between the relevant cluster centres.
+  const placed = new Map(bridges.map((id, index) => [id, index]));
+  bridges.forEach((id) => {
+    const connected = new Set<string>();
+    for (const other of adjacency.get(id) ?? []) {
+      const c = clusterOf.get(other);
+      if (c) connected.add(c);
+    }
+    const centres = Array.from(connected)
+      .map((c) => clusterCenter.get(c))
+      .filter((p): p is { x: number; y: number } => Boolean(p));
+    if (centres.length < 2) {
+      // Bridge with a single resolved side: keep it just inside that side.
+      const anchor = centres[0] ?? { x: cx, y: cy };
+      const index = placed.get(id) ?? 0;
+      result.set(id, {
+        x: Math.round(anchor.x + (index % 2 === 0 ? 80 : -80)),
+        y: Math.round(anchor.y + 60),
+      });
+      return;
+    }
+    const mx = centres.reduce((sum, p) => sum + p.x, 0) / centres.length;
+    const my = centres.reduce((sum, p) => sum + p.y, 0) / centres.length;
+    const index = placed.get(id) ?? 0;
+    const push = 0.82;
+    const perpendicular = (index % 2 === 0 ? 1 : -1) * (Math.floor(index / 2) * 46);
+    result.set(id, {
+      x: Math.round(cx + (mx - cx) * push),
+      y: Math.round(cy + (my - cy) * push + perpendicular),
+    });
+  });
+
+  // Any node not yet placed (e.g. singletons excluded from bridge handling).
+  for (const n of nodes) {
+    if (!result.has(n.id)) result.set(n.id, { x: cx, y: cy });
+  }
+
+  return result;
 }

@@ -24,6 +24,12 @@ jest.mock('@/lib/api/adapter', () => ({
   persistNoteCreate: jest.fn(),
 }));
 
+// Canonical-id resolution is out of scope here; pass ids through untouched so
+// these tests only exercise timeline mapping + stale guarding.
+jest.mock('@/lib/api/resolve-investigation', () => ({
+  resolveInvestigationId: (id: string) => Promise.resolve(id),
+}));
+
 import { loadInvestigationWorkspace } from '@/lib/api/adapter';
 
 const mockedAdapter = jest.mocked({ loadInvestigationWorkspace });

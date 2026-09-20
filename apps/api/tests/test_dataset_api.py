@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.app import create_real_app
-from app.db.seed import seed_database
+from app.db.seed import seed_operation_meridian
 from app.models import Base, Investigation
 from tests.auth_stubs import install_auth_stub
 
@@ -48,7 +48,7 @@ async def client():
 
 async def _seed(factory):
     async with factory() as session:
-        await seed_database(session)
+        await seed_operation_meridian(session)
         await session.commit()
 
 

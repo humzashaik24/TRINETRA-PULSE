@@ -35,8 +35,11 @@ import { mockInvestigations } from '@/mock';
 import { mockInvestigationById, isPresentationInvestigation } from '@/mock/investigations';
 import { useInvestigationStore } from '@/state/investigation.store';
 import { journeyHref } from '@/navigation/journey';
+import { isMockData } from '@/lib/api/config';
+import { listInvestigations } from '@/lib/api/investigations';
+import { mapInvestigationList } from '@/lib/api/adapter';
 import { RAIL_ITEMS } from '@/components/navigation/rail-config';
-import type { EntityType } from '@trinetra-pulse/types';
+import type { EntityType, Investigation } from '@trinetra-pulse/types';
 
 // ============================================================
 // PHASE 3.5 — COMMAND PALETTE
@@ -89,6 +92,9 @@ function buildNavigationEntries(): PaletteEntry[] {
 }
 
 function buildEntityEntries(): PaletteEntry[] {
+  // Entity profiles are a demo-universe fixture; in API mode entities come
+  // from the backend and are not pre-bundled into the palette.
+  if (!isMockData()) return [];
   return mockEntityProfiles.slice(0, 40).map((e) => ({
     id: `entity:${e.id}`,
     group: 'Entities',
@@ -101,6 +107,9 @@ function buildEntityEntries(): PaletteEntry[] {
 }
 
 function buildInvestigationEntries(): PaletteEntry[] {
+  // The demo investigation fixture only feeds the palette in mock mode; API
+  // mode lists real cases loaded via the backend investigations endpoint.
+  if (!isMockData()) return [];
   return mockInvestigations
     .filter((inv) => isPresentationInvestigation(inv.id))
     .slice(0, 20)
@@ -116,6 +125,9 @@ function buildInvestigationEntries(): PaletteEntry[] {
 }
 
 function buildDataSourceEntries(): PaletteEntry[] {
+  // Networks/evidence/datasets/patterns are derived from demo fixtures; in
+  // API mode the palette omits them rather than inventing links.
+  if (!isMockData()) return [];
   const entries: PaletteEntry[] = [];
   const networks = new Set<string>();
   const evidence = new Set<string>();
@@ -185,7 +197,9 @@ function buildInvestigationCommands(): PaletteEntry[] {
 }
 
 function buildCurrentInvestigationEntries(investigationId: string | null): PaletteEntry[] {
-  if (!investigationId) return [];
+  // Real, mutable cases have no mock record; their focused entries are
+  // supplied by the backend investigation list (see CommandPalette).
+  if (!isMockData() || !investigationId) return [];
   const record = mockInvestigationById.get(investigationId);
   if (!record) return [];
   const inv = record.investigation;
@@ -307,6 +321,62 @@ function buildSettingsEntries(): PaletteEntry[] {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// API-mode groups (real backend data)
+// ---------------------------------------------------------------------------
+
+/** Static, real navigation/command/report/settings groups shared by both modes. */
+function buildStaticEntries(): PaletteEntry[] {
+  return [
+    ...buildNavigationEntries(),
+    ...buildInvestigationCommands(),
+    ...buildReportEntries(),
+    ...buildSettingsEntries(),
+  ];
+}
+
+function buildRealInvestigationEntries(real: Investigation[]): PaletteEntry[] {
+  return real.slice(0, 20).map((inv) => ({
+    id: `investigation:${inv.id}`,
+    group: 'Investigations',
+    label: inv.title,
+    description: `${inv.id.toUpperCase()} · ${inv.status.replace(/_/g, ' ')} · ${inv.entity_count} entities · ${inv.evidence_count} evidence`,
+    icon: FolderSearch,
+    href: `/investigations/${inv.id}`,
+    keywords: ['case', 'investigation', inv.id, inv.priority, ...(inv.tags ?? [])],
+  }));
+}
+
+function buildRealCurrentInvestigationEntry(
+  investigationId: string | null,
+  real: Investigation[],
+): PaletteEntry[] {
+  const inv = real.find((i) => i.id === investigationId);
+  if (!inv) return [];
+  return [
+    {
+      id: `current:${inv.id}`,
+      group: 'Current Investigation',
+      label: `${inv.title} (open)`,
+      description: `${inv.id.toUpperCase()} · ${inv.status.replace(/_/g, ' ')}`,
+      icon: FolderSearch,
+      href: journeyHref(`/investigations/${inv.id}`),
+      keywords: ['current', 'open', 'case', inv.id, inv.title, 'continue'],
+    },
+  ];
+}
+
+// Module-level cache so the palette lists real cases once per session.
+let realInvestigationsPromise: Promise<Investigation[]> | null = null;
+function loadRealInvestigations(): Promise<Investigation[]> {
+  if (!realInvestigationsPromise) {
+    realInvestigationsPromise = listInvestigations({ page_size: 50 })
+      .then((res) => mapInvestigationList(res.items))
+      .catch(() => []);
+  }
+  return realInvestigationsPromise;
+}
+
 export function buildPaletteEntries(): PaletteEntry[] {
   return [
     ...buildNavigationEntries(),
@@ -355,11 +425,29 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const activeInvestigationId = useInvestigationStore((s) => s.investigationId);
+  const [realInvestigations, setRealInvestigations] = useState<Investigation[]>([]);
 
-  const allEntries = useMemo(
-    () => buildPaletteEntriesForCurrent(activeInvestigationId),
-    [activeInvestigationId]
-  );
+  useEffect(() => {
+    if (isMockData()) return;
+    let mounted = true;
+    loadRealInvestigations().then((inv) => {
+      if (mounted) setRealInvestigations(inv);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const allEntries = useMemo(() => {
+    if (isMockData()) return buildPaletteEntriesForCurrent(activeInvestigationId);
+    // API mode: real cases + the static command groups; no invented entities,
+    // datasets, networks, patterns or evidence.
+    return [
+      ...buildRealCurrentInvestigationEntry(activeInvestigationId, realInvestigations),
+      ...buildRealInvestigationEntries(realInvestigations),
+      ...buildStaticEntries(),
+    ];
+  }, [activeInvestigationId, realInvestigations]);
   const recentEntries = useMemo(() => {
     const map = new Map(allEntries.map((e) => [e.id, e]));
     return recent.map((id) => map.get(id)).filter((e): e is PaletteEntry => Boolean(e));

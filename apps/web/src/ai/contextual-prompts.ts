@@ -1,5 +1,6 @@
 import type { AIContextScope } from '@trinetra-pulse/types';
 import type { Investigation } from '@trinetra-pulse/types';
+import { isMockData } from '@/lib/api/config';
 import { mockInvestigationById } from '@/mock/investigations';
 import { mockEntityProfileById } from '@/mock/entity-profiles';
 
@@ -72,10 +73,14 @@ export function buildContextualPrompts({
     );
   }
 
-  // Investigation-scoped prompts referencing real linked objects.
-  const record = scope.investigationId
-    ? mockInvestigationById.get(scope.investigationId)
-    : undefined;
+  // Investigation-scoped prompts referencing real linked objects. The
+  // deterministic mock record is only consulted in mock mode — in API mode the
+  // prompts stay grounded on the passed investigation title + entity names
+  // and the always-safe baseline set (never invented links).
+  const record =
+    isMockData() && scope.investigationId
+      ? mockInvestigationById.get(scope.investigationId)
+      : undefined;
   if (record) {
     const topEntity =
       record.entities[0]?.name ??
@@ -112,7 +117,7 @@ function namedEntity(
   entityNames: string[]
 ): string {
   if (entityNames.length === 1) return entityNames[0];
-  if (scope.entityId) {
+  if (scope.entityId && isMockData()) {
     const profile = mockEntityProfileById.get(scope.entityId);
     if (profile) return profile.displayName;
   }

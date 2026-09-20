@@ -80,8 +80,9 @@ describe('ContextInspector — rendering', () => {
     render(<ContextInspector />);
 
     await waitFor(() => {
-      expect(screen.getByText(/could not resolve context/i)).toBeInTheDocument();
+      expect(screen.getByText('Context unavailable')).toBeInTheDocument();
     });
+    expect(screen.getByText(/could not resolve entity context/i)).toBeInTheDocument();
     expect(screen.getByText(/could not load entity/i)).toBeInTheDocument();
   });
 

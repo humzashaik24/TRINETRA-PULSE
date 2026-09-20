@@ -8,6 +8,7 @@ import { useEvidenceStore } from '@/state/evidence.store';
 import { COVERAGE_LEVEL_LABELS, formatCount } from '@/lib/format';
 import { SUPPORT_LEVEL_VARIANT } from '@/components/evidence/evidence-domain';
 import { mockEvidenceById } from '@/mock';
+import { isMockData } from '@/lib/api/config';
 
 // ============================================================
 // RELATIONSHIP EVIDENCE SUPPORT (Phase 12)
@@ -22,6 +23,12 @@ const DEMO_RELATIONSHIP_LABELS: Record<string, string> = {
   'rel-005': 'AFFILIATED_WITH',
   'rel-008': 'PARTY_TO transaction',
 };
+
+/** Relationship display label: mock mode uses the demo label map; API mode
+ *  falls back to the relationship id (no invented names). */
+function relationshipLabel(relationshipId: string): string {
+  return isMockData() ? DEMO_RELATIONSHIP_LABELS[relationshipId] ?? relationshipId : relationshipId;
+}
 
 export function RelationshipEvidenceSupportList({
   onSelectEvidence,
@@ -59,7 +66,7 @@ export function RelationshipEvidenceSupportList({
                 <Link2 className="h-4 w-4 shrink-0 text-evidence" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">
-                    {DEMO_RELATIONSHIP_LABELS[r.relationshipId] ?? r.relationshipId}
+                    {relationshipLabel(r.relationshipId)}
                   </p>
                   <p className="flex items-center gap-1 text-[11px] text-foreground-muted">
                     <span className="font-mono">{r.sourceEntityId}</span>
@@ -82,7 +89,7 @@ export function RelationshipEvidenceSupportList({
             {r.evidenceIds.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {r.evidenceIds.map((id) => {
-                  const item = mockEvidenceById.get(id);
+                  const item = isMockData() ? mockEvidenceById.get(id) : undefined;
                   return (
                     <button
                       key={id}
